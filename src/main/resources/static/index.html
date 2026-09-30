@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniReview | Plataforma Transmídia Inteligente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --app-bg: #0b0f19;
+            --surface: #131b2e;
+            --surface-hover: #1a2540;
+            --primary: #00f2fe;
+            --primary-glow: rgba(0, 242, 254, 0.2);
+            --accent: #4facfe;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --radius: 12px;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--app-bg); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 30px; 
+            min-height: 100vh;
+        }
+
+        .app-container { max-width: 1400px; margin: 0 auto; }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface);
+            padding: 20px 30px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+        }
+
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .brand-icon {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            width: 45px; height: 45px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px var(--primary-glow);
+        }
+        h1 { margin: 0; font-size: 22px; font-weight: 700; }
+        p.subtitle { margin: 3px 0 0 0; color: var(--text-muted); font-size: 13px; }
+
+        .app-stats { display: flex; gap: 15px; }
+        .stat-badge {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; color: var(--text-muted);
+        }
+        .stat-badge strong { color: var(--primary); }
+
+        .control-panel {
+            background: var(--surface);
+            padding: 24px 30px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            align-items: center;
+        }
+        .control-panel h3 { margin: 0 0 5px 0; font-size: 16px; color: #fff; }
+        .control-panel p { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+        .add-manual-box {
+            background: var(--app-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: var(--radius);
+            margin-bottom: 25px;
+        }
+        .add-manual-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 15px;
+            margin-top: 12px;
+        }
+
+        .btn-action {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #0b0f19; border: none; padding: 12px 24px; font-weight: 700;
+            cursor: pointer; border-radius: 8px; font-size: 13px; transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            white-space: nowrap;
+        }
+        .btn-action:hover { transform: translateY(-2px); opacity: 0.95; }
+        .btn-action:disabled { background: #334155; color: #64748b; box-shadow: none; cursor: not-allowed; }
+
+       
+        .search-container {
+            background: var(--surface);
+            padding: 24px 30px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 25px;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        .input-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .input-control {
+            background: var(--app-bg);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-control:focus { border-color: var(--primary); box-shadow: 0 0 10px var(--primary-glow); }
+
+        
+        .app-tabs {
+            display: flex; gap: 10px; margin-bottom: 25px;
+            background: var(--surface); padding: 8px; border-radius: var(--radius); border: 1px solid var(--border);
+        }
+        .tab-btn {
+            background: transparent; color: var(--text-muted); border: none; padding: 12px 24px;
+            font-weight: 600; cursor: pointer; border-radius: 8px; font-size: 14px; transition: all 0.2s; flex: 1; text-align: center;
+        }
+        .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.03); }
+        .tab-btn.ativo { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #0b0f19; font-weight: 700; box-shadow: 0 4px 15px var(--primary-glow); }
+
+        .tab-content { display: none; }
+        .tab-content.ativo { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 242, 254, 0.4);
+            box-shadow: 0 10px 30px -10px rgba(0, 242, 254, 0.15);
+        }
+
+        .badge-tipo {
+            font-size: 10px; font-weight: 700; color: var(--primary);
+            text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;
+        }
+        .card strong { font-size: 15px; font-weight: 600; display: block; margin-bottom: 8px; color: #fff; }
+        
+        .tag-dna {
+            background: rgba(0, 242, 254, 0.05);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            color: var(--primary); padding: 8px 12px; border-radius: 6px;
+            font-size: 12px; display: block; margin-top: 12px; font-family: monospace;
+        }
+
+        .btn-card {
+            background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--border);
+            padding: 10px; cursor: pointer; border-radius: 8px; margin-top: 18px; width: 100%; font-weight: 600; font-size: 13px; transition: all 0.2s;
+        }
+        .btn-card:hover { background: var(--primary); color: #0b0f19; border-color: var(--primary); }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+            background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">🧬</div>
+                <div>
+                    <h1>OmniReview</h1>
+                    <p class="subtitle">Arquitetura Transmídia Baseada em Grafos e IA Distribuída</p>
+                </div>
+            </div>
+            <div class="app-stats">
+                <div class="stat-badge">Perfil: <strong id="contador-curtidas">0</strong> itens</div>
+                <div class="stat-badge">Motor IA: <strong>Ollama / Llama 3.2</strong></div>
+            </div>
+        </header>
+
+        
+        <div class="control-panel">
+            <div>
+                <h3>Gerenciamento Automático do Banco Neo4j</h3>
+                <p>Executa a ingestão em massa das 140 obras (Filmes, Séries e Jogos).</p>
+            </div>
+            <div>
+                <button class="btn-action" id="btn-popular" onclick="popularBanco()">⚙️ Adicionar 140 Obras</button>
+                <div id="status-importacao" style="color: var(--primary); font-size: 12px; font-weight: 600; margin-top: 6px; text-align: right;"></div>
+            </div>
+        </div>
+
+        
+        <div class="add-manual-box">
+            <h3 style="margin: 0 0 4px 0; font-size: 15px; color: #fff;">➕ Adicionar Obra Individualmente</h3>
+            <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Busque na web e processe o DNA autônomo de um item específico.</p>
+            
+            <div class="add-manual-grid">
+                <div class="input-group" style="margin:0;">
+                    <label>Nome da Obra</label>
+                    <input type="text" id="input-manual-nome" class="input-control" placeholder="Ex: Inception, Elden Ring, Breaking Bad...">
+                </div>
+                <div class="input-group" style="margin:0;">
+                    <label>Tipo de Mídia</label>
+                    <select id="input-manual-tipo" class="input-control">
+                        <option value="filme">Filme</option>
+                        <option value="serie">Série</option>
+                        <option value="jogo">Jogo</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button class="btn-action" onclick="adicionarObraManual()" style="width: 100%;">Processar & Salvar</button>
+                </div>
+            </div>
+            <div id="status-manual" style="color: var(--primary); font-size: 12px; font-weight: 600; margin-top: 8px;"></div>
+        </div>
+
+        
+        <div class="search-container">
+            <h3 style="margin: 0 0 5px 0; font-size: 16px; color: #fff;">🔍 Central de Pesquisa e Filtragem Transmídia</h3>
+            <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Filtre o catálogo por tipo de mídia, temas desejados ou exclua temas indesejados.</p>
+            
+            <div class="search-grid">
+                <div class="input-group">
+                    <label>Busca por Título</label>
+                    <input type="text" id="filtro-texto" class="input-control" placeholder="Ex: Matrix, Witcher..." oninput="executarFiltroAvancado()">
+                </div>
+                <div class="input-group">
+                    <label>Tipo de Mídia</label>
+                    <select id="filtro-midia" class="input-control" onchange="executarFiltroAvancado()">
+                        <option value="TODOS">Todos os Tipos</option>
+                        <option value="filme">Apenas Filmes</option>
+                        <option value="serie">Apenas Séries</option>
+                        <option value="jogo">Apenas Jogos</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Incluir Tema</label>
+                    <input type="text" id="filtro-dna-incluir" class="input-control" placeholder="Ex: cyber, ação" oninput="executarFiltroAvancado()">
+                </div>
+                <div class="input-group">
+                    <label>Excluir Tema</label>
+                    <input type="text" id="filtro-dna-excluir" class="input-control" placeholder="Ex: romance, drama" oninput="executarFiltroAvancado()">
+                </div>
+            </div>
+        </div>
+
+        <div class="app-tabs">
+            <button class="tab-btn ativo" onclick="mudarAba('catalogo', event)">📚 Catálogo Geral / Pesquisa</button>
+            <button class="tab-btn" onclick="mudarAba('recomendacoes', event)">⚡ Recomendações Transmídia</button>
+        </div>
+
+        
+        <div id="aba-catalogo" class="tab-content ativo">
+            <div class="grid" id="grid-catalogo">
+                <div class="empty-state">A carregar registos do Neo4j...</div>
+            </div>
+        </div>
+
+        <div id="aba-recomendacoes" class="tab-content">
+            <div class="grid" id="grid-recomendacoes">
+                <div class="empty-state">Interaja com o catálogo curtindo algumas obras para alimentar o motor de inferência.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let catalogoGlobal = [];
+        let obrasCurtidas = [];
+
+        function mudarAba(nomeAba, evento) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('ativo'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('ativo'));
+            
+            document.getElementById(`aba-${nomeAba}`).classList.add('ativo');
+            evento.currentTarget.classList.add('ativo');
+
+            if(nomeAba === 'recomendacoes') gerarRecomendacaoInteligente();
+        }
+
+        async function carregarBibliotecaLocal() {
+            try {
+                const resposta = await fetch('/api/obras');
+                catalogoGlobal = await resposta.json();
+                executarFiltroAvancado();
+            } catch(e) {
+                console.error("Erro ao sincronizar com o backend:", e);
+            }
+        }
+
+        async function adicionarObraManual() {
+            const nome = document.getElementById('input-manual-nome').value.trim();
+            const tipo = document.getElementById('input-manual-tipo').value;
+            const status = document.getElementById('status-manual');
+
+            if (!nome) {
+                status.innerText = "⚠️ Por favor, insira o nome da obra.";
+                return;
+            }
+
+            status.innerText = `A processar "${nome}" via IA local e API...`;
+
+            try {
+                const resposta = await fetch(`/api/adicionar/${tipo}?nome=${encodeURIComponent(nome)}`, { method: 'POST' });
+                if (resposta.ok) {
+                    status.innerText = `✨ "${nome}" adicionado com sucesso ao Neo4j!`;
+                    document.getElementById('input-manual-nome').value = "";
+                    carregarBibliotecaLocal();
+                } else {
+                    status.innerText = "❌ Erro ao processar obra no backend.";
+                }
+            } catch(e) {
+                status.innerText = "❌ Erro de conexão com o servidor.";
+            }
+        }
+
+       function executarFiltroAvancado() {
+            const textoBusca = document.getElementById('filtro-texto').value.toLowerCase().trim();
+            const tipoMidia = document.getElementById('filtro-midia').value;
+            const dnaIncluir = document.getElementById('filtro-dna-incluir').value.toLowerCase().trim();
+            const dnaExcluir = document.getElementById('filtro-dna-excluir').value.toLowerCase().trim();
+
+            const filtrados = catalogoGlobal.filter(obra => {
+                const titulo = (obra.titulo || obra.nome || '').toLowerCase();
+                const tipo = (obra.tipo || '').toLowerCase();
+                const dna = (obra.dnaCriativo || obra.dna || '').toLowerCase();
+
+                // 1. Filtro de Título
+                if (textoBusca && !titulo.includes(textoBusca)) return false;
+
+                // 2. Filtro de Tipo de Mídia
+                if (tipoMidia !== 'TODOS' && !tipo.includes(tipoMidia)) return false;
+
+                // 3. Filtro de Inclusão de Tema (DNA) - Permite buscar por palavras-chave parciais
+                if (dnaIncluir) {
+                    const termosInclusao = dnaIncluir.split(',').map(t => t.trim()).filter(t => t);
+                    const atendeAlgumTermo = termosInclusao.some(termo => dna.includes(termo) || titulo.includes(termo));
+                    if (!atendeAlgumTermo) return false;
+                }
+
+                // 4. Filtro de Exclusão de Tema (Blocklist estrita)
+                if (dnaExcluir) {
+                    const termosExclusao = dnaExcluir.split(',').map(t => t.trim()).filter(t => t);
+                    const contemTermoProibido = termosExclusao.some(termo => dna.includes(termo) || titulo.includes(termo));
+                    if (contemTermoProibido) return false;
+                }
+
+                return true;
+            });
+
+            renderizarCatalogo(filtrados);
+        }
+
+        function renderizarCatalogo(lista) {
+            const grid = document.getElementById('grid-catalogo');
+            grid.innerHTML = "";
+
+            if (!lista || lista.length === 0) {
+                grid.innerHTML = `<div class="empty-state">Nenhum registo encontrado com os filtros selecionados.</div>`;
+                return;
+            }
+
+            grid.innerHTML = lista.map(obra => {
+                const titulo = obra.titulo || obra.nome || 'Sem Título';
+                const tipo = obra.tipo || 'Obra';
+                const dna = obra.dnaCriativo || obra.dna || 'Processando DNA...';
+                const tipoFormatado = tipo.toLowerCase();
+
+                return `
+                    <div class="card">
+                        <div>
+                            <span class="badge-tipo">📌 ${tipo}</span>
+                            <strong>${titulo}</strong>
+                            <span class="tag-dna">🧬 ${dna}</span>
+                        </div>
+                        <button class="btn-card" onclick="curtir('${titulo.replace(/'/g, "\\'")}', '${dna.replace(/'/g, "\\'")}', '${tipoFormatado}')">❤️ Adicionar ao Perfil</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function popularBanco() {
+            const status = document.getElementById('status-importacao');
+            const btn = document.getElementById('btn-popular');
+            btn.disabled = true;
+            status.innerText = "A contactar APIs e IA local...";
+
+            try {
+                const [resF, resS, resJ] = await Promise.all([
+                    fetch('/api/tendencias/filmes'),
+                    fetch('/api/tendencias/series'),
+                    fetch('/api/tendencias/jogos')
+                ]);
+
+                const filmes = await resF.json();
+                const series = await resS.json();
+                const jogos = await resJ.json();
+
+                const todasAsObras = [
+                    ...filmes.map(f => ({nome: f, tipo: 'filme'})), 
+                    ...series.map(s => ({nome: s, tipo: 'serie'})),
+                    ...jogos.map(j => ({nome: j, tipo: 'jogo'}))
+                ];
+
+                let contador = 0;
+                for(let obra of todasAsObras) {
+                    contador++;
+                    status.innerText = `Processando ${contador}/${todasAsObras.length}...`;
+                    try {
+                        await fetch(`/api/adicionar/${obra.tipo}?nome=${encodeURIComponent(obra.nome)}`, { method: 'POST' });
+                    } catch(err) {}
+                }
+
+                status.innerText = "✨ Ingestão concluída com sucesso!";
+                btn.disabled = false;
+                carregarBibliotecaLocal();
+            } catch(e) {
+                status.innerText = "Erro crítico na pipeline.";
+                btn.disabled = false;
+            }
+        }
+
+        function curtir(titulo, dnaString, tipo) {
+            if (obrasCurtidas.some(o => o.titulo === titulo)) return;
+            obrasCurtidas.push({ titulo, dnaString, tipo });
+            document.getElementById('contador-curtidas').innerText = obrasCurtidas.length;
+            
+            const eventToast = document.createElement('div');
+            eventToast.style.cssText = "position:fixed; bottom:20px; right:20px; background:#00f2fe; color:#0b0f19; padding:12px 20px; border-radius:8px; font-weight:700; z-index:9999; box-shadow:0 5px 20px rgba(0,242,254,0.4);";
+            eventToast.innerText = `✓ "${titulo}" mapeado ao perfil comportamental!`;
+            document.body.appendChild(eventToast);
+            setTimeout(() => eventToast.remove(), 2500);
+        }
+
+        async function gerarRecomendacaoInteligente() {
+            const divRecomendacoes = document.getElementById('grid-recomendacoes');
+            if(obrasCurtidas.length === 0) {
+                divRecomendacoes.innerHTML = `<div class="empty-state">Nenhum perfil comportamental ativo. Adicione itens aos favoritos no Catálogo para acionar o motor de inferência.</div>`;
+                return;
+            }
+
+            let todasAsTags = [];
+            obrasCurtidas.forEach(o => todasAsTags.push(...o.dnaString.split(',').map(t => t.trim())));
+            let tagMaisComum = todasAsTags[0] || 'ação';
+            let ultimoTitulo = obrasCurtidas[obrasCurtidas.length - 1].titulo;
+
+            try {
+                const resposta = await fetch(`/api/recomendar?dna=${tagMaisComum}&titulo=${encodeURIComponent(ultimoTitulo)}`);
+                const recomendados = await resposta.json();
+
+                const listaFiltrada = recomendados.filter(rec => !obrasCurtidas.some(c => c.titulo === rec.titulo));
+
+                if(!listaFiltrada || listaFiltrada.length === 0) {
+                    divRecomendacoes.innerHTML = `<div class="empty-state">Nenhuma recomendação cruzada encontrada no momento.</div>`;
+                    return;
+                }
+
+                divRecomendacoes.innerHTML = listaFiltrada.map(obra => `
+                    <div class="card" style="border-color: rgba(0, 242, 254, 0.2);">
+                        <div>
+                            <span class="badge-tipo">Sugestão Transmídia (${obra.tipo})</span>
+                            <strong style="margin-top: 4px;">${obra.titulo}</strong>
+                            <span class="tag-dna">🧬 ${obra.dnaCriativo}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                divRecomendacoes.innerHTML = `<div class="empty-state">Erro ao consultar a matriz de grafos no Neo4j.</div>`;
+            }
+        }
+
+        carregarBibliotecaLocal();
+    </script>
+</body>
+</html>
