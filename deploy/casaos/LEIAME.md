@@ -1,9 +1,9 @@
 # OmniReview no CasaOS
 
-O app tem três containers: **neo4j** (banco, sem portas abertas), **restaurar-banco** (carrega o banco exportado
-na primeira vez) e **omnireview** (o site, na porta **18090** do servidor). A imagem do site é publicada
-automaticamente em `ghcr.io/bryanpinaffo/omnireview` pelo GitHub Actions a cada atualização do back-end.
-O acesso público é feito pelo **Tailscale Funnel** (HTTPS), então nenhuma porta precisa ser aberta no roteador.
+O app tem dois containers: **omnireview-neo4j** (banco, sem portas abertas) e **omnireview** (o site, na porta
+**18090** do servidor). A imagem do site é publicada automaticamente em `ghcr.io/bryanpinaffo/omnireview` pelo
+GitHub Actions a cada atualização do back-end. O acesso público é feito pelo **Tailscale Funnel** (HTTPS), então
+nenhuma porta precisa ser aberta no roteador.
 
 Os dados ficam em `/DATA/AppData/omnireview/` (padrão do CasaOS):
 
@@ -11,15 +11,19 @@ Os dados ficam em `/DATA/AppData/omnireview/` (padrão do CasaOS):
 |---|---|
 | `neo4j/data` | Banco de dados |
 | `neo4j/logs` | Logs do Neo4j |
-| `backup` | Coloque aqui o `neo4j.dump` para restaurar |
+| `backup` | Onde colocar o `neo4j.dump` para restaurar |
 
-## 1. Levar o banco atual (antes de instalar)
+## 1. Levar o banco atual (opcional, antes de instalar)
 
-No CasaOS, abra **Files** e crie a pasta `/DATA/AppData/omnireview/backup`. Envie para ela o arquivo
-`neo4j.dump` (no notebook: `C:\Users\Bryan\Downloads\OmniReview_implantacao\neo4j.dump`).
+Em **Files**, envie o `neo4j.dump` para `/DATA/AppData/omnireview/backup` e, no terminal do servidor:
 
-> Faça isso **antes** de instalar o app: na primeira vez que ele sobe, o container `restaurar-banco` carrega o
-> arquivo e cria a marca `.omnireview-restaurado`, para nunca mais sobrescrever o banco.
+```bash
+sudo mkdir -p /DATA/AppData/omnireview/neo4j/data
+sudo docker run --rm -v /DATA/AppData/omnireview/neo4j/data:/data -v /DATA/AppData/omnireview/backup:/backups \
+  neo4j:2026.08.1 neo4j-admin database load neo4j --from-path=/backups --overwrite-destination=true
+```
+
+Sem esse passo, o app começa com o banco vazio (é só importar as tendências pela Administração).
 
 ## 2. Instalar o app
 
@@ -28,40 +32,43 @@ No CasaOS, abra **Files** e crie a pasta `/DATA/AppData/omnireview/backup`. Envi
    `C:\Users\Bryan\Downloads\OmniReview_implantacao\omnireview-casaos.yml`
    (o modelo sem senhas é o `deploy/casaos/docker-compose.yml` deste repositório).
 3. Confira a porta do site (**18090**; se estiver ocupada, troque só o número da esquerda) e clique em **Instalar**.
-4. Aguarde o ícone do OmniReview ficar verde e abra: `http://<ip-do-servidor>:18090`.
+4. O OmniReview aparece como um app (com ícone) na tela inicial; clique nele para abrir.
 
 Entre com o usuário **admin** e a senha que você já usava no site (o banco restaurado mantém a senha atual;
 a senha do arquivo só vale se a conta ainda não existir).
 
+> Na primeira vez o site pode levar até 1 minuto para responder: ele espera o Neo4j terminar de iniciar.
+
 ## 3. Publicar na internet (Tailscale Funnel)
 
-No terminal do servidor (SSH ou o terminal do CasaOS):
+O Tailscale do CasaOS roda em container, então os comandos são executados dentro dele:
 
 ```bash
-sudo tailscale funnel --bg 18090
-tailscale funnel status          # mostra o endereço público https://...ts.net
+TS=$(sudo docker ps --format '{{.Names}}' | grep -i tailscale | head -1)
+sudo docker exec "$TS" tailscale funnel --bg http://172.17.0.1:18090
+sudo docker exec "$TS" tailscale funnel status      # mostra o endereço público https://...ts.net
 ```
 
 Na primeira vez o Tailscale mostra um link para ativar o Funnel e o HTTPS no seu tailnet: abra, confirme e rode o
-comando de novo. Se o Tailscale estiver instalado como app do CasaOS (em container), use
-`docker exec <nome-do-container-do-tailscale> tailscale funnel --bg 18090`.
+comando de novo. Teste o endereço no celular **com o Wi-Fi desligado e o app do Tailscale desconectado**.
 
-Teste o endereço no celular **com o Wi-Fi desligado**.
+| O quê | Comando |
+|---|---|
+| Tirar da internet (o site continua rodando) | `sudo docker exec "$TS" tailscale funnel --https=443 off` |
+| Só para quem está no seu Tailscale | `sudo docker exec "$TS" tailscale serve --bg http://172.17.0.1:18090` |
+| Ligar / desligar o site | botões do app no painel do CasaOS |
 
 ## Atualizar o site
 
-Cada atualização no GitHub gera uma imagem nova. No CasaOS, abra as configurações do app OmniReview e use
-**Verificar atualizações / Atualizar** (ou, no terminal: `docker pull ghcr.io/bryanpinaffo/omnireview:latest`
-e reinicie o app). O banco não é afetado.
+Cada atualização no GitHub gera uma imagem nova. No terminal: `sudo docker pull ghcr.io/bryanpinaffo/omnireview:latest`
+e, no CasaOS, reinicie o app OmniReview (ou use **Verificar atualizações**). O banco não é afetado.
 
 ## Problemas comuns
 
-- **"pull access denied" ao instalar**: o pacote da imagem no GitHub ainda está privado. Em
-  github.com/BryanPinaffo → **Packages** → **omnireview** → **Package settings** → **Change visibility** → **Public**.
+- **Erro 502 ao clicar em Instalar**: rode `sudo docker pull neo4j:2026.08.1 && sudo docker pull ghcr.io/bryanpinaffo/omnireview:latest`
+  e tente de novo. Se continuar, veja o motivo com `sudo journalctl -u casaos-app-management --no-pager -n 40`.
 - **Obras novas só com gêneros, sem tags da IA**: o site não alcançou o Ollama. Confira `OMNIREVIEW_OLLAMA_URL`
   (o IP do Tailscale do servidor funciona de dentro do container; outra opção é `http://172.17.0.1:11434`).
-- **Restaurar de novo** (substitui o banco do servidor): pare o app, apague o arquivo
-  `/DATA/AppData/omnireview/neo4j/data/.omnireview-restaurado`, coloque o novo `neo4j.dump` em `backup` e inicie o app.
 - **Esqueci a senha do admin**: nas configurações do app, adicione a variável `OMNIREVIEW_ADMIN_FORCARSENHA=true`
   no container omnireview, salve (o app reinicia), entre com a senha do arquivo e depois remova a variável.
-- **Ver logs**: CasaOS → app OmniReview → **Logs**, ou `docker logs -f omnireview-omnireview-1`.
+- **Ver logs**: CasaOS → app OmniReview → **Logs**, ou `sudo docker logs -f omnireview`.

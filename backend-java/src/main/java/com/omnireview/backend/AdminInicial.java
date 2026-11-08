@@ -3,6 +3,7 @@ package com.omnireview.backend;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
  * senha redefinida pelo site; para voltar à senha configurada (senha esquecida), use omnireview.admin.forcar-senha=true.
  */
 @Component
+@Order(2)   // depois da InicializacaoGrafo, que espera o Neo4j ficar disponível
 public class AdminInicial implements ApplicationRunner {
 
     private final AutenticacaoService auth;

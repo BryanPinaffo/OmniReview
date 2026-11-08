@@ -1,56 +1,47 @@
 # OmniReview para o CasaOS: App Store → "+" (Instalação personalizada) → Importar → cole este arquivo.
 # Antes de importar, troque os valores TROQUE_... (ou use o arquivo já preenchido que fica fora do Git).
 #
+# Versão simples (só recursos que o importador do CasaOS aceita):
 # - neo4j: banco, SEM portas publicadas (só o site fala com ele, pela rede interna do app);
-# - restaurar-banco: na primeira vez, se houver /DATA/AppData/omnireview/backup/neo4j.dump, carrega o banco
-#   exportado e marca como feito (não roda de novo, nem apaga dados depois);
 # - omnireview: o site, na porta 18090 do servidor. O acesso público é pelo Tailscale Funnel (HTTPS).
+# Para levar um banco exportado (neo4j.dump), restaure ANTES de instalar: veja deploy/casaos/LEIAME.md.
 name: omnireview
 
 services:
-  restaurar-banco:
-    image: neo4j:2026.08.1
-    restart: "no"
-    entrypoint: ["bash", "-c"]
-    command:
-      - |
-        if [ -f /backups/neo4j.dump ] && [ ! -f /data/.omnireview-restaurado ]; then
-          echo "Restaurando o banco a partir de neo4j.dump..."
-          neo4j-admin database load neo4j --from-path=/backups --overwrite-destination=true \
-            && touch /data/.omnireview-restaurado && echo "Banco restaurado."
-        else
-          echo "Nada para restaurar."
-        fi
-    volumes:
-      - /DATA/AppData/omnireview/neo4j/data:/data
-      - /DATA/AppData/omnireview/backup:/backups
-
   neo4j:
     image: neo4j:2026.08.1
+    container_name: omnireview-neo4j
     restart: unless-stopped
-    depends_on:
-      restaurar-banco:
-        condition: service_completed_successfully
     environment:
       NEO4J_AUTH: neo4j/TROQUE_SENHA_DO_NEO4J
     volumes:
-      - /DATA/AppData/omnireview/neo4j/data:/data
-      - /DATA/AppData/omnireview/neo4j/logs:/logs
-    healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$${NEO4J_AUTH#neo4j/}\" 'RETURN 1' >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 10s
-      retries: 30
-      start_period: 30s
+      - type: bind
+        source: /DATA/AppData/omnireview/neo4j/data
+        target: /data
+      - type: bind
+        source: /DATA/AppData/omnireview/neo4j/logs
+        target: /logs
+    x-casaos:
+      volumes:
+        - container: /data
+          description:
+            en_us: Neo4j database
+            pt_br: Banco de dados Neo4j
+        - container: /logs
+          description:
+            en_us: Neo4j logs
+            pt_br: Logs do Neo4j
 
   omnireview:
     image: ghcr.io/bryanpinaffo/omnireview:latest
+    container_name: omnireview
     restart: unless-stopped
     depends_on:
-      neo4j:
-        condition: service_healthy
+      - neo4j
     ports:
-      - "18090:8080"
+      - target: 8080
+        published: "18090"
+        protocol: tcp
     environment:
       SPRING_NEO4J_URI: bolt://neo4j:7687
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: TROQUE_SENHA_DO_NEO4J
@@ -59,6 +50,12 @@ services:
       OMNIREVIEW_OLLAMA_URL: http://TROQUE_IP_DO_OLLAMA:11434
       OMNIREVIEW_ADMIN_USUARIO: admin
       OMNIREVIEW_ADMIN_SENHA: TROQUE_SENHA_DO_ADMIN
+    x-casaos:
+      ports:
+        - container: "8080"
+          description:
+            en_us: Web UI
+            pt_br: Interface web
 
 x-casaos:
   architectures:
