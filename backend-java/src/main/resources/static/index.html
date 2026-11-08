@@ -729,9 +729,12 @@
         .editor-capa { height: 150px; border-radius: 14px; background-size: cover; background-position: center; position: relative; overflow: hidden; border: 1px solid var(--line-strong);
             background-color: var(--surface);
             background-image: radial-gradient(400px 200px at 20% 0%, rgba(139,123,255,0.45), transparent 70%), radial-gradient(400px 200px at 90% 100%, rgba(61,214,245,0.3), transparent 70%); }
-        .editor-capa-acoes { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 8px; }
+        /* Botões no topo da capa: embaixo ficam a foto e os botões dela (que sobem 38px por cima da capa) */
+        .editor-capa-acoes { position: absolute; right: 10px; top: 10px; z-index: 2; display: flex; gap: 8px; }
         .editor-capa-acoes .btn, .editor-foto-acoes .btn { padding: 7px 12px; font-size: 13px; background: rgba(8,9,13,0.75); }
-        .editor-foto { display: flex; align-items: center; gap: 16px; margin: -38px 0 16px 16px; position: relative; flex-wrap: wrap; }
+        /* A área vazia desse bloco não pode "engolir" cliques na capa; só a foto e os botões recebem clique */
+        .editor-foto { display: flex; align-items: center; gap: 16px; margin: -38px 0 16px 16px; position: relative; flex-wrap: wrap; pointer-events: none; }
+        .editor-foto > * { pointer-events: auto; }
         .editor-foto .avatar { width: 88px; height: 88px; font-size: 34px; border: 4px solid var(--bg-soft); }
         .editor-foto-acoes { display: flex; gap: 8px; margin-top: 36px; flex-wrap: wrap; }
         .dialogo textarea.input { height: auto; min-height: 84px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
