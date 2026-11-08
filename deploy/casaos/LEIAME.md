@@ -1,7 +1,7 @@
 # OmniReview no CasaOS
 
 O app tem três containers: **neo4j** (banco, sem portas abertas), **restaurar-banco** (carrega o banco exportado
-na primeira vez) e **omnireview** (o site, na porta **8090** do servidor). A imagem do site é publicada
+na primeira vez) e **omnireview** (o site, na porta **18090** do servidor). A imagem do site é publicada
 automaticamente em `ghcr.io/bryanpinaffo/omnireview` pelo GitHub Actions a cada atualização do back-end.
 O acesso público é feito pelo **Tailscale Funnel** (HTTPS), então nenhuma porta precisa ser aberta no roteador.
 
@@ -27,8 +27,8 @@ No CasaOS, abra **Files** e crie a pasta `/DATA/AppData/omnireview/backup`. Envi
 2. Cole o conteúdo do arquivo já preenchido com as suas senhas:
    `C:\Users\Bryan\Downloads\OmniReview_implantacao\omnireview-casaos.yml`
    (o modelo sem senhas é o `deploy/casaos/docker-compose.yml` deste repositório).
-3. Confira a porta do site (**8090**; se estiver ocupada, troque só o número da esquerda) e clique em **Instalar**.
-4. Aguarde o ícone do OmniReview ficar verde e abra: `http://<ip-do-servidor>:8090`.
+3. Confira a porta do site (**18090**; se estiver ocupada, troque só o número da esquerda) e clique em **Instalar**.
+4. Aguarde o ícone do OmniReview ficar verde e abra: `http://<ip-do-servidor>:18090`.
 
 Entre com o usuário **admin** e a senha que você já usava no site (o banco restaurado mantém a senha atual;
 a senha do arquivo só vale se a conta ainda não existir).
@@ -38,13 +38,13 @@ a senha do arquivo só vale se a conta ainda não existir).
 No terminal do servidor (SSH ou o terminal do CasaOS):
 
 ```bash
-sudo tailscale funnel --bg 8090
+sudo tailscale funnel --bg 18090
 tailscale funnel status          # mostra o endereço público https://...ts.net
 ```
 
 Na primeira vez o Tailscale mostra um link para ativar o Funnel e o HTTPS no seu tailnet: abra, confirme e rode o
 comando de novo. Se o Tailscale estiver instalado como app do CasaOS (em container), use
-`docker exec <nome-do-container-do-tailscale> tailscale funnel --bg 8090`.
+`docker exec <nome-do-container-do-tailscale> tailscale funnel --bg 18090`.
 
 Teste o endereço no celular **com o Wi-Fi desligado**.
 
