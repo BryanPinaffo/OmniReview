@@ -12,6 +12,10 @@ services:
     image: neo4j:2026.08.1
     container_name: omnireview-neo4j
     restart: unless-stopped
+    networks:
+      omnireview:
+        aliases:
+          - neo4j
     environment:
       NEO4J_AUTH: neo4j/TROQUE_SENHA_DO_NEO4J
     volumes:
@@ -38,6 +42,8 @@ services:
     restart: unless-stopped
     depends_on:
       - neo4j
+    networks:
+      - omnireview
     ports:
       - target: 8080
         published: "18090"
@@ -56,6 +62,11 @@ services:
           description:
             en_us: Web UI
             pt_br: Interface web
+
+# Rede própria do app: na rede "bridge" padrão do Docker um container não encontra o outro pelo nome
+networks:
+  omnireview:
+    name: omnireview
 
 x-casaos:
   architectures:
