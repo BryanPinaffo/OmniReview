@@ -1,0 +1,26 @@
+# Neo4j para o servidor de produção (usado por deploy/instalar.sh).
+# Diferenças em relação ao docker-compose.yml de desenvolvimento:
+#  - versão fixa (a mesma do banco exportado), para o dump ser compatível;
+#  - portas abertas só para a própria máquina (127.0.0.1): o banco não fica exposto na rede;
+#  - volume com nome: os dados sobrevivem a "docker compose down" e a atualizações da imagem;
+#  - reinicia sozinho junto com o Docker.
+name: omnireview
+
+services:
+  neo4j:
+    image: neo4j:2026.08.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?defina NEO4J_PASSWORD em deploy/.env}
+    volumes:
+      - neo4j_dados:/data
+      - neo4j_logs:/logs
+
+volumes:
+  neo4j_dados:
+    name: omnireview_neo4j_dados
+  neo4j_logs:
+    name: omnireview_neo4j_logs

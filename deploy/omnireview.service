@@ -1,0 +1,27 @@
+# Serviço do back-end OmniReview (instalado por deploy/instalar.sh em /etc/systemd/system/).
+# O site escuta só em 127.0.0.1; o acesso público é feito pelo Tailscale Funnel (HTTPS).
+[Unit]
+Description=OmniReview (Spring Boot)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=omnireview
+Group=omnireview
+# Pasta com omnireview.jar e config/segredos.properties (lido pelo spring.config.import)
+WorkingDirectory=/opt/omnireview
+ExecStart=/usr/bin/java -jar /opt/omnireview/omnireview.jar --server.address=127.0.0.1 --server.port=__PORTA__
+Restart=always
+RestartSec=10
+SuccessExitStatus=143
+
+# Endurecimento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

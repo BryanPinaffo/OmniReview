@@ -1,0 +1,4 @@
+# Scripts e unidades do servidor Linux sempre com fim de linha LF (CRLF quebra o bash e o systemd)
+*.sh text eol=lf
+deploy/* text eol=lf
+mvnw text eol=lf

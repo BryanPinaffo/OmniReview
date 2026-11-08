@@ -29,6 +29,11 @@ por travessia no grafo com peso IDF, intercalando filmes, séries e jogos.
    usam **Criar conta** (usuário comum) ou recebem uma conta criada pelo administrador.
 5. **Protótipo React (opcional):** `cd frontend-react && npm install && npm run dev`.
 
+## Colocar online
+
+Para publicar o site (servidor Linux + Tailscale Funnel, com HTTPS), siga [deploy/LEIAME.md](deploy/LEIAME.md):
+`sudo bash deploy/instalar.sh --restaurar neo4j.dump` instala o Neo4j, o back-end como serviço e publica o endereço.
+
 ## Login
 
 - Usuário: 3 a 30 caracteres (letras minúsculas, números, `.`, `-`, `_`); senha: 8 a 128 caracteres.
