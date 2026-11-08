@@ -1,4 +1,13 @@
-# Scripts e unidades do servidor Linux sempre com fim de linha LF (CRLF quebra o bash e o systemd)
+# Arquivos usados no servidor Linux sempre com fim de linha LF (CRLF quebra o bash, o systemd e o Docker)
 *.sh text eol=lf
-deploy/* text eol=lf
+*.service text eol=lf
 mvnw text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+
+# Binários
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
+*.dump binary
