@@ -1,0 +1,24 @@
+@startuml seq_recomendar
+!include estilo.iuml
+title Sequência — Recomendação transmídia (UC05 + UC06)
+autonumber
+actor Usuário
+participant "index.html\n(navegador)" as UI
+participant RecomendacaoController as C
+participant ObraRepository as R
+database Neo4j
+
+Usuário -> UI : favorita obras (coração)
+UI -> UI : salva favoritos no localStorage
+Usuário -> UI : abre "Para você"
+UI -> UI : conta a frequência das tags dos favoritos\ne seleciona as 5 mais comuns
+UI -> C : GET /api/recomendar?tags=..&excluir=..
+C -> C : remove tags inválidas e duplicadas
+C -> R : recomendarPorTags(tags, excluir)
+R -> Neo4j : MATCH (t:Tag)<-[:TEM_TAG]-(o:Obra) WHERE t.nome IN $tags\npeso(t) = 1 + ln(N / df(t))\nscore(o) = soma dos pesos; ORDER BY score DESC LIMIT 60
+Neo4j --> R : até 60 obras ranqueadas
+R --> C : List<Obra>
+C -> C : intercalarPorTipo(ranking, 20)\n(Filme / Série / Jogo, round-robin)
+C --> UI : List<Obra> (JSON)
+UI -> UI : renderiza cards (capa, título, tags)
+@enduml

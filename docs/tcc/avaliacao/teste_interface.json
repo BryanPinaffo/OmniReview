@@ -1,0 +1,164 @@
+{
+  "url": "http://localhost:8081/",
+  "executado_em": "2026-11-08T06:04:15.302Z",
+  "aprovados": 26,
+  "total": 26,
+  "casos": [
+    {
+      "id": "T00",
+      "descricao": "Sem sessão, o site redireciona para a tela de login",
+      "ok": true,
+      "detalhe": "/login.html"
+    },
+    {
+      "id": "T11",
+      "descricao": "Login com senha errada mostra mensagem de erro e não entra",
+      "ok": true,
+      "detalhe": "Usuário ou senha inválidos."
+    },
+    {
+      "id": "T12",
+      "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
+      "ok": true,
+      "detalhe": "usuário teste_ui_3b76oe; menu mostra \"teste_ui_3b76oe\""
+    },
+    {
+      "id": "T01",
+      "descricao": "Catálogo carrega cards do back-end",
+      "ok": true,
+      "detalhe": "44 cards"
+    },
+    {
+      "id": "T02",
+      "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
+      "ok": true,
+      "detalhe": "24 imagens carregadas"
+    },
+    {
+      "id": "T16",
+      "descricao": "Busca da tela inicial sugere obras do acervo e abre a obra digitada",
+      "ok": true,
+      "detalhe": "\"Resident Evil\""
+    },
+    {
+      "id": "T03",
+      "descricao": "Favorito persiste após recarregar a página (RF06)",
+      "ok": true,
+      "detalhe": "\"Resident Evil\", contador=1"
+    },
+    {
+      "id": "T04",
+      "descricao": "Janela flutuante mostra título, sinopse e tags (RF05)",
+      "ok": true,
+      "detalhe": "sinopse com 406 caracteres, 4 tags"
+    },
+    {
+      "id": "T05",
+      "descricao": "Janela mostra obras com o mesmo DNA (RF08)",
+      "ok": true,
+      "detalhe": "12 obras"
+    },
+    {
+      "id": "T14",
+      "descricao": "Avaliar com estrelas atualiza a média ao lado do título (modal e card)",
+      "ok": true,
+      "detalhe": "modal: \"4,0/ 5 · 1 avaliação\", card: \"4,0\""
+    },
+    {
+      "id": "T15",
+      "descricao": "Comentário é publicado (texto escapado, sem HTML) e o autor pode excluí-lo",
+      "ok": true,
+      "detalhe": "publicado=true, escapado=true, excluído=true"
+    },
+    {
+      "id": "T06",
+      "descricao": "Tecla Esc fecha a janela",
+      "ok": true,
+      "detalhe": ""
+    },
+    {
+      "id": "T07",
+      "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
+      "ok": true,
+      "detalhe": "Filme, Série, Jogo"
+    },
+    {
+      "id": "T08",
+      "descricao": "Busca e filtro por mídia funcionam (RF04)",
+      "ok": true,
+      "detalhe": ""
+    },
+    {
+      "id": "T21",
+      "descricao": "Botão \"assisti / terminei o jogo\" marca a obra e mostra o selo no card",
+      "ok": true,
+      "detalhe": "filme: \"Já assisti\", jogo: \"Jogo terminado\""
+    },
+    {
+      "id": "T22",
+      "descricao": "Perfil mostra jogos jogados, filmes e séries assistidos e reviews",
+      "ok": true,
+      "detalhe": "1 jogos jogados | 1 filmes assistidos | 0 séries assistidas | 1 review | 0 seguidores | 0 seguindo"
+    },
+    {
+      "id": "T23",
+      "descricao": "Perfil aceita foto, capa de fundo e bio (texto escapado)",
+      "ok": true,
+      "detalhe": "bio: \"Fã de terror e RPG. <script>alert(1)</script>\""
+    },
+    {
+      "id": "T24",
+      "descricao": "Seguir e deixar de seguir outro usuário atualiza os contadores",
+      "ok": true,
+      "detalhe": "seguindo=1, seguidores do outro=1"
+    },
+    {
+      "id": "T25",
+      "descricao": "Redefinir senha: recusa a senha atual errada, troca e mantém a sessão",
+      "ok": true,
+      "detalhe": "nova senha: 200, antiga: 401, sessão atual: 200"
+    },
+    {
+      "id": "T26",
+      "descricao": "Minhas listas: listas padrão, salvar pela obra, criar, ver, remover, renomear e excluir",
+      "ok": true,
+      "detalhe": "padrão=Quero assistir, Quero jogar; salvou=true, criou=true, mostrou=true, selo=true, removeu=true, renomeou=true, excluiu=true"
+    },
+    {
+      "id": "T09",
+      "descricao": "Sem rolagem horizontal em 400 px (RNF08)",
+      "ok": true,
+      "detalhe": "scrollWidth=400, largura=400"
+    },
+    {
+      "id": "T18",
+      "descricao": "Usuário comum não vê a Administração e o servidor recusa as rotas de admin (403)",
+      "ok": true,
+      "detalhe": "status: 403, 403, 403, 403"
+    },
+    {
+      "id": "T10",
+      "descricao": "Nenhum erro de JavaScript no console",
+      "ok": true,
+      "detalhe": ""
+    },
+    {
+      "id": "T13",
+      "descricao": "Sair volta ao login e invalida o token no servidor",
+      "ok": true,
+      "detalhe": "GET /api/obras com o token antigo: 401"
+    },
+    {
+      "id": "T19",
+      "descricao": "Administrador vê os usuários, cria uma conta comum e a exclui",
+      "ok": true,
+      "detalhe": "entrou=true, listou=true, criou=true, excluiu=true, admin protegido=true"
+    },
+    {
+      "id": "T20",
+      "descricao": "Administração sem rolagem horizontal em 400 px",
+      "ok": true,
+      "detalhe": "scrollWidth=400"
+    }
+  ]
+}

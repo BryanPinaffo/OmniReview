@@ -1,0 +1,49 @@
+@startuml componentes
+!include estilo.iuml
+title Diagrama de Componentes e Implantação — OmniReview
+
+node "Navegador" {
+  [index.html\n(SPA HTML/CSS/JS)] as SPA
+  [frontend-react\n(protótipo mobile, Vite)] as REACT
+}
+node "Servidor da aplicação (localhost:8080)" {
+  package "Spring Boot 4.1 / Java 17" {
+    [RecomendacaoController\n(REST /api)] as CTRL
+    [IaService] as IAS
+    [TmdbService] as TS
+    [RawgService] as RS
+    [SteamService] as SS
+    [ObraRepository\n(Spring Data Neo4j)] as REPO
+    [InicializacaoGrafo] as INIT
+  }
+  file "config/segredos.properties\n(fora do Git)" as CFG
+}
+node "Docker" {
+  database "Neo4j 2026.08\n(:Obra)-[:TEM_TAG]->(:Tag)" as NEO
+}
+node "Servidor de IA (rede Tailscale)" {
+  [Ollama :11434\nllama3.2:3b] as OLL
+}
+cloud "Internet" {
+  [TMDB API] as TMDB
+  [RAWG API] as RAWG
+  [Steam Store API] as STEAM
+}
+
+SPA --> CTRL : HTTP/JSON
+REACT --> CTRL : HTTP/JSON
+CTRL --> IAS
+CTRL --> TS
+CTRL --> RS
+CTRL --> REPO
+RS --> SS : fallback / disjuntor
+REPO --> NEO : Bolt
+INIT --> NEO : restrições + TEM_TAG
+IAS --> OLL : HTTP /api/generate
+TS --> TMDB : HTTPS
+RS --> RAWG : HTTPS
+SS --> STEAM : HTTPS
+CFG ..> IAS : URL do Ollama
+CFG ..> TS : chave TMDB
+CFG ..> RS : chave RAWG
+@enduml

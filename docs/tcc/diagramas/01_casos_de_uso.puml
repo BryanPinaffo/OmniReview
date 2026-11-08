@@ -1,0 +1,49 @@
+@startuml casos_de_uso
+!include estilo.iuml
+left to right direction
+title Diagrama de Casos de Uso — OmniReview
+
+actor "Usuário" as U
+actor "Curador do acervo" as C
+
+rectangle "OmniReview" {
+  package "Exploração e recomendação" {
+    usecase "UC01 Explorar catálogo" as UC01
+    usecase "UC02 Buscar e filtrar\n(título, mídia, tags)" as UC02
+    usecase "UC03 Ver detalhes da obra\n(sinopse, capa, tags)" as UC03
+    usecase "UC04 Ver obras com\no mesmo DNA" as UC04
+    usecase "UC05 Favoritar obra\n(perfil de gosto)" as UC05
+    usecase "UC06 Receber recomendações\ntransmídia" as UC06
+  }
+  package "Curadoria do acervo" {
+    usecase "UC08 Importar tendências" as UC08
+    usecase "UC07 Adicionar obra" as UC07
+    usecase "UC11 Refazer tags\ncom falha" as UC11
+    usecase "UC09 Gerar DNA criativo\n(classificar com IA)" as UC09
+    usecase "UC10 Completar sinopses\ne capas" as UC10
+  }
+}
+
+actor "TMDB / Steam / RAWG\n(APIs de catálogo)" as EXT <<sistema>>
+actor "Ollama\n(LLM local)" as LLM <<sistema>>
+
+U --> UC01
+U --> UC03
+U --> UC05
+U --> UC06
+C --> UC08
+C --> UC07
+C --> UC11
+C --> UC10
+U <|-- C
+
+UC01 <.. UC02 : <<extend>>
+UC03 <.. UC04 : <<extend>>
+UC08 ..> UC07 : <<include>>
+UC07 ..> UC09 : <<include>>
+UC11 ..> UC09 : <<include>>
+
+UC07 --> EXT
+UC10 --> EXT
+UC09 --> LLM
+@enduml

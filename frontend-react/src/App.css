@@ -1,0 +1,97 @@
+/* O formato de celular no meio da tela */
+.App {
+  text-align: center;
+  padding: 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 414px; /* A largura exata de um celular de tela grande */
+  margin: 0 auto; /* Centraliza o "celular" no meio do monitor */
+  background-color: #1a1a1a;
+  min-height: 100vh;
+  box-shadow: 0px 0px 20px rgba(0,0,0,0.5); /* Dá uma sombra parecida com a borda do aparelho */
+}
+
+h1 {
+  color: #646cff;
+  font-size: 2.2rem;
+  margin-top: 10px;
+}
+
+.perfil-usuario {
+  background-color: #242424;
+  padding: 15px;
+  border-radius: 12px;
+  margin: 15px 0;
+  border: 1px solid #333;
+}
+
+.btn-recomendar {
+  background-color: #646cff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 8px;
+  width: 100%; /* O botão vai ocupar a largura toda da tela do celular */
+  cursor: pointer;
+}
+
+.lista-obras {
+  display: flex;
+  flex-direction: column; /* Coloca os cards um embaixo do outro (típico de celular) */
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.card-obra {
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 15px;
+  background-color: #2a2a2a;
+  text-align: left;
+}
+
+.card-obra h3 {
+  margin-top: 0;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+  font-size: 1.2rem;
+}
+.seletor-obra {
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background-color: #1a1a1a;
+  color: #fff;
+  font-size: 14px;
+}
+
+.btn-recomendar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status {
+  color: #aaa;
+  font-size: 14px;
+}
+
+.link {
+  background: none;
+  border: none;
+  color: #646cff;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.status.erro {
+  color: #ff6b81;
+}

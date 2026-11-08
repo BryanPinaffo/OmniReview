@@ -1,0 +1,98 @@
+@startuml classes
+!include estilo.iuml
+title Diagrama de Classes — backend (pacote com.omnireview.backend)
+hide empty members
+
+class Obra <<@Node("Obra")>> {
+  - titulo : String {@Id}
+  - tipo : String
+  - dnaCriativo : String
+  - sinopse : String
+  - imagem : String
+  - capa : String
+}
+
+class Tag <<nó Neo4j :Tag>> {
+  nome : String {único}
+}
+note right of Tag : Criado e mantido por Cypher\n(InicializacaoGrafo e\nObraRepository.sincronizarTags).
+
+interface ObraRepository <<Neo4jRepository<Obra, String>>> {
+  + findAll() : List<Obra>
+  + findById(titulo) : Optional<Obra>
+  + save(obra : Obra) : Obra
+  + sincronizarTags(titulo : String) : void
+  + recomendarPorTags(tags : List<String>, excluir : List<String>) : List<Obra>
+}
+
+class RecomendacaoController <<@RestController /api>> {
+  + adicionarFilme(nome) : ResponseEntity<Obra>
+  + adicionarSerie(nome) : ResponseEntity<Obra>
+  + adicionarJogo(nome) : ResponseEntity<Obra>
+  + reprocessarDna(todas : boolean) : List<Obra>
+  + completarDetalhes() : List<Obra>
+  + listarTodasObras() : List<Obra>
+  + buscarRecomendacoes(tags, excluir, dna, titulo) : List<Obra>
+  + tendenciasFilmes() / tendenciasSeries() / tendenciasJogos() : List<String>
+  ~ {static} intercalarPorTipo(ranking, limite) : List<Obra>
+  - adicionar(nome, tipo) : ResponseEntity<Obra>
+  - salvar(obra) : Obra
+}
+
+class IaService <<@Service>> {
+  + {static} SEM_CLASSIFICACAO : String
+  ~ {static} TAXONOMIA_OFICIAL : List<String>
+  - urlGerar : String
+  - modelo : String
+  + IaService(urlOllama, modelo)
+  + extrairDnaCriativo(titulo, sinopse, tipo, generosOficiais) : String
+  + classificarComLlm(titulo, sinopse, tipo, generos) : List<String>
+  + {static} combinar(doLlm, generos) : List<String>
+  + {static} extrairTagsValidas(texto) : List<String>
+  - chamarOllama(titulo, sinopse, tipo, generos) : String
+}
+note right of IaService : TAXONOMIA_OFICIAL = 179 tags\nsaída estruturada (JSON Schema)\ntemperature 0, seed 42
+
+class TmdbService <<@Service>> {
+  - apiKey : String
+  + buscarFilmeNaInternet(nome) : String[]
+  + buscarSerieNaInternet(nome) : String[]
+  + buscarTendenciasFilmes() : List<String>
+  + buscarTendenciasSeries() : List<String>
+}
+
+class RawgService <<@Service>> {
+  - apiKey : String
+  - rawgIndisponivelAte : Instant
+  + buscarJogoNaInternet(nome) : String[]
+  + buscarTendencias() : List<String>
+}
+note bottom of RawgService : Disjuntor: após uma falha,\nusa só a Steam por 10 min.
+
+class SteamService <<@Service>> {
+  + buscarJogo(nome) : String[]
+  + buscarTendencias(limite) : List<String>
+}
+
+class ClienteHttp <<utilitário>> {
+  ~ {static} criar(conexaoMs, leituraMs) : RestTemplate
+  ~ {static} uri(base, parametros) : URI
+}
+
+class InicializacaoGrafo <<@Component ApplicationRunner>> {
+  + run(args) : void
+}
+
+RecomendacaoController --> ObraRepository
+RecomendacaoController --> IaService
+RecomendacaoController --> TmdbService
+RecomendacaoController --> RawgService
+RawgService --> SteamService : fallback
+TmdbService ..> ClienteHttp
+RawgService ..> ClienteHttp
+SteamService ..> ClienteHttp
+IaService ..> ClienteHttp
+ObraRepository ..> Obra : persiste
+Obra "*" -- "*" Tag : TEM_TAG >
+InicializacaoGrafo ..> Tag : cria restrições\ne relações
+@enduml

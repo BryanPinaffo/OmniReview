@@ -1,0 +1,11 @@
+# Segredos locais
+.env
+backend-java/config/segredos.properties
+
+# Dependências e builds
+node_modules/
+target/
+dist/
+
+# Arquivos temporários do Word
+~$*

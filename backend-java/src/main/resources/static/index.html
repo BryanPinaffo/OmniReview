@@ -1,0 +1,3028 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniReview | Filmes, Séries e Jogos com o mesmo DNA</title>
+    <script>
+        // Sem sessão: vai para o login antes de desenhar a página
+        try { if (!JSON.parse(localStorage.getItem('omnireview:sessao') || 'null')?.token) location.replace('/login.html'); }
+        catch { location.replace('/login.html'); }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08090d;
+            --bg-soft: #0e1017;
+            --surface: #13151e;
+            --surface-2: #1a1d29;
+            --line: rgba(255, 255, 255, 0.07);
+            --line-strong: rgba(255, 255, 255, 0.14);
+            --text: #f3f4f8;
+            --text-2: #a5a9bb;
+            --text-3: #6b7085;
+            --accent: #8b7bff;
+            --accent-2: #3dd6f5;
+            --accent-soft: rgba(139, 123, 255, 0.14);
+            --filme: #f6b94f;
+            --serie: #b39dff;
+            --jogo: #4fe3a1;
+            --danger: #ff6b81;
+            --estrela: #ffc857;
+            --radius: 14px;
+            --radius-lg: 22px;
+            --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+            --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+            --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+        body::before {
+            content: "";
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(900px 500px at 10% -10%, rgba(139, 123, 255, 0.16), transparent 60%),
+                radial-gradient(800px 500px at 100% 0%, rgba(61, 214, 245, 0.09), transparent 60%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        body.travado { overflow: hidden; }
+        img { max-width: 100%; display: block; }
+        button { font-family: inherit; }
+        [hidden] { display: none !important; }
+
+        .wrap { max-width: 1380px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+
+        /* ---------- NAV ---------- */
+        .nav {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(8, 9, 13, 0.72);
+            backdrop-filter: blur(18px) saturate(1.4);
+            -webkit-backdrop-filter: blur(18px) saturate(1.4);
+            border-bottom: 1px solid var(--line);
+        }
+        .nav-inner { display: flex; align-items: center; gap: 24px; height: 68px; }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
+        .logo-mark {
+            width: 34px; height: 34px; border-radius: 10px;
+            background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--accent));
+            display: grid; place-items: center;
+            box-shadow: 0 6px 24px -6px rgba(139, 123, 255, 0.7);
+        }
+        .logo-mark svg { width: 18px; height: 18px; }
+        .logo-texto span { color: var(--accent); }
+
+        .nav-links { display: flex; gap: 4px; margin-left: 12px; }
+        .nav-link {
+            background: none; border: none; color: var(--text-2); font-weight: 600; font-size: 14px;
+            padding: 9px 14px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: color .2s, background .2s;
+        }
+        .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .nav-link.ativo { color: var(--text); background: rgba(255,255,255,0.07); }
+        .contador {
+            min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px;
+            background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+            display: inline-grid; place-items: center;
+        }
+        .nav-spacer { flex: 1; }
+        .usuario-menu { position: relative; }
+        .usuario-botao {
+            display: flex; align-items: center; gap: 9px; height: 42px; padding: 0 12px 0 5px; border-radius: 99px;
+            background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--text); cursor: pointer; font-weight: 600; font-size: 14px;
+        }
+        .usuario-botao:hover { border-color: rgba(255,255,255,0.25); }
+        .usuario-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display);
+            font-weight: 700; font-size: 14px; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        }
+        .usuario-botao svg { width: 14px; height: 14px; color: var(--text-3); }
+        .usuario-painel {
+            position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; padding: 6px; z-index: 60;
+            background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow);
+        }
+        .usuario-painel .quem { padding: 10px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+        .usuario-painel .quem small { display: block; color: var(--text-3); font-size: 12px; }
+        .usuario-painel .quem strong { font-size: 15px; }
+        .usuario-painel button {
+            width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+            background: none; border: none; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; text-align: left;
+        }
+        .usuario-painel button:hover { background: rgba(255,255,255,0.05); }
+        .usuario-painel button.perigo { color: var(--danger); }
+        .usuario-painel svg { width: 17px; height: 17px; }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text);
+            padding: 10px 16px; border-radius: 11px; font-weight: 600; font-size: 14px; cursor: pointer;
+            transition: transform .15s, background .2s, border-color .2s, opacity .2s;
+            white-space: nowrap;
+        }
+        .btn:hover { background: #222636; border-color: rgba(255,255,255,0.22); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn svg { width: 17px; height: 17px; flex-shrink: 0; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #6f5cf0);
+            border-color: transparent; color: #fff;
+            box-shadow: 0 10px 30px -10px rgba(139, 123, 255, 0.8);
+        }
+        .btn-primary:hover { background: linear-gradient(135deg, #9a8cff, #7a68f5); border-color: transparent; }
+        .btn-ghost { background: transparent; }
+        .btn-block { width: 100%; }
+
+        /* ---------- HERO ---------- */
+        .hero { padding-block: clamp(40px, 7vw, 76px) 28px; }
+        .eyebrow {
+            display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+            color: var(--text-2); padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line-strong);
+            background: rgba(255,255,255,0.03);
+        }
+        .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--jogo); box-shadow: 0 0 10px var(--jogo); }
+        .hero h1 {
+            font-family: var(--font-display); font-weight: 700; letter-spacing: -0.035em;
+            font-size: clamp(34px, 5.4vw, 64px); line-height: 1.04; margin: 18px 0 14px; max-width: 15ch;
+        }
+        .hero h1 em {
+            font-style: normal;
+            background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 90%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .hero p.lead { color: var(--text-2); font-size: clamp(15px, 1.6vw, 18px); max-width: 58ch; margin: 0; }
+
+        .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+        .stat {
+            display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px;
+            background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+        }
+        .stat b { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+        .stat small { color: var(--text-2); font-size: 13px; }
+        .dot { width: 9px; height: 9px; border-radius: 3px; }
+
+        /* ---------- BUSCA DA TELA INICIAL ---------- */
+        .busca-hero { margin-top: 30px; max-width: 760px; }
+        .busca-hero-pergunta {
+            display: block; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em;
+            font-size: clamp(21px, 2.6vw, 28px); margin-bottom: 12px;
+        }
+        .busca-hero-campo { position: relative; }
+        .busca-hero-caixa {
+            display: flex; align-items: center; gap: 10px; height: 62px; padding: 0 8px 0 18px;
+            background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px;
+            box-shadow: 0 20px 50px -24px rgba(139,123,255,0.45); transition: border-color .2s, box-shadow .2s;
+        }
+        .busca-hero-caixa:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft), 0 20px 50px -24px rgba(139,123,255,0.6); }
+        .busca-hero-caixa > svg { width: 21px; height: 21px; color: var(--text-3); flex-shrink: 0; }
+        .busca-hero-caixa input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 16.5px; }
+        .busca-hero-caixa input::placeholder { color: var(--text-3); }
+        .busca-hero-caixa .btn { height: 46px; padding: 0 20px; border-radius: 12px; }
+        @media (max-width: 480px) { .busca-hero-caixa .btn span { display: none; } .busca-hero-caixa .btn { padding: 0 14px; } }
+
+        .busca-hero-lista {
+            position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 45; list-style: none; margin: 0; padding: 6px;
+            background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow);
+            max-height: min(420px, 60vh); overflow-y: auto;
+        }
+        .busca-opcao { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+        .busca-opcao.ativa, .busca-opcao:hover { background: rgba(255,255,255,0.06); }
+        .busca-opcao .mini-capa { width: 34px; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; position: relative; flex-shrink: 0; background: var(--surface-2); }
+        .busca-opcao .mini-capa img { width: 100%; height: 100%; object-fit: cover; }
+        .busca-opcao .mini-capa .placeholder { place-items: center; padding: 2px; }
+        .busca-opcao .mini-capa .placeholder span { font-size: 11px; }
+        .busca-opcao-texto { min-width: 0; flex: 1; }
+        .busca-opcao-texto strong { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .busca-opcao-texto small { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 12px; }
+        .busca-opcao-texto small .estrela { color: var(--estrela); }
+        .busca-opcao.web { border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; margin-top: 4px; padding-top: 12px; }
+        .busca-opcao.web:first-child { border-top: none; margin-top: 0; padding-top: 8px; border-radius: 10px; }
+        .busca-opcao.web .icone-web { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: var(--accent-soft); color: #d6d0ff; }
+        .busca-opcao.web .icone-web svg { width: 17px; height: 17px; }
+
+        .busca-hero-tipos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .busca-hero-tipos button {
+            background: transparent; border: 1px solid var(--line-strong); color: var(--text-2); font-size: 13px; font-weight: 600;
+            padding: 6px 13px; border-radius: 99px; cursor: pointer; transition: all .2s;
+        }
+        .busca-hero-tipos button:hover { color: var(--text); }
+        .busca-hero-tipos button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: #d6d0ff; }
+
+        .busca-hero-status { display: flex; align-items: center; gap: 10px; min-height: 22px; margin-top: 12px; font-size: 14px; color: var(--text-2); }
+        .busca-hero-status:empty { display: none; }
+        .busca-hero-status.erro { color: var(--danger); }
+        .busca-hero-status.ok { color: var(--jogo); }
+        .girando { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent); animation: girar .8s linear infinite; flex-shrink: 0; }
+        @keyframes girar { to { transform: rotate(360deg); } }
+
+        /* ---------- TOOLBAR ---------- */
+        .toolbar {
+            position: sticky; top: 68px; z-index: 40;
+            padding-block: 14px;
+            background: linear-gradient(var(--bg) 70%, transparent);
+        }
+        .toolbar-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .search {
+            flex: 1 1 320px; display: flex; align-items: center; gap: 10px;
+            background: var(--surface); border: 1px solid var(--line-strong); border-radius: 13px;
+            padding: 0 14px; height: 48px; transition: border-color .2s, box-shadow .2s;
+        }
+        .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+        .search svg { width: 19px; height: 19px; color: var(--text-3); flex-shrink: 0; }
+        .search input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text); font-size: 15px; font-family: inherit; }
+        .search input::placeholder { color: var(--text-3); }
+        kbd {
+            font-family: inherit; font-size: 11px; color: var(--text-3); border: 1px solid var(--line-strong);
+            border-radius: 6px; padding: 2px 6px;
+        }
+
+        .segment { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 4px; height: 48px; }
+        .segment button {
+            background: none; border: none; color: var(--text-2); font-weight: 600; font-size: 13.5px;
+            padding: 0 14px; border-radius: 9px; cursor: pointer; display: flex; align-items: center; gap: 7px;
+            transition: background .2s, color .2s;
+        }
+        .segment button:hover { color: var(--text); }
+        .segment button.ativo { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+
+        .select {
+            height: 48px; background: var(--surface); color: var(--text); border: 1px solid var(--line);
+            border-radius: 13px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; outline: none;
+        }
+        .select:focus { border-color: var(--accent); }
+
+        .chips { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip {
+            flex-shrink: 0; background: transparent; border: 1px solid var(--line-strong); color: var(--text-2);
+            font-size: 13px; font-weight: 500; padding: 7px 13px; border-radius: 99px; cursor: pointer;
+            transition: all .2s;
+        }
+        .chip:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+        .chip.ativo { background: var(--accent-soft); border-color: var(--accent); color: #d6d0ff; }
+        .chip.limpar { border-style: dashed; }
+
+        .resultado-info { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 22px 0 16px; flex-wrap: wrap; }
+        .resultado-info h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+        .resultado-info span { color: var(--text-3); font-size: 13.5px; }
+
+        /* ---------- GRID / CARDS ---------- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: clamp(14px, 2vw, 22px);
+            padding-bottom: 80px;
+        }
+        @media (max-width: 480px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .card {
+            position: relative; cursor: pointer; border-radius: var(--radius); overflow: hidden;
+            background: var(--surface); border: 1px solid var(--line);
+            aspect-ratio: 2 / 3;
+            transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s, border-color .35s;
+            animation: surgir .5s both;
+            outline: none;
+        }
+        .card:hover, .card:focus-visible {
+            transform: translateY(-6px);
+            border-color: var(--line-strong);
+            box-shadow: 0 30px 50px -24px rgba(0,0,0,0.9), 0 0 0 1px rgba(139,123,255,0.25);
+        }
+        .card:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+        @keyframes surgir { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+        .card .poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+        .card:hover .poster { transform: scale(1.06); }
+        .card .sombra {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(8,9,13,0) 35%, rgba(8,9,13,0.78) 68%, rgba(8,9,13,0.97) 100%);
+        }
+        .card .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px; }
+        .titulo-linha { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 10px; }
+        .titulo-linha h3 { flex: 1; min-width: 0; }
+        .card h3 {
+            font-family: var(--font-display); font-size: 16.5px; font-weight: 600; line-height: 1.2; margin: 0;
+            letter-spacing: -0.01em; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        .tipo {
+            display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700;
+            letter-spacing: .08em; text-transform: uppercase; color: var(--cor, var(--text-2));
+        }
+        .tipo::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--cor, var(--text-2)); }
+        .tipo.filme { --cor: var(--filme); } .tipo.serie { --cor: var(--serie); } .tipo.jogo { --cor: var(--jogo); }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+        .tag {
+            font-size: 11px; font-weight: 600; color: #e6e7ee; padding: 3px 8px; border-radius: 6px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            white-space: nowrap;
+        }
+        .tag.mais { color: var(--text-2); }
+        .tag.vazia { color: var(--text-3); font-style: italic; font-weight: 500; }
+
+        .btn-fav {
+            position: absolute; top: 10px; right: 10px; z-index: 2;
+            width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(8,9,13,0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            color: #fff; display: grid; place-items: center; cursor: pointer;
+            opacity: 0; transform: scale(.85); transition: all .25s;
+        }
+        .btn-fav svg { width: 17px; height: 17px; }
+        .card:hover .btn-fav, .card:focus-within .btn-fav, .btn-fav.ativo { opacity: 1; transform: none; }
+        .btn-fav.ativo { background: var(--danger); border-color: transparent; }
+        .btn-fav.ativo svg { fill: currentColor; }
+        @media (hover: none) { .btn-fav { opacity: 1; transform: none; } }
+
+        .placeholder {
+            position: absolute; inset: 0; display: grid; place-items: start center; padding: 26% 20px 20px;
+            background:
+                radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--cor, var(--accent)) 35%, transparent), transparent 60%),
+                linear-gradient(160deg, #1d2030, #0f1118);
+        }
+        .placeholder + img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .placeholder span {
+            font-family: var(--font-display); font-weight: 800; font-size: 48px; letter-spacing: -0.04em;
+            color: rgba(255,255,255,0.14);
+        }
+
+        .skeleton { aspect-ratio: 2/3; border-radius: var(--radius); background: linear-gradient(100deg, var(--surface) 40%, var(--surface-2) 50%, var(--surface) 60%); background-size: 200% 100%; animation: brilho 1.4s infinite linear; }
+        @keyframes brilho { to { background-position: -200% 0; } }
+
+        .vazio {
+            grid-column: 1 / -1; text-align: center; padding: 70px 20px; border: 1px dashed var(--line-strong);
+            border-radius: var(--radius-lg); color: var(--text-2);
+        }
+        .vazio .icone { width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 16px; background: var(--surface-2); display: grid; place-items: center; color: var(--text-2); }
+        .vazio .icone svg { width: 24px; height: 24px; }
+        .vazio h3 { font-family: var(--font-display); color: var(--text); font-size: 20px; margin: 0 0 6px; }
+        .vazio p { margin: 0 auto 18px; max-width: 44ch; }
+
+        /* ---------- PERFIL (Para você) ---------- */
+        .perfil {
+            margin-top: 8px; padding: clamp(18px, 3vw, 28px); border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, rgba(139,123,255,0.12), rgba(61,214,245,0.05) 60%, transparent), var(--surface);
+            border: 1px solid var(--line);
+            display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;
+        }
+        @media (max-width: 720px) { .perfil { grid-template-columns: 1fr; } }
+        .perfil h2 { font-family: var(--font-display); font-size: clamp(22px, 3vw, 30px); margin: 0 0 6px; letter-spacing: -0.02em; }
+        .perfil p { color: var(--text-2); margin: 0 0 14px; }
+        .favoritos { display: flex; gap: 8px; flex-wrap: wrap; }
+        .mini {
+            width: 46px; aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; position: relative;
+            border: 1px solid var(--line-strong); cursor: pointer; background: var(--surface-2);
+            transition: transform .2s;
+        }
+        .mini:hover { transform: translateY(-3px); }
+        .mini img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* ---------- MODAL ---------- */
+        .modal-fundo {
+            position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+            padding: clamp(10px, 3vw, 40px);
+            background: rgba(4, 5, 8, 0.72);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            opacity: 0; pointer-events: none; transition: opacity .3s;
+        }
+        .modal-fundo.aberto { opacity: 1; pointer-events: auto; }
+        .modal {
+            position: relative; width: min(980px, 100%); max-height: calc(100vh - 2 * clamp(10px, 3vw, 40px));
+            overflow-y: auto; overscroll-behavior: contain;
+            background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-lg);
+            box-shadow: 0 40px 120px -20px rgba(0,0,0,0.9);
+            transform: translateY(24px) scale(.97); transition: transform .4s cubic-bezier(.2,.8,.2,1);
+        }
+        .modal-fundo.aberto .modal { transform: none; }
+        .modal-capa { position: relative; height: clamp(170px, 30vw, 300px); overflow: hidden; }
+        .modal-capa img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.1); }
+        .modal-capa::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,16,23,0.1) 0%, rgba(14,16,23,0.55) 60%, var(--bg-soft) 100%); }
+        .modal-capa .placeholder { place-items: center; padding: 20px; }
+        .modal-capa .placeholder span { font-size: 90px; }
+        .modal-poster .placeholder, .mini .placeholder { place-items: center; padding: 8px; }
+        .mini .placeholder span { font-size: 16px; }
+
+        .modal-fechar {
+            position: absolute; top: 14px; right: 14px; z-index: 3; width: 40px; height: 40px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.18); background: rgba(8,9,13,0.6); color: #fff; cursor: pointer;
+            display: grid; place-items: center; backdrop-filter: blur(8px); transition: background .2s;
+        }
+        .modal-fechar:hover { background: rgba(8,9,13,0.9); }
+        .modal-fechar svg { width: 18px; height: 18px; }
+
+        .modal-corpo { display: grid; grid-template-columns: 200px 1fr; gap: clamp(18px, 3vw, 34px); padding: 0 clamp(18px, 4vw, 40px) 34px; margin-top: -110px; position: relative; z-index: 2; }
+        @media (max-width: 680px) {
+            .modal-corpo { grid-template-columns: 1fr; margin-top: -70px; }
+            .modal-poster { width: 130px; }
+        }
+        .modal-poster {
+            aspect-ratio: 2/3; border-radius: 14px; overflow: hidden; position: relative; background: var(--surface-2);
+            border: 1px solid var(--line-strong); box-shadow: var(--shadow);
+        }
+        .modal-poster img { width: 100%; height: 100%; object-fit: cover; }
+        .modal-texto { padding-top: clamp(20px, 6vw, 70px); min-width: 0; }
+        @media (max-width: 680px) { .modal-texto { padding-top: 0; } }
+        .modal-texto h2 { font-family: var(--font-display); font-size: clamp(26px, 4vw, 40px); line-height: 1.08; letter-spacing: -0.03em; margin: 10px 0 16px; }
+        .modal-texto .tags { gap: 7px; margin-bottom: 22px; }
+        .modal-texto .tag { font-size: 12.5px; padding: 5px 11px; border-radius: 8px; background: var(--accent-soft); border-color: rgba(139,123,255,0.3); color: #dcd6ff; cursor: pointer; transition: background .2s; }
+        .modal-texto .tag:hover { background: rgba(139,123,255,0.28); }
+        .rotulo { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 0 0 8px; }
+        .sinopse { color: #cfd2de; font-size: 15.5px; line-height: 1.7; margin: 0 0 26px; max-width: 68ch; }
+        .sinopse.sem { color: var(--text-3); font-style: italic; }
+        .modal-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+        .btn-fav-grande.ativo { background: rgba(255,107,129,0.14); border-color: rgba(255,107,129,0.5); color: #ffb3bf; }
+        .btn-fav-grande.ativo svg { fill: currentColor; }
+
+        /* ---------- NOTAS (estrelas) ---------- */
+        .estrela { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
+        .nota-card {
+            flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; margin-top: 1px;
+            font-size: 12px; font-weight: 700; line-height: 1; color: #fff; padding: 4px 7px; border-radius: 7px;
+            background: rgba(8,9,13,0.62); border: 1px solid rgba(255,255,255,0.14);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .nota-card .estrela { color: var(--estrela); font-size: 12px; }
+
+        .modal-titulo-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 16px; }
+        .modal-titulo-linha h2 { margin: 0 !important; }
+        .nota-modal {
+            display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 12px;
+            background: rgba(255,200,87,0.1); border: 1px solid rgba(255,200,87,0.3); white-space: nowrap;
+        }
+        .nota-modal .estrela { color: var(--estrela); font-size: 18px; }
+        .nota-modal b { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1; }
+        .nota-modal small { color: var(--text-2); font-size: 13px; }
+        .nota-modal.sem { background: rgba(255,255,255,0.04); border-color: var(--line-strong); }
+        .nota-modal.sem .estrela { color: var(--text-3); }
+
+        .estrelas-fixas { position: relative; display: inline-flex; font-size: 17px; line-height: 1; }
+        .estrelas-fixas .base { display: inline-flex; color: rgba(255,255,255,0.14); }
+        .estrelas-fixas .cheia { position: absolute; inset: 0 auto 0 0; display: inline-flex; overflow: hidden; color: var(--estrela); }
+        .estrelas-fixas .estrela { margin-right: 2px; }
+
+        /* ---------- AVALIAÇÕES E COMENTÁRIOS ---------- */
+        .avaliacoes { padding: 26px clamp(18px, 4vw, 40px) 34px; border-top: 1px solid var(--line); }
+        .aval-titulo { font-family: var(--font-display); font-size: 19px; margin: 0 0 16px; display: flex; align-items: baseline; gap: 8px; }
+        .aval-titulo small { color: var(--text-3); font-family: var(--font-body); font-size: 14px; font-weight: 500; }
+        .aval-painel {
+            display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: clamp(16px, 3vw, 32px); align-items: center;
+            padding: 20px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); margin-bottom: 26px;
+        }
+        @media (max-width: 760px) { .aval-painel { grid-template-columns: auto minmax(0, 1fr); } .aval-minha { grid-column: 1 / -1; } }
+        @media (max-width: 420px) { .aval-painel { grid-template-columns: 1fr; } }
+        .aval-media { text-align: center; min-width: 110px; }
+        .aval-media b { display: block; font-family: var(--font-display); font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -0.03em; }
+        .aval-media b.sem { font-size: 34px; color: var(--text-3); }
+        .aval-media .estrelas-fixas { margin: 8px 0 6px; }
+        .aval-media small { display: block; color: var(--text-2); font-size: 12.5px; }
+        .aval-distribuicao { display: grid; gap: 6px; }
+        .dist-linha { display: grid; grid-template-columns: 26px minmax(0, 1fr) 28px; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); }
+        .dist-linha span:first-child { display: inline-flex; align-items: center; gap: 3px; }
+        .dist-linha .estrela { font-size: 11px; color: var(--text-3); }
+        .dist-linha span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+        .dist-barra { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.07); overflow: hidden; }
+        .dist-barra i { display: block; height: 100%; border-radius: 99px; background: var(--estrela); }
+        .aval-minha { display: flex; flex-direction: column; gap: 8px; padding-left: clamp(0px, 2vw, 24px); border-left: 1px solid var(--line); }
+        @media (max-width: 760px) { .aval-minha { border-left: none; padding-left: 0; border-top: 1px solid var(--line); padding-top: 16px; } }
+        .aval-minha .rotulo { margin: 0; }
+        .seletor-estrelas { display: flex; gap: 2px; }
+        .seletor-estrelas button {
+            width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; border: none; background: none;
+            color: rgba(255,255,255,0.18); cursor: pointer; transition: color .15s, transform .15s; padding: 0;
+        }
+        .seletor-estrelas button .estrela { font-size: 28px; }
+        .seletor-estrelas button.aceso { color: var(--estrela); }
+        .seletor-estrelas button:hover { transform: scale(1.12); }
+        .seletor-estrelas button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .seletor-estrelas button:disabled { cursor: progress; }
+        .aval-minha-rodape { display: flex; align-items: center; gap: 10px; min-height: 22px; font-size: 13px; color: var(--text-2); }
+        .link-btn { background: none; border: none; padding: 0; color: var(--text-3); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+        .link-btn:hover { color: var(--text); }
+
+        .comentario-form { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px 12px; margin-bottom: 24px; }
+        .comentario-form .avatar, .comentario .avatar { width: 38px; height: 38px; font-size: 15px; }
+        .caixa-texto { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; transition: border-color .2s, box-shadow .2s; }
+        .caixa-texto:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+        .caixa-texto textarea {
+            display: block; width: 100%; min-height: 84px; max-height: 260px; resize: vertical; padding: 14px 14px 6px;
+            background: none; border: none; outline: none; color: var(--text); font: inherit; font-size: 14.5px; line-height: 1.55;
+        }
+        .caixa-texto textarea::placeholder { color: var(--text-3); }
+        .caixa-rodape { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px 8px 14px; flex-wrap: wrap; }
+        .caixa-rodape small { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+        .caixa-rodape small.limite { color: var(--danger); }
+        .caixa-rodape .btn { padding: 8px 14px; font-size: 13.5px; }
+        .comentario-erro { grid-column: 2; margin: 0; color: var(--danger); font-size: 13px; }
+
+        .comentarios { list-style: none; margin: 0; padding: 0; }
+        .comentario { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); animation: surgir .35s both; }
+        .comentario:first-child { border-top: none; padding-top: 0; }
+        .comentario-topo { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 4px; }
+        .comentario-topo strong { font-size: 14px; }
+        .comentario-topo .voce { font-size: 11px; font-weight: 700; color: #d6d0ff; background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; }
+        .comentario-topo time { color: var(--text-3); font-size: 12.5px; }
+        .comentario-topo .estrelas-fixas { font-size: 12px; }
+        .comentario p { margin: 0; color: #d4d7e2; font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .comentario-acoes { margin-top: 6px; display: flex; gap: 12px; }
+        .comentario-acoes .link-btn.confirmar { color: var(--danger); }
+        .comentarios-vazio { text-align: center; padding: 26px 16px; color: var(--text-2); border: 1px dashed var(--line-strong); border-radius: var(--radius); font-size: 14px; }
+        .aval-carregando { color: var(--text-3); font-size: 14px; padding: 8px 0 4px; }
+
+        .semelhantes { padding: 0 clamp(18px, 4vw, 40px) 36px; border-top: 1px solid var(--line); padding-top: 26px; }
+        .semelhantes h3 { font-family: var(--font-display); font-size: 19px; margin: 0 0 4px; }
+        .semelhantes > p { color: var(--text-2); margin: 0 0 16px; font-size: 14px; }
+        .trilho { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 14px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+        .trilho .card { scroll-snap-align: start; }
+        .trilho, .modal { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+        .trilho::-webkit-scrollbar, .modal::-webkit-scrollbar { height: 8px; width: 8px; }
+        .trilho::-webkit-scrollbar-track, .modal::-webkit-scrollbar-track { background: transparent; }
+        .trilho::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 99px; }
+        .trilho::-webkit-scrollbar-thumb:hover, .modal::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        .trilho .card h3 { font-size: 14px; }
+        .trilho .titulo-linha { margin-bottom: 0; flex-direction: column; gap: 6px; }
+        .trilho .card .tags { display: none; }
+
+        /* ---------- DRAWER (Gerenciar acervo) ---------- */
+        .drawer-fundo { position: fixed; inset: 0; z-index: 90; background: rgba(4,5,8,0.6); opacity: 0; pointer-events: none; transition: opacity .3s; }
+        .drawer-fundo.aberto { opacity: 1; pointer-events: auto; }
+        .drawer {
+            position: fixed; top: 0; right: 0; bottom: 0; z-index: 91; width: min(440px, 100%);
+            background: var(--bg-soft); border-left: 1px solid var(--line-strong);
+            transform: translateX(100%); transition: transform .4s cubic-bezier(.2,.8,.2,1);
+            display: flex; flex-direction: column;
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+        .drawer.aberto { transform: none; }
+        .drawer-topo { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--line); }
+        .drawer-topo h2 { font-family: var(--font-display); margin: 0; font-size: 21px; }
+        .drawer-topo .modal-fechar { position: static; }
+        .drawer-corpo { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+        .bloco { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+        .bloco h3 { margin: 0 0 4px; font-size: 15px; font-family: var(--font-display); font-weight: 600; }
+        .bloco p { margin: 0 0 14px; color: var(--text-2); font-size: 13.5px; }
+        .campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .campo label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+        .input {
+            height: 44px; background: var(--bg); border: 1px solid var(--line-strong); border-radius: 10px;
+            color: var(--text); padding: 0 12px; font: inherit; font-size: 14px; outline: none; width: 100%;
+        }
+        .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+        .tipo-escolha { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+        .tipo-escolha button {
+            background: var(--bg); border: 1px solid var(--line-strong); color: var(--text-2); border-radius: 10px;
+            padding: 10px 0; font-weight: 600; font-size: 13px; cursor: pointer;
+        }
+        .tipo-escolha button.ativo { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+        .status { font-size: 13px; color: var(--text-2); margin-top: 10px; min-height: 1em; }
+        .status.ok { color: var(--jogo); } .status.erro { color: var(--danger); }
+        .barra { height: 6px; border-radius: 99px; background: var(--bg); overflow: hidden; margin-top: 12px; }
+        .barra i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+        .filtros-avancados { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ---------- ADMINISTRAÇÃO ---------- */
+        .admin { padding-block: clamp(32px, 5vw, 56px) 80px; }
+        .admin-cabecalho h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; font-size: clamp(30px, 4.4vw, 48px); line-height: 1.05; margin: 16px 0 10px; }
+        .admin .lead { color: var(--text-2); font-size: clamp(15px, 1.6vw, 17px); max-width: 60ch; margin: 0; }
+        .admin-secao { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 44px 0 0; padding-top: 22px; border-top: 1px solid var(--line); }
+        .admin-stats { margin-top: 16px; }
+        .admin-grid { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 20px; margin-top: 20px; align-items: start; }
+        @media (max-width: 900px) { .admin-grid { grid-template-columns: 1fr; } }
+        .admin-criar .campo { margin-bottom: 14px; }
+        .dica-campo { color: var(--text-3); font-size: 12px; }
+        .senha-linha { display: flex; gap: 8px; }
+        .senha-linha .input { flex: 1; min-width: 0; }
+        .senha-linha .btn { height: 44px; padding: 0 12px; font-size: 13px; }
+        .admin-criar .link-btn { align-self: flex-start; margin-top: 2px; }
+
+        .admin-lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+        .admin-lista-topo { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+        .admin-lista-topo .segment { height: 44px; background: var(--bg-soft); }
+        .admin-busca { flex: 1 1 200px; height: 44px; background: var(--bg-soft); }
+        @media (max-width: 520px) { .admin-lista-topo .segment { width: 100%; } .admin-lista-topo .segment button { flex: 1; justify-content: center; padding: 0 6px; } }
+        .admin-usuarios { list-style: none; margin: 0; padding: 0; }
+        .admin-usuario { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 6px; border-top: 1px solid var(--line); }
+        .admin-usuario:first-child { border-top: none; }
+        .admin-usuario .avatar { width: 40px; height: 40px; font-size: 16px; }
+        .admin-usuario.admin-papel .avatar { background: linear-gradient(135deg, #f6b94f, var(--accent)); }
+        .admin-usuario-nome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-weight: 600; font-size: 14.5px; overflow-wrap: anywhere; }
+        .admin-usuario-meta { color: var(--text-3); font-size: 12.5px; margin-top: 2px; }
+        .papel-selo { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: rgba(79,227,161,0.12); color: #8ff0c3; }
+        .papel-selo.admin { background: var(--accent-soft); color: #d6d0ff; }
+        .papel-selo:empty { display: none; }
+        .usuario-painel .quem .papel-selo { margin-top: 6px; }
+        .selo-voce { font-size: 11px; font-weight: 700; color: var(--text-2); border: 1px solid var(--line-strong); padding: 2px 7px; border-radius: 6px; }
+        .admin-usuario .btn { padding: 8px 12px; font-size: 13px; }
+        .admin-usuario .btn.confirmar { background: rgba(255,107,129,0.14); border-color: rgba(255,107,129,0.5); color: #ffb3bf; }
+        .admin-usuario .protegido { color: var(--text-3); font-size: 12px; }
+        .admin-vazio { padding: 26px 10px; text-align: center; color: var(--text-2); font-size: 14px; }
+
+        .admin-acervo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 20px; align-items: start; }
+
+        /* ---------- AVATAR COM FOTO ---------- */
+        .avatar { overflow: hidden; flex-shrink: 0; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        button.autor-link { background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+        button.autor-link:hover strong, button.autor-link:focus-visible strong { text-decoration: underline; text-underline-offset: 3px; }
+        .comentario > button.autor-link { align-self: start; border-radius: 50%; }
+
+        /* ---------- CONCLUÍDAS (assisti / terminei) ---------- */
+        .selo-concluida {
+            position: absolute; top: 10px; left: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 9px 4px 7px; border-radius: 99px; font-size: 11px; font-weight: 700; color: #08130e;
+            background: var(--jogo); box-shadow: 0 6px 16px -6px rgba(0,0,0,0.6);
+        }
+        .selo-concluida svg { width: 12px; height: 12px; }
+        .trilho .selo-concluida span { display: none; }
+        .btn-concluida svg { width: 17px; height: 17px; }
+        .btn-concluida.ativo { background: rgba(79,227,161,0.12); border-color: rgba(79,227,161,0.5); color: #8ff0c3; }
+
+        /* ---------- PERFIL ---------- */
+        .perfil-capa {
+            height: clamp(160px, 26vw, 300px); background-size: cover; background-position: center; position: relative;
+            background-color: var(--surface);
+            background-image: radial-gradient(700px 300px at 20% 0%, rgba(139,123,255,0.45), transparent 70%), radial-gradient(600px 300px at 90% 100%, rgba(61,214,245,0.3), transparent 70%);
+        }
+        .perfil-capa::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, var(--bg) 100%); }
+        .perfil-cabeca { position: relative; z-index: 2; display: flex; align-items: flex-end; gap: clamp(14px, 3vw, 26px); margin-top: calc(-1 * clamp(48px, 7vw, 70px)); flex-wrap: wrap; }
+        .avatar.avatar-grande {
+            width: clamp(104px, 14vw, 148px); height: clamp(104px, 14vw, 148px); font-size: clamp(40px, 5vw, 56px);
+            border: 4px solid var(--bg); box-shadow: var(--shadow);
+        }
+        .perfil-identidade { flex: 1 1 260px; min-width: 0; padding-bottom: 6px; }
+        .perfil-identidade h1 { font-family: var(--font-display); font-size: clamp(26px, 3.6vw, 38px); letter-spacing: -0.03em; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; overflow-wrap: anywhere; }
+        .perfil-identidade .bio { color: var(--text-2); margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; }
+        .perfil-identidade small { color: var(--text-3); font-size: 13px; }
+        .perfil-acoes { display: flex; gap: 10px; flex-wrap: wrap; padding-bottom: 8px; }
+        .btn-seguir.seguindo { background: var(--surface-2); color: var(--text); box-shadow: none; border-color: var(--line-strong); }
+
+        .perfil-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 26px 0 8px; }
+        @media (max-width: 900px) { .perfil-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 480px) { .perfil-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .perfil-stat {
+            text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+            color: var(--text); font: inherit; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+        }
+        button.perfil-stat { cursor: pointer; transition: border-color .2s, background .2s; }
+        button.perfil-stat:hover { border-color: var(--line-strong); background: var(--surface-2); }
+        .perfil-stat b { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1.1; }
+        .perfil-stat span { color: var(--text-2); font-size: 13px; display: flex; align-items: center; gap: 7px; }
+        .perfil-stat .dot { flex-shrink: 0; }
+
+        .perfil-abas { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 22px 0 20px; overflow-x: auto; scrollbar-width: none; }
+        .perfil-abas::-webkit-scrollbar { display: none; }
+        .perfil-abas button {
+            background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-2); font: inherit; font-weight: 600; font-size: 14px;
+            padding: 12px 14px; cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+        }
+        .perfil-abas button:hover { color: var(--text); }
+        .perfil-abas button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+        .perfil-filtro { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+        .lista-reviews, .lista-pessoas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; padding-bottom: 60px; }
+        .review-item { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 14px; padding: 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+        .review-item .mini-capa { width: 54px; aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; position: relative; background: var(--surface-2); cursor: pointer; border: none; padding: 0; }
+        .review-item .mini-capa img { width: 100%; height: 100%; object-fit: cover; }
+        .review-item .mini-capa .placeholder { place-items: center; padding: 2px; }
+        .review-item .mini-capa .placeholder span { font-size: 14px; }
+        .review-topo { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+        .review-topo button { background: none; border: none; padding: 0; color: var(--text); font: inherit; font-weight: 600; font-size: 15px; cursor: pointer; text-align: left; }
+        .review-topo button:hover { text-decoration: underline; text-underline-offset: 3px; }
+        .review-topo time { color: var(--text-3); font-size: 12.5px; }
+        .review-item p { margin: 6px 0 0; color: #d4d7e2; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .review-item .estrelas-fixas { font-size: 13px; }
+
+        .pessoa { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+        .pessoa .avatar { width: 48px; height: 48px; font-size: 19px; }
+        .pessoa-nome { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; overflow-wrap: anywhere; }
+        .pessoa small { color: var(--text-3); font-size: 12.5px; }
+        .pessoa .btn { padding: 8px 14px; font-size: 13px; }
+        .busca-pessoas { margin-bottom: 14px; max-width: 520px; }
+
+        /* ---------- DIÁLOGOS (editar perfil, redefinir senha) ---------- */
+        .dialogo-fundo {
+            position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: clamp(10px, 3vw, 30px);
+            background: rgba(4,5,8,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .dialogo {
+            width: min(560px, 100%); max-height: calc(100vh - 2 * clamp(10px, 3vw, 30px)); overflow-y: auto; position: relative;
+            background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); box-shadow: 0 40px 120px -20px rgba(0,0,0,0.9);
+            padding: 24px; animation: surgir .3s both;
+        }
+        .dialogo h2 { font-family: var(--font-display); font-size: 22px; margin: 0 0 4px; }
+        .dialogo > p { color: var(--text-2); margin: 0 0 18px; font-size: 14px; }
+        .dialogo .modal-fechar { top: 16px; right: 16px; width: 36px; height: 36px; }
+        .dialogo-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        .editor-capa { height: 150px; border-radius: 14px; background-size: cover; background-position: center; position: relative; overflow: hidden; border: 1px solid var(--line-strong);
+            background-color: var(--surface);
+            background-image: radial-gradient(400px 200px at 20% 0%, rgba(139,123,255,0.45), transparent 70%), radial-gradient(400px 200px at 90% 100%, rgba(61,214,245,0.3), transparent 70%); }
+        .editor-capa-acoes { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 8px; }
+        .editor-capa-acoes .btn, .editor-foto-acoes .btn { padding: 7px 12px; font-size: 13px; background: rgba(8,9,13,0.75); }
+        .editor-foto { display: flex; align-items: center; gap: 16px; margin: -38px 0 16px 16px; position: relative; flex-wrap: wrap; }
+        .editor-foto .avatar { width: 88px; height: 88px; font-size: 34px; border: 4px solid var(--bg-soft); }
+        .editor-foto-acoes { display: flex; gap: 8px; margin-top: 36px; flex-wrap: wrap; }
+        .dialogo textarea.input { height: auto; min-height: 84px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+        .contador-bio { color: var(--text-3); font-size: 12px; text-align: right; }
+        .senha-resultado { margin-top: 6px; font-size: 12.5px; color: #8ff0c3; overflow-wrap: anywhere; }
+        .senha-resultado code { font-size: 13px; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; color: var(--text); user-select: all; }
+        .admin-usuario-botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        @media (max-width: 520px) { .admin-usuario { grid-template-columns: 40px minmax(0, 1fr); } .admin-usuario-botoes { grid-column: 1 / -1; justify-content: flex-start; } }
+
+        /* ---------- MINHAS LISTAS ---------- */
+        .listas-pagina { padding-block: clamp(32px, 5vw, 56px) 80px; }
+        .listas-cabecalho { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .listas-cabecalho h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em; font-size: clamp(30px, 4.4vw, 48px); line-height: 1.05; margin: 0 0 8px; }
+        .listas-cabecalho .lead { color: var(--text-2); margin: 0; max-width: 60ch; }
+        .listas-abas { display: flex; gap: 10px; margin: 26px 0 22px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+        .lista-chip {
+            flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; cursor: pointer;
+            background: var(--surface); border: 1px solid var(--line); color: var(--text-2); font: inherit; font-weight: 600; font-size: 14px;
+            transition: border-color .2s, background .2s, color .2s; max-width: 260px;
+        }
+        .lista-chip:hover { color: var(--text); border-color: var(--line-strong); }
+        .lista-chip[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+        .lista-chip .nome-lista { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lista-chip .qtd { min-width: 24px; height: 22px; padding: 0 7px; border-radius: 99px; background: rgba(255,255,255,0.08); font-size: 12px; display: inline-grid; place-items: center; }
+        .lista-chip svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .lista-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+        .lista-topo h2 { font-family: var(--font-display); font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.02em; margin: 0; overflow-wrap: anywhere; }
+        .lista-topo small { color: var(--text-3); font-size: 13.5px; }
+        .lista-topo .acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+        .lista-topo .acoes .btn { padding: 8px 13px; font-size: 13px; }
+        .lista-filtros { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+        .lista-filtros label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); cursor: pointer; margin-left: 6px; }
+        .item-lista { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .item-lista .link-btn { align-self: center; font-size: 12.5px; }
+        .item-lista small { text-align: center; color: var(--text-3); font-size: 11.5px; }
+
+        /* botão + menu "Salvar em lista" na janela da obra */
+        .salvar-lista-wrap { position: relative; }
+        .btn-salvar-lista svg { width: 17px; height: 17px; }
+        .btn-salvar-lista.ativo { background: rgba(255,200,87,0.1); border-color: rgba(255,200,87,0.45); color: #ffe0a3; }
+        .btn-salvar-lista.ativo svg { fill: currentColor; }
+        .popover-listas {
+            position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 10; width: min(300px, 80vw); padding: 6px;
+            background: var(--bg-soft); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow);
+            animation: surgir .2s both;
+        }
+        .popover-listas .titulo-pop { padding: 8px 10px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+        .popover-listas ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+        .opcao-lista {
+            width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; border: none; background: none;
+            color: var(--text); font: inherit; font-size: 14px; cursor: pointer; text-align: left;
+        }
+        .opcao-lista:hover, .opcao-lista:focus-visible { background: rgba(255,255,255,0.06); outline: none; }
+        .opcao-lista .caixa { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-strong); display: grid; place-items: center; flex-shrink: 0; color: transparent; }
+        .opcao-lista[aria-checked="true"] .caixa { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .opcao-lista .caixa svg { width: 13px; height: 13px; }
+        .opcao-lista .nome-lista { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .opcao-lista small { color: var(--text-3); font-size: 12px; }
+        .nova-lista-form { display: flex; gap: 6px; padding: 8px 4px 4px; border-top: 1px solid var(--line); margin-top: 4px; }
+        .nova-lista-form .input { height: 38px; font-size: 13.5px; }
+        .nova-lista-form .btn { padding: 0 12px; height: 38px; font-size: 13px; }
+        .popover-erro { color: var(--danger); font-size: 12.5px; padding: 4px 8px 2px; }
+        @media (max-width: 680px) { .popover-listas { bottom: auto; top: calc(100% + 8px); } }
+
+        /* ---------- TOAST ---------- */
+        .toasts { position: fixed; z-index: 200; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+        .toast {
+            background: #f3f4f8; color: #111; font-weight: 600; font-size: 14px; padding: 12px 18px; border-radius: 12px;
+            box-shadow: 0 16px 40px -10px rgba(0,0,0,0.6); display: flex; gap: 10px; align-items: center;
+            animation: toastIn .35s cubic-bezier(.2,.8,.2,1);
+        }
+        .toast svg { width: 18px; height: 18px; color: var(--danger); fill: currentColor; flex-shrink: 0; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+
+        footer { border-top: 1px solid var(--line); color: var(--text-3); font-size: 13px; padding-block: 28px; text-align: center; }
+
+        @media (max-width: 760px) {
+            .nav-inner { gap: 10px; }
+            .nav-links { margin-left: 0; }
+            .nav-link { padding: 9px 10px; }
+            .btn-gerenciar { padding: 10px 12px; }
+            .btn-gerenciar span { display: none; }
+            .nav-link[data-aba="admin"] .rotulo-longo, .nav-link[data-aba="listas"] .rotulo-longo { display: none; }
+            .usuario-botao .nome-usuario, .usuario-botao > svg { display: none; }
+            .usuario-botao { padding: 0 4px; }
+            .toolbar { top: 68px; }
+            kbd { display: none; }
+            .segment { width: 100%; }
+            .segment button { flex: 1; justify-content: center; padding: 0 6px; }
+        }
+        .nav-link .rotulo-curto { display: none; }
+        .nav-link { white-space: nowrap; }
+        .nav-links { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+        .nav-links::-webkit-scrollbar { display: none; }
+        @media (max-width: 440px) { .nav-inner { gap: 8px; } .nav-link { padding: 8px 7px; font-size: 13px; gap: 5px; } .nav .logo { display: none; } .nav-link[data-aba="perfil"] { display: none; } }
+        .nav-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+        @media (max-width: 440px) { .nav-links:has(#nav-admin:not([hidden])) .rotulo-longo { display: none; } }
+        @media (max-width: 760px) { .nav-link .rotulo-curto { display: inline; } .nav-link[data-aba="admin"] svg { display: none; } }
+        @media (max-width: 440px) {
+            .logo-texto { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== NAV ===== -->
+    <nav class="nav">
+        <div class="wrap nav-inner">
+            <a class="logo" href="#" onclick="irPara('catalogo'); return false;">
+                <span class="logo-mark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12M17 3c0 6-10 6-10 12M7 21c0-2 2-3.5 5-3.5S17 19 17 21"/></svg>
+                </span>
+                <span class="logo-texto">Omni<span>Review</span></span>
+            </a>
+            <div class="nav-links">
+                <button class="nav-link ativo" data-aba="catalogo" onclick="irPara('catalogo')">Catálogo</button>
+                <button class="nav-link" data-aba="paravoce" onclick="irPara('paravoce')">
+                    <span><span class="rotulo-longo">Para </span>você</span>
+                    <span class="contador" id="contador-curtidas" hidden>0</span>
+                </button>
+                <button class="nav-link" data-aba="listas" onclick="irPara('listas')"><span class="rotulo-longo">Minhas listas</span><span class="rotulo-curto">Listas</span></button>
+                <button class="nav-link" data-aba="perfil" onclick="abrirPerfil(sessao.usuario)">Perfil</button>
+                <button class="nav-link" data-aba="admin" id="nav-admin" onclick="irPara('admin')" hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/></svg>
+                    <span class="rotulo-longo">Administração</span><span class="rotulo-curto">Admin</span>
+                </button>
+            </div>
+            <div class="nav-spacer"></div>
+            <button class="btn btn-gerenciar" onclick="abrirDrawer()" aria-label="Filtros">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                <span>Filtros</span>
+            </button>
+            <div class="usuario-menu">
+                <button class="usuario-botao" id="usuario-botao" aria-haspopup="menu" aria-expanded="false" aria-controls="usuario-painel">
+                    <span class="avatar" id="usuario-avatar">?</span>
+                    <span class="nome-usuario" id="usuario-nome"></span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="usuario-painel" id="usuario-painel" role="menu" hidden>
+                    <div class="quem"><small>Conectado como</small><strong id="usuario-nome-painel"></strong>
+                        <span class="papel-selo" id="usuario-papel"></span></div>
+                    <button role="menuitem" onclick="alternarMenuUsuario(false); abrirPerfil(sessao.usuario)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+                        Meu perfil
+                    </button>
+                    <button role="menuitem" onclick="abrirRedefinirSenha()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                        Redefinir senha
+                    </button>
+                    <button role="menuitem" id="menu-admin" onclick="alternarMenuUsuario(false); irPara('admin')" hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/></svg>
+                        Administração
+                    </button>
+                    <button role="menuitem" onclick="sair()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/></svg>
+                        Sair
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== CATÁLOGO ===== -->
+    <main id="aba-catalogo">
+        <section class="wrap hero">
+            <span class="eyebrow"><i></i> IA local classificando o acervo</span>
+            <h1>Filmes, séries e jogos com o <em>mesmo DNA criativo.</em></h1>
+            <p class="lead">Procure qualquer título: se ele ainda não estiver no acervo, a OmniReview busca na web, gera o DNA criativo com a IA e adiciona na hora. Depois, cruzamos as tags entre mídias para achar o próximo título para você.</p>
+            <form class="busca-hero" id="busca-hero" role="search" autocomplete="off" onsubmit="event.preventDefault()" novalidate>
+                <label class="busca-hero-pergunta" for="busca-hero-texto">O que você quer ver hoje?</label>
+                <div class="busca-hero-campo">
+                    <div class="busca-hero-caixa">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input id="busca-hero-texto" type="text" maxlength="120" placeholder="Digite um filme, série ou jogo…"
+                            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="busca-hero-lista">
+                        <button class="btn btn-primary" id="busca-hero-botao" type="submit" aria-label="Buscar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span>Buscar</span>
+                        </button>
+                    </div>
+                    <ul class="busca-hero-lista" id="busca-hero-lista" role="listbox" aria-label="Sugestões" hidden></ul>
+                </div>
+                <div class="busca-hero-tipos" id="busca-hero-tipos" role="group" aria-label="Tipo de mídia">
+                    <button type="button" data-tipo="" aria-pressed="true">Qualquer</button>
+                    <button type="button" data-tipo="filme" aria-pressed="false">Filme</button>
+                    <button type="button" data-tipo="serie" aria-pressed="false">Série</button>
+                    <button type="button" data-tipo="jogo" aria-pressed="false">Jogo</button>
+                </div>
+                <div class="busca-hero-status" id="busca-hero-status" role="status" aria-live="polite"></div>
+            </form>
+            <div class="stats">
+                <div class="stat"><span class="dot" style="background: var(--filme)"></span><b id="stat-filme">0</b><small>filmes</small></div>
+                <div class="stat"><span class="dot" style="background: var(--serie)"></span><b id="stat-serie">0</b><small>séries</small></div>
+                <div class="stat"><span class="dot" style="background: var(--jogo)"></span><b id="stat-jogo">0</b><small>jogos</small></div>
+            </div>
+        </section>
+
+        <div class="toolbar">
+            <div class="wrap">
+                <div class="toolbar-row">
+                    <label class="search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input id="filtro-texto" type="search" placeholder="Buscar por título ou tag..." autocomplete="off">
+                        <kbd>/</kbd>
+                    </label>
+                    <div class="segment" id="filtro-tipo">
+                        <button class="ativo" data-tipo="TODOS">Todos</button>
+                        <button data-tipo="filme">Filmes</button>
+                        <button data-tipo="serie">Séries</button>
+                        <button data-tipo="jogo">Jogos</button>
+                    </div>
+                    <select class="select" id="filtro-ordem" aria-label="Ordenar">
+                        <option value="padrao">Mais relevantes</option>
+                        <option value="az">Título A–Z</option>
+                        <option value="za">Título Z–A</option>
+                        <option value="nota">Melhor avaliadas</option>
+                    </select>
+                </div>
+                <div class="chips" id="chips-tags"></div>
+            </div>
+        </div>
+
+        <section class="wrap">
+            <div class="resultado-info">
+                <h2 id="titulo-resultado">Todo o acervo</h2>
+                <span id="contagem-resultado"></span>
+            </div>
+            <div class="grid" id="grid-catalogo"></div>
+        </section>
+    </main>
+
+    <!-- ===== PARA VOCÊ ===== -->
+    <main id="aba-paravoce" hidden>
+        <section class="wrap" style="padding-top: 36px;">
+            <div class="perfil">
+                <div>
+                    <h2>Recomendado para você</h2>
+                    <p id="perfil-descricao">Favorite obras no catálogo para montar seu perfil de gosto.</p>
+                    <div class="tags" id="perfil-tags"></div>
+                </div>
+                <div class="favoritos" id="perfil-favoritos"></div>
+            </div>
+            <div class="resultado-info">
+                <h2>Cruzamento transmídia</h2>
+                <span id="contagem-recomendacoes"></span>
+            </div>
+            <div class="grid" id="grid-recomendacoes"></div>
+        </section>
+    </main>
+
+    <!-- ===== MINHAS LISTAS ===== -->
+    <main id="aba-listas" hidden>
+        <section class="wrap listas-pagina">
+            <div class="listas-cabecalho">
+                <div>
+                    <h1>Minhas listas</h1>
+                    <p class="lead">Guarde o que você quer assistir e jogar. Crie quantas listas quiser e marque o que já viu ou terminou.</p>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="abrirNovaLista()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nova lista
+                </button>
+            </div>
+            <div class="listas-abas" id="listas-abas" role="tablist" aria-label="Suas listas"></div>
+            <div id="lista-conteudo"><div class="aval-carregando">Carregando listas…</div></div>
+        </section>
+    </main>
+
+    <!-- ===== PERFIL ===== -->
+    <main id="aba-perfil" hidden>
+        <div class="perfil-capa" id="perfil-capa"></div>
+        <section class="wrap">
+            <div id="perfil-pagina"><div class="aval-carregando" style="padding-top: 90px">Carregando perfil…</div></div>
+        </section>
+    </main>
+
+    <!-- ===== DIÁLOGO (editar perfil / redefinir senha) ===== -->
+    <div class="dialogo-fundo" id="dialogo-fundo" hidden>
+        <div class="dialogo" id="dialogo" role="dialog" aria-modal="true" aria-labelledby="dialogo-titulo"></div>
+    </div>
+    <input type="file" id="arquivo-imagem" accept="image/jpeg,image/png,image/webp" hidden>
+
+    <!-- ===== ADMINISTRAÇÃO (só administrador) ===== -->
+    <main id="aba-admin" hidden>
+        <section class="wrap admin">
+            <div class="admin-cabecalho">
+                <span class="eyebrow"><i style="background: var(--accent); box-shadow: 0 0 10px var(--accent)"></i> Área do administrador</span>
+                <h1>Administração</h1>
+                <p class="lead">Gerencie as contas de usuário e o acervo. Usuários comuns não veem esta área.</p>
+            </div>
+
+            <h2 class="admin-secao">Usuários</h2>
+            <div class="stats admin-stats">
+                <div class="stat"><span class="dot" style="background: var(--accent-2)"></span><b id="admin-total">0</b><small>no total</small></div>
+                <div class="stat"><span class="dot" style="background: var(--jogo)"></span><b id="admin-comuns">0</b><small>usuários comuns</small></div>
+                <div class="stat"><span class="dot" style="background: var(--accent)"></span><b id="admin-admins">0</b><small>administradores</small></div>
+            </div>
+
+            <div class="admin-grid">
+                <form class="bloco admin-criar" id="admin-form" method="post" action="/" onsubmit="event.preventDefault()" novalidate autocomplete="off">
+                    <h3>Criar conta de usuário comum</h3>
+                    <p>A pessoa entra com este usuário e senha. Contas comuns navegam, avaliam e comentam, mas não acessam a Administração.</p>
+                    <div class="campo">
+                        <label for="admin-novo-usuario">Usuário</label>
+                        <input class="input" id="admin-novo-usuario" maxlength="30" placeholder="ex.: maria.silva" autocapitalize="none" spellcheck="false">
+                        <small class="dica-campo">3 a 30 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.</small>
+                    </div>
+                    <div class="campo">
+                        <label for="admin-nova-senha">Senha</label>
+                        <div class="senha-linha">
+                            <input class="input" id="admin-nova-senha" type="password" maxlength="128" placeholder="mínimo 8 caracteres" autocomplete="new-password">
+                            <button type="button" class="btn" id="admin-mostrar-senha" aria-pressed="false">Mostrar</button>
+                        </div>
+                        <button type="button" class="link-btn" id="admin-gerar-senha">Gerar senha aleatória</button>
+                    </div>
+                    <button class="btn btn-primary btn-block" id="admin-criar-botao" type="submit">Criar usuário comum</button>
+                    <div class="status" id="admin-status" role="status" aria-live="polite"></div>
+                </form>
+
+                <div class="admin-lista">
+                    <div class="admin-lista-topo">
+                        <div class="segment" id="admin-filtro" role="group" aria-label="Mostrar">
+                            <button type="button" class="ativo" data-papel="">Todos</button>
+                            <button type="button" data-papel="USUARIO">Comuns</button>
+                            <button type="button" data-papel="ADMIN">Administradores</button>
+                        </div>
+                        <label class="search admin-busca">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                            <input id="admin-busca" type="search" placeholder="Buscar usuário..." aria-label="Buscar usuário">
+                        </label>
+                    </div>
+                    <ul class="admin-usuarios" id="admin-usuarios" aria-live="polite"></ul>
+                </div>
+            </div>
+
+            <h2 class="admin-secao">Acervo</h2>
+            <div class="admin-acervo">
+            <div class="bloco">
+                <h3>Adicionar uma obra</h3>
+                <p>Busca na web, gera o DNA criativo com a IA e salva no Neo4j.</p>
+                <div class="tipo-escolha" id="manual-tipo">
+                    <button class="ativo" data-tipo="filme">Filme</button>
+                    <button data-tipo="serie">Série</button>
+                    <button data-tipo="jogo">Jogo</button>
+                </div>
+                <div class="campo">
+                    <label for="input-manual-nome">Nome</label>
+                    <input class="input" id="input-manual-nome" placeholder="Ex: Inception, Elden Ring, Breaking Bad">
+                </div>
+                <button class="btn btn-primary btn-block" id="btn-manual" onclick="adicionarObraManual()">Processar e salvar</button>
+                <div class="status" id="status-manual"></div>
+            </div>
+
+            <div class="bloco">
+                <h3>Importar tendências</h3>
+                <p>Traz os 15 filmes, 15 séries e os jogos em alta e classifica todos com a IA.</p>
+                <button class="btn btn-block" id="btn-popular" onclick="popularBanco()">Importar tendências</button>
+                <div class="barra" id="barra-importacao" hidden><i></i></div>
+                <div class="status" id="status-importacao"></div>
+            </div>
+
+            <div class="bloco">
+                <h3>Manutenção</h3>
+                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam.</p>
+                <div style="display: grid; gap: 8px;">
+                    <button class="btn btn-block" id="btn-detalhes" onclick="manutencao('completar-detalhes', 'btn-detalhes')">Completar sinopses e capas</button>
+                    <button class="btn btn-block" id="btn-reprocessar" onclick="manutencao('reprocessar-dna', 'btn-reprocessar')">Refazer tags com erro</button>
+                </div>
+                <div class="status" id="status-manutencao"></div>
+            </div>
+            </div>
+        </section>
+    </main>
+
+    <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB e Steam</div></footer>
+
+    <!-- ===== MODAL DE DETALHES ===== -->
+    <div class="modal-fundo" id="modal-fundo" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" id="modal"></div>
+    </div>
+
+    <!-- ===== DRAWER: FILTROS ===== -->
+    <div class="drawer-fundo" id="drawer-fundo" onclick="fecharDrawer()"></div>
+    <aside class="drawer" id="drawer" aria-label="Filtros">
+        <div class="drawer-topo">
+            <h2>Filtros</h2>
+            <button class="modal-fechar" onclick="fecharDrawer()" aria-label="Fechar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <div class="drawer-corpo">
+            <div class="bloco">
+                <h3>Filtro por tema</h3>
+                <p>Separe termos por vírgula. Vale para o catálogo.</p>
+                <div class="filtros-avancados">
+                    <div class="campo"><label for="filtro-dna-incluir">Incluir</label><input class="input" id="filtro-dna-incluir" placeholder="cyber, ação"></div>
+                    <div class="campo"><label for="filtro-dna-excluir">Excluir</label><input class="input" id="filtro-dna-excluir" placeholder="romance, drama"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="toasts" id="toasts"></div>
+
+    <script>
+        // ================= ESTADO =================
+        const ICONES = {
+            coracao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-9.3-9.2C1.4 7.4 3.6 4 7 4c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8C19.5 15.4 12 20 12 20Z"/></svg>',
+            fechar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+            busca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+            faisca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+            estrela: '<svg class="estrela" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.36l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93z"/></svg>',
+            seta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+        };
+        const TAGS_INVALIDAS = ['deu erro', 'sem classificação', 'processando dna...'];
+        const NOME_TIPO = { filme: 'Filme', serie: 'Série', jogo: 'Jogo' };
+
+        // ================= SESSÃO =================
+        const CHAVE_SESSAO = 'omnireview:sessao';
+        const sessao = (() => { try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null'); } catch { return null; } })();
+
+        function irParaLogin(expirada) {
+            try { localStorage.removeItem(CHAVE_SESSAO); } catch {}
+            location.replace('/login.html' + (expirada ? '?expirada=1' : ''));
+        }
+
+        /** fetch para a API com o token; sessão inválida ou expirada leva de volta ao login. */
+        async function api(url, opcoes = {}) {
+            const resposta = await fetch(url, { ...opcoes, headers: { ...(opcoes.headers || {}), Authorization: `Bearer ${sessao?.token}` } });
+            if (resposta.status === 401) {
+                irParaLogin(true);
+                throw new Error('Sessão expirada');
+            }
+            return resposta;
+        }
+
+        async function sair() {
+            try { await api('/api/auth/sair', { method: 'POST' }); } catch {}
+            irParaLogin(false);
+        }
+
+        const ehAdmin = () => sessao?.papel === 'ADMIN';
+        let catalogo = [];
+        const porTitulo = new Map();
+        const notas = new Map();   // titulo -> { media, total }
+        const CHAVE_CURTIDAS = 'omnireview:curtidas:' + (sessao?.usuario || 'anonimo');
+        let curtidas = carregarCurtidas();
+        const filtro = { texto: '', tipo: 'TODOS', ordem: 'padrao', tags: new Set() };
+        let tipoManual = 'filme';
+
+        // ================= UTILITÁRIOS =================
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const normalizar = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+        const tipoDe = obra => {
+            const t = normalizar(obra.tipo);
+            return t.startsWith('film') ? 'filme' : t.startsWith('ser') ? 'serie' : t.startsWith('jog') ? 'jogo' : 'outro';
+        };
+        const tagsDe = obra => String(obra.dnaCriativo || '').split(',').map(t => t.trim())
+            .filter(t => t && !TAGS_INVALIDAS.includes(t.toLowerCase()));
+        const iniciais = titulo => String(titulo).split(/\s+/).filter(p => /\p{L}|\d/u.test(p[0] || '')).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?';
+
+        // Favoritos ficam separados por usuário; os da versão sem login migram para o primeiro usuário que entrar
+        function carregarCurtidas() {
+            try {
+                let salvas = localStorage.getItem(CHAVE_CURTIDAS);
+                const antigas = localStorage.getItem('omnireview:curtidas');
+                if (salvas === null && antigas !== null) {
+                    salvas = antigas;
+                    localStorage.setItem(CHAVE_CURTIDAS, antigas);
+                    localStorage.removeItem('omnireview:curtidas');
+                }
+                return JSON.parse(salvas || '[]');
+            } catch { return []; }
+        }
+        function salvarCurtidas() {
+            try { localStorage.setItem(CHAVE_CURTIDAS, JSON.stringify(curtidas)); } catch {}
+        }
+        const estaCurtida = titulo => curtidas.includes(titulo);
+
+        // Imagem com fallback: pôster -> capa -> placeholder com as iniciais
+        function imagemHTML(obra, preferencia = 'imagem', classe = 'poster') {
+            const tipo = tipoDe(obra);
+            const principal = preferencia === 'capa' ? (obra.capa || obra.imagem) : (obra.imagem || obra.capa);
+            const reserva = preferencia === 'capa' ? obra.imagem : obra.capa;
+            const ph = `<div class="placeholder" style="--cor: var(--${tipo === 'outro' ? 'accent' : tipo})"><span>${esc(iniciais(obra.titulo))}</span></div>`;
+            if (!principal) return ph;
+            return `${ph}<img class="${classe}" src="${esc(principal)}" alt="" loading="lazy" data-reserva="${esc(reserva && reserva !== principal ? reserva : '')}" onerror="trocarImagem(this)">`;
+        }
+        function trocarImagem(img) {
+            const reserva = img.dataset.reserva;
+            if (reserva) { img.dataset.reserva = ''; img.src = reserva; }
+            else img.remove();
+        }
+
+        function toast(texto) {
+            const el = document.createElement('div');
+            el.className = 'toast';
+            el.innerHTML = `${ICONES.coracao}<span>${esc(texto)}</span>`;
+            $('toasts').appendChild(el);
+            setTimeout(() => el.remove(), 2600);
+        }
+
+        // ================= NOTAS =================
+        const fmtNota = n => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const ROTULOS_NOTA = ['', 'Ruim', 'Fraco', 'Bom', 'Muito bom', 'Excelente'];
+        const MAX_COMENTARIO = 1000;
+        const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+        function notaCardHTML(titulo) {
+            const n = notas.get(titulo);
+            if (!n?.total) return `<span class="nota-card" data-nota="${esc(titulo)}" hidden></span>`;
+            return `<span class="nota-card" data-nota="${esc(titulo)}" title="Média ${fmtNota(n.media)} de 5 (${plural(n.total, 'avaliação', 'avaliações')})"
+                aria-label="Nota média ${fmtNota(n.media)} de 5">${ICONES.estrela}${fmtNota(n.media)}</span>`;
+        }
+
+        function notaModalHTML(titulo) {
+            const n = notas.get(titulo);
+            if (!n?.total) return `<span class="nota-modal sem" id="modal-nota">${ICONES.estrela}<small>Sem avaliações ainda</small></span>`;
+            return `<span class="nota-modal" id="modal-nota" title="Média das avaliações dos usuários">${ICONES.estrela}<b>${fmtNota(n.media)}</b><small>/ 5 · ${plural(n.total, 'avaliação', 'avaliações')}</small></span>`;
+        }
+
+        // Estrelas fixas com preenchimento parcial (ex.: 3,7 → 74%)
+        function estrelasHTML(media) {
+            const cinco = ICONES.estrela.repeat(5);
+            const pct = Math.max(0, Math.min(100, (media || 0) / 5 * 100));
+            return `<span class="estrelas-fixas" aria-hidden="true"><span class="base">${cinco}</span><span class="cheia" style="width:${pct}%">${cinco}</span></span>`;
+        }
+
+        async function carregarNotas() {
+            try {
+                const resposta = await api('/api/avaliacoes/resumo');
+                if (!resposta.ok) return;
+                notas.clear();
+                (await resposta.json()).forEach(n => notas.set(n.titulo, { media: n.media, total: n.total }));
+                atualizarNotasNaTela();
+            } catch (e) { console.warn('Não foi possível carregar as notas', e); }
+        }
+
+        /** Atualiza a média exibida nos cards e no título do modal sem redesenhar a página. */
+        function atualizarNotasNaTela() {
+            document.querySelectorAll('.nota-card[data-nota]').forEach(el => { el.outerHTML = notaCardHTML(el.dataset.nota); });
+            const titulo = $('modal-titulo')?.textContent;
+            if (titulo && $('modal-nota')) $('modal-nota').outerHTML = notaModalHTML(titulo);
+        }
+
+        function tempoRelativo(iso) {
+            const data = new Date(iso);
+            if (isNaN(data)) return '';
+            const seg = Math.round((data - Date.now()) / 1000);
+            const rtf = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+            const passos = [[60, 'second'], [60, 'minute'], [24, 'hour'], [30, 'day'], [12, 'month'], [Infinity, 'year']];
+            let valor = seg;
+            for (const [limite, unidade] of passos) {
+                if (Math.abs(valor) < limite) return Math.abs(seg) < 45 ? 'agora mesmo' : rtf.format(Math.round(valor), unidade);
+                valor /= limite;
+            }
+            return '';
+        }
+
+        // ================= AVALIAÇÕES E COMENTÁRIOS (modal) =================
+        let avaliacao = null;   // { titulo, dados: { media, total, minhaNota, distribuicao, comentarios } }
+
+        async function carregarAvaliacoes(titulo) {
+            avaliacao = null;
+            try {
+                const resposta = await api(`/api/avaliacoes?titulo=${encodeURIComponent(titulo)}`);
+                const dados = await resposta.json();
+                if ($('modal-titulo')?.textContent !== titulo) return;   // o modal já mudou de obra
+                if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                avaliacao = { titulo, dados };
+                sincronizarNota(dados);
+                montarAvaliacoes();
+            } catch (e) {
+                console.error(e);
+                if ($('modal-titulo')?.textContent !== titulo) return;
+                $('modal-avaliacoes').innerHTML = `<h3 class="aval-titulo" id="aval-titulo">Avaliações e comentários</h3>
+                    <div class="aval-carregando">Não foi possível carregar as avaliações. <button class="link-btn" onclick="carregarAvaliacoes(${esc(JSON.stringify(titulo))})">Tentar de novo</button></div>`;
+            }
+        }
+
+        /** Mantém o mapa de médias (cards) igual ao que o servidor acabou de devolver. */
+        function sincronizarNota(d) {
+            if (d.total) notas.set(avaliacao.titulo, { media: d.media, total: d.total });
+            else notas.delete(avaliacao.titulo);
+            atualizarNotasNaTela();
+        }
+
+        function montarAvaliacoes() {
+            const usuario = sessao?.usuario || '';
+            $('modal-avaliacoes').innerHTML = `
+                <h3 class="aval-titulo" id="aval-titulo">Avaliações e comentários <small id="aval-contagem"></small></h3>
+                <div class="aval-painel" id="aval-painel"></div>
+                <form class="comentario-form" id="comentario-form" novalidate>
+                    ${avatarHTML(usuario, minhaFoto)}
+                    <div class="caixa-texto">
+                        <textarea id="comentario-texto" maxlength="${MAX_COMENTARIO}" rows="3" aria-label="Seu comentário"
+                            placeholder="O que você achou de ${esc(avaliacao.titulo)}? Escreva seu comentário…"></textarea>
+                        <div class="caixa-rodape">
+                            <small id="comentario-contador">0 / ${MAX_COMENTARIO}</small>
+                            <button class="btn btn-primary" id="comentario-enviar" type="submit" disabled>Publicar</button>
+                        </div>
+                    </div>
+                    <p class="comentario-erro" id="comentario-erro" role="alert" hidden></p>
+                </form>
+                <ul class="comentarios" id="aval-lista"></ul>`;
+            renderizarPainel();
+            renderizarComentarios();
+        }
+
+        function renderizarPainel() {
+            const d = avaliacao.dados;
+            const maior = Math.max(1, ...d.distribuicao);
+            const linhas = [5, 4, 3, 2, 1].map(k => {
+                const n = d.distribuicao[k - 1] || 0;
+                return `<div class="dist-linha" aria-label="${plural(n, 'avaliação', 'avaliações')} com ${k} ${k === 1 ? 'estrela' : 'estrelas'}">
+                    <span>${k}${ICONES.estrela}</span><div class="dist-barra"><i style="width:${(n / maior) * 100}%"></i></div><span>${n}</span></div>`;
+            }).join('');
+            $('aval-painel').innerHTML = `
+                <div class="aval-media">
+                    ${d.total ? `<b>${fmtNota(d.media)}</b>` : '<b class="sem">–</b>'}
+                    ${estrelasHTML(d.media)}
+                    <small>${d.total ? plural(d.total, 'avaliação', 'avaliações') : 'Nenhuma avaliação'}</small>
+                </div>
+                <div class="aval-distribuicao">${linhas}</div>
+                <div class="aval-minha">
+                    <p class="rotulo" id="rotulo-minha-nota">Sua nota</p>
+                    <div class="seletor-estrelas" id="seletor-estrelas" role="group" aria-labelledby="rotulo-minha-nota">
+                        ${[1, 2, 3, 4, 5].map(k => `<button type="button" data-estrela="${k}" class="${k <= (d.minhaNota || 0) ? 'aceso' : ''}"
+                            aria-label="${k} ${k === 1 ? 'estrela' : 'estrelas'}: ${ROTULOS_NOTA[k]}" aria-pressed="${k === d.minhaNota}">${ICONES.estrela}</button>`).join('')}
+                    </div>
+                    <div class="aval-minha-rodape" id="aval-minha-rodape">${rodapeMinhaNota(d.minhaNota)}</div>
+                </div>`;
+        }
+
+        function rodapeMinhaNota(nota) {
+            return nota
+                ? `<span>${ROTULOS_NOTA[nota]}</span><button type="button" class="link-btn" data-remover-nota>Remover nota</button>`
+                : '<span>Toque nas estrelas para avaliar</span>';
+        }
+
+        function comentarioHTML(c) {
+            const autor = String(c.autor || '?');
+            return `<li class="comentario" data-id="${esc(c.id)}">
+                <button type="button" class="autor-link" data-perfil="${esc(autor)}" aria-label="Ver perfil de ${esc(autor)}">${avatarHTML(autor, c.foto)}</button>
+                <div>
+                    <div class="comentario-topo">
+                        <button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>${c.meu ? '<span class="voce">você</span>' : ''}
+                        ${c.estrelas ? `<span title="Nota de ${esc(autor)}: ${c.estrelas} de 5" aria-label="Nota ${c.estrelas} de 5">${estrelasHTML(c.estrelas)}</span>` : ''}
+                        <time datetime="${esc(c.criadoEm)}" title="${esc(new Date(c.criadoEm).toLocaleString('pt-BR'))}">${esc(tempoRelativo(c.criadoEm))}</time>
+                    </div>
+                    <p>${esc(c.texto)}</p>
+                    ${c.meu ? `<div class="comentario-acoes"><button type="button" class="link-btn" data-excluir-comentario="${esc(c.id)}">Excluir</button></div>` : ''}
+                </div>
+            </li>`;
+        }
+
+        function renderizarComentarios() {
+            const lista = avaliacao.dados.comentarios;
+            $('aval-contagem').textContent = lista.length ? `(${lista.length})` : '';
+            $('aval-lista').innerHTML = lista.length
+                ? lista.map(comentarioHTML).join('')
+                : '<li class="comentarios-vazio">Ainda não há comentários. Seja o primeiro a comentar!</li>';
+        }
+
+        // Prévia das estrelas ao passar o mouse
+        function acenderEstrelas(ate) {
+            document.querySelectorAll('#seletor-estrelas [data-estrela]').forEach(b => b.classList.toggle('aceso', Number(b.dataset.estrela) <= ate));
+        }
+        $('modal').addEventListener('mouseover', e => {
+            const b = e.target.closest('#seletor-estrelas [data-estrela]');
+            if (!b) return;
+            acenderEstrelas(Number(b.dataset.estrela));
+            $('aval-minha-rodape').innerHTML = `<span>${ROTULOS_NOTA[b.dataset.estrela]}</span>`;
+        });
+        $('modal').addEventListener('mouseout', e => {
+            const grupo = e.target.closest('#seletor-estrelas');
+            if (!grupo || grupo.contains(e.relatedTarget) || !avaliacao) return;
+            acenderEstrelas(avaliacao.dados.minhaNota || 0);
+            $('aval-minha-rodape').innerHTML = rodapeMinhaNota(avaliacao.dados.minhaNota);
+        });
+
+        async function enviarNota(estrelas) {
+            const titulo = avaliacao.titulo;
+            const botoes = document.querySelectorAll('#seletor-estrelas button');
+            botoes.forEach(b => b.disabled = true);
+            try {
+                const resposta = estrelas
+                    ? await api('/api/avaliacoes/nota', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo, estrelas }) })
+                    : await api(`/api/avaliacoes/nota?titulo=${encodeURIComponent(titulo)}`, { method: 'DELETE' });
+                const dados = await resposta.json();
+                if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                if (avaliacao?.titulo !== titulo) return;
+                Object.assign(avaliacao.dados, dados);
+                avaliacao.dados.comentarios.forEach(c => { if (c.meu) c.estrelas = dados.minhaNota; });
+                sincronizarNota(avaliacao.dados);
+                renderizarPainel();
+                renderizarComentarios();
+                $('seletor-estrelas').querySelector(`[data-estrela="${estrelas || 1}"]`)?.focus({ preventScroll: true });
+                if (filtro.ordem === 'nota') renderizarCatalogo();
+            } catch (e) {
+                console.error(e);
+                toast('Não foi possível salvar sua nota.');
+                botoes.forEach(b => b.disabled = false);
+            }
+        }
+
+        async function publicarComentario() {
+            const campo = $('comentario-texto');
+            const texto = campo.value.trim();
+            if (!texto || !avaliacao) return;
+            const titulo = avaliacao.titulo;
+            $('comentario-enviar').disabled = true;
+            $('comentario-erro').hidden = true;
+            try {
+                const resposta = await api('/api/avaliacoes/comentarios', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo, texto }) });
+                const dados = await resposta.json();
+                if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível publicar.');
+                if (avaliacao?.titulo !== titulo) return;
+                avaliacao.dados.comentarios.unshift(dados);
+                campo.value = '';
+                atualizarContadorComentario();
+                renderizarComentarios();
+            } catch (e) {
+                $('comentario-erro').textContent = e.message === 'Failed to fetch' ? 'Sem conexão com o servidor.' : e.message;
+                $('comentario-erro').hidden = false;
+                $('comentario-enviar').disabled = false;
+            }
+        }
+
+        async function excluirComentario(botao) {
+            // Primeiro clique pede confirmação; o segundo exclui
+            if (!botao.classList.contains('confirmar')) {
+                botao.classList.add('confirmar');
+                botao.textContent = 'Confirmar exclusão';
+                setTimeout(() => { if (botao.isConnected) { botao.classList.remove('confirmar'); botao.textContent = 'Excluir'; } }, 4000);
+                return;
+            }
+            const id = botao.dataset.excluirComentario;
+            botao.disabled = true;
+            try {
+                const resposta = await api(`/api/avaliacoes/comentarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+                if (!resposta.ok && resposta.status !== 404) throw new Error('HTTP ' + resposta.status);
+                avaliacao.dados.comentarios = avaliacao.dados.comentarios.filter(c => c.id !== id);
+                renderizarComentarios();
+            } catch (e) {
+                console.error(e);
+                toast('Não foi possível excluir o comentário.');
+                botao.disabled = false;
+            }
+        }
+
+        function atualizarContadorComentario() {
+            const campo = $('comentario-texto');
+            const n = campo.value.length;
+            $('comentario-contador').textContent = `${n} / ${MAX_COMENTARIO}`;
+            $('comentario-contador').classList.toggle('limite', n >= MAX_COMENTARIO);
+            $('comentario-enviar').disabled = !campo.value.trim();
+        }
+
+        $('modal').addEventListener('click', e => {
+            const estrela = e.target.closest('#seletor-estrelas [data-estrela]');
+            if (estrela && avaliacao) { enviarNota(Number(estrela.dataset.estrela)); return; }
+            if (e.target.closest('[data-remover-nota]') && avaliacao) { enviarNota(null); return; }
+            const excluir = e.target.closest('[data-excluir-comentario]');
+            if (excluir) excluirComentario(excluir);
+        });
+        $('modal').addEventListener('submit', e => {
+            if (e.target.id !== 'comentario-form') return;
+            e.preventDefault();
+            publicarComentario();
+        });
+        $('modal').addEventListener('input', e => { if (e.target.id === 'comentario-texto') atualizarContadorComentario(); });
+        $('modal').addEventListener('keydown', e => {
+            if (e.target.id === 'comentario-texto' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); publicarComentario(); }
+        });
+
+        // ================= CARD =================
+        function cardHTML(obra, i = 0) {
+            const tipo = tipoDe(obra);
+            const tags = tagsDe(obra);
+            const visiveis = tags.slice(0, 3);
+            const extra = tags.length - visiveis.length;
+            const curtida = estaCurtida(obra.titulo);
+            return `
+                <article class="card" tabindex="0" data-titulo="${esc(obra.titulo)}" style="animation-delay:${Math.min(i, 20) * 25}ms" aria-label="${esc(obra.titulo)}">
+                    ${imagemHTML(obra)}
+                    <div class="sombra"></div>
+                    ${seloConcluidaHTML(obra)}
+                    <button class="btn-fav ${curtida ? 'ativo' : ''}" data-fav="${esc(obra.titulo)}" aria-label="${curtida ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${ICONES.coracao}</button>
+                    <div class="info">
+                        <span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(obra.tipo || 'Obra')}</span>
+                        <div class="titulo-linha"><h3>${esc(obra.titulo)}</h3>${notaCardHTML(obra.titulo)}</div>
+                        <div class="tags">
+                            ${visiveis.length ? visiveis.map(t => `<span class="tag">${esc(t)}</span>`).join('') : '<span class="tag vazia">Sem tags</span>'}
+                            ${extra > 0 ? `<span class="tag mais">+${extra}</span>` : ''}
+                        </div>
+                    </div>
+                </article>`;
+        }
+
+        function vazioHTML(titulo, texto, acao = '') {
+            return `<div class="vazio"><div class="icone">${ICONES.busca}</div><h3>${titulo}</h3><p>${texto}</p>${acao}</div>`;
+        }
+
+        // Clique nos cards (delegação): coração alterna favorito, resto abre o modal
+        document.addEventListener('click', e => {
+            const fav = e.target.closest('[data-fav]');
+            if (fav) { e.stopPropagation(); alternarCurtida(fav.dataset.fav); return; }
+            const card = e.target.closest('.card[data-titulo]');
+            if (card) abrirModal(card.dataset.titulo);
+            const mini = e.target.closest('.mini[data-titulo]');
+            if (mini) abrirModal(mini.dataset.titulo);
+        });
+        document.addEventListener('keydown', e => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.card[data-titulo]')) {
+                e.preventDefault(); abrirModal(e.target.dataset.titulo);
+            }
+            if (e.key === 'Escape') {
+                if (fecharDialogo()) return;
+                if ($('popover-listas') && !$('popover-listas').hidden) { alternarPopoverListas(false); document.querySelector('#modal [data-salvar-lista]')?.focus(); return; }
+                fecharModal(); fecharDrawer();
+            }
+            if (e.key === '/' && !e.target.matches('input, textarea')) { e.preventDefault(); irPara('catalogo'); $('filtro-texto').focus(); }
+        });
+
+        // ================= CATÁLOGO =================
+        async function carregarCatalogo() {
+            $('grid-catalogo').innerHTML = Array(12).fill('<div class="skeleton"></div>').join('');
+            try {
+                const notasProntas = carregarNotas();
+                const resumoPronto = carregarMeuResumo();
+                const listasProntas = carregarListas();
+                const resposta = await api('/api/obras');
+                catalogo = await resposta.json();
+                porTitulo.clear();
+                catalogo.forEach(o => porTitulo.set(o.titulo, o));
+                atualizarStats();
+                renderizarChips();
+                renderizarCatalogo();
+                atualizarContador();
+                await Promise.all([notasProntas, resumoPronto, listasProntas]);
+                completarDetalhesAutomatico();
+            } catch (e) {
+                console.error(e);
+                $('grid-catalogo').innerHTML = vazioHTML('Não foi possível conectar', 'O backend não respondeu. Verifique se o Spring Boot e o Neo4j estão rodando.',
+                    '<button class="btn" onclick="carregarCatalogo()">Tentar de novo</button>');
+            }
+        }
+
+        // Se houver obras sem capa/sinopse, preenche em segundo plano (uma vez por carregamento da página)
+        let completandoDetalhes = false;
+        async function completarDetalhesAutomatico() {
+            const faltando = catalogo.some(o => !o.imagem || !o.sinopse);
+            if (!faltando || completandoDetalhes) return;
+            completandoDetalhes = true;
+            try {
+                const atualizadas = await (await api('/api/completar-detalhes', { method: 'POST' })).json();
+                if (atualizadas.length) {
+                    atualizadas.forEach(o => {
+                        const i = catalogo.findIndex(c => c.titulo === o.titulo);
+                        if (i >= 0) catalogo[i] = o;
+                        porTitulo.set(o.titulo, o);
+                    });
+                    renderizarCatalogo();
+                }
+            } catch (e) { console.warn('Não foi possível completar os detalhes', e); }
+        }
+
+        function atualizarStats() {
+            const cont = { filme: 0, serie: 0, jogo: 0 };
+            catalogo.forEach(o => { const t = tipoDe(o); if (t in cont) cont[t]++; });
+            Object.entries(cont).forEach(([t, n]) => $('stat-' + t).textContent = n);
+        }
+
+        function renderizarChips() {
+            const freq = {};
+            catalogo.forEach(o => tagsDe(o).forEach(t => freq[t] = (freq[t] || 0) + 1));
+            const top = Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 18);
+            filtro.tags.forEach(t => { if (!top.includes(t)) top.unshift(t); });
+            $('chips-tags').innerHTML =
+                (filtro.tags.size ? `<button class="chip limpar" data-limpar>Limpar filtros</button>` : '') +
+                top.map(t => `<button class="chip ${filtro.tags.has(t) ? 'ativo' : ''}" data-chip="${esc(t)}">${esc(t)}</button>`).join('');
+        }
+
+        $('chips-tags').addEventListener('click', e => {
+            const chip = e.target.closest('[data-chip]');
+            if (chip) {
+                const t = chip.dataset.chip;
+                filtro.tags.has(t) ? filtro.tags.delete(t) : filtro.tags.add(t);
+            } else if (e.target.closest('[data-limpar]')) {
+                filtro.tags.clear();
+            } else return;
+            renderizarChips(); renderizarCatalogo();
+        });
+
+        function filtrarCatalogo() {
+            const texto = normalizar(filtro.texto);
+            const incluir = normalizar($('filtro-dna-incluir').value).split(',').map(t => t.trim()).filter(Boolean);
+            const excluir = normalizar($('filtro-dna-excluir').value).split(',').map(t => t.trim()).filter(Boolean);
+
+            let lista = catalogo.filter(o => {
+                const titulo = normalizar(o.titulo);
+                const tags = tagsDe(o);
+                const dna = normalizar(tags.join(', '));
+                if (filtro.tipo !== 'TODOS' && tipoDe(o) !== filtro.tipo) return false;
+                if (texto && !titulo.includes(texto) && !dna.includes(texto)) return false;
+                for (const t of filtro.tags) if (!tags.includes(t)) return false;
+                if (incluir.length && !incluir.some(t => dna.includes(t) || titulo.includes(t))) return false;
+                if (excluir.some(t => dna.includes(t))) return false;
+                return true;
+            });
+            if (filtro.ordem === 'az') lista.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
+            if (filtro.ordem === 'za') lista.sort((a, b) => b.titulo.localeCompare(a.titulo, 'pt-BR'));
+            if (filtro.ordem === 'nota') lista.sort((a, b) => {
+                const na = notas.get(a.titulo), nb = notas.get(b.titulo);
+                return (nb?.media ?? -1) - (na?.media ?? -1) || (nb?.total ?? 0) - (na?.total ?? 0) || a.titulo.localeCompare(b.titulo, 'pt-BR');
+            });
+            return lista;
+        }
+
+        function renderizarCatalogo() {
+            const lista = filtrarCatalogo();
+            const titulos = { TODOS: 'Todo o acervo', filme: 'Filmes', serie: 'Séries', jogo: 'Jogos' };
+            $('titulo-resultado').textContent = filtro.tags.size ? [...filtro.tags].join(' + ') : titulos[filtro.tipo];
+            $('contagem-resultado').textContent = `${lista.length} ${lista.length === 1 ? 'obra' : 'obras'}`;
+
+            if (!catalogo.length) {
+                $('grid-catalogo').innerHTML = ehAdmin()
+                    ? vazioHTML('O acervo está vazio', 'Importe as tendências ou adicione uma obra para começar.',
+                        '<button class="btn btn-primary" onclick="irPara(\'admin\')">Ir para a Administração</button>')
+                    : vazioHTML('O acervo está vazio', 'Procure um título em “O que você quer ver hoje?” para adicioná-lo.');
+                return;
+            }
+            $('grid-catalogo').innerHTML = lista.length
+                ? lista.map(cardHTML).join('')
+                : vazioHTML('Nada encontrado', 'Nenhuma obra combina com esses filtros. Tente remover alguma tag ou mudar o tipo de mídia.',
+                    '<button class="btn" onclick="limparFiltros()">Limpar filtros</button>');
+        }
+
+        function limparFiltros() {
+            filtro.texto = ''; filtro.tipo = 'TODOS'; filtro.tags.clear();
+            $('filtro-texto').value = ''; $('filtro-dna-incluir').value = ''; $('filtro-dna-excluir').value = '';
+            document.querySelectorAll('#filtro-tipo button').forEach(b => b.classList.toggle('ativo', b.dataset.tipo === 'TODOS'));
+            renderizarChips(); renderizarCatalogo();
+        }
+
+        $('filtro-texto').addEventListener('input', e => { filtro.texto = e.target.value; renderizarCatalogo(); });
+        $('filtro-ordem').addEventListener('change', e => { filtro.ordem = e.target.value; renderizarCatalogo(); });
+        ['filtro-dna-incluir', 'filtro-dna-excluir'].forEach(id => $(id).addEventListener('input', renderizarCatalogo));
+        $('filtro-tipo').addEventListener('click', e => {
+            const b = e.target.closest('button'); if (!b) return;
+            filtro.tipo = b.dataset.tipo;
+            document.querySelectorAll('#filtro-tipo button').forEach(x => x.classList.toggle('ativo', x === b));
+            renderizarCatalogo();
+        });
+
+        // ================= "O QUE VOCÊ QUER VER HOJE?" =================
+        // Digita -> sugere obras do acervo; se não houver, busca na web e adiciona automaticamente.
+        const buscaHero = { tipo: '', opcoes: [], ativa: -1, ocupado: false };
+        const chaveBusca = t => normalizar(t).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        const ICONE_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>';
+
+        function sugestoesDoAcervo(texto) {
+            const chave = chaveBusca(texto);
+            if (!chave) return [];
+            return catalogo
+                .filter(o => !buscaHero.tipo || tipoDe(o) === buscaHero.tipo)
+                .map(o => {
+                    const t = chaveBusca(o.titulo);
+                    const pontos = t === chave ? 3 : t.startsWith(chave) ? 2 : t.includes(chave) ? 1 : 0;
+                    return { o, pontos };
+                })
+                .filter(x => x.pontos > 0)
+                .sort((a, b) => b.pontos - a.pontos || a.o.titulo.localeCompare(b.o.titulo, 'pt-BR'))
+                .slice(0, 6)
+                .map(x => x.o);
+        }
+
+        function renderizarSugestoes() {
+            const texto = $('busca-hero-texto').value.trim();
+            const lista = $('busca-hero-lista');
+            if (!texto || buscaHero.ocupado) { fecharSugestoes(); return; }
+            const achadas = sugestoesDoAcervo(texto);
+            const exata = achadas.some(o => chaveBusca(o.titulo) === chaveBusca(texto));
+            buscaHero.opcoes = achadas.map(o => ({ acao: 'abrir', titulo: o.titulo }));
+            if (!exata) buscaHero.opcoes.push({ acao: 'web' });
+            buscaHero.ativa = -1;
+            const midia = { filme: 'filmes', serie: 'séries', jogo: 'jogos' }[buscaHero.tipo] || 'filmes, séries e jogos';
+            lista.innerHTML = achadas.map((o, i) => {
+                const n = notas.get(o.titulo);
+                const tipo = tipoDe(o);
+                return `<li class="busca-opcao" role="option" id="busca-opcao-${i}" data-indice="${i}" aria-selected="false">
+                    <span class="mini-capa">${imagemHTML(o, 'imagem', '')}</span>
+                    <span class="busca-opcao-texto"><strong>${esc(o.titulo)}</strong>
+                        <small><span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(o.tipo || 'Obra')}</span>${n?.total ? `<span>${ICONES.estrela} ${fmtNota(n.media)}</span>` : ''}<span>No acervo</span></small></span>
+                </li>`;
+            }).join('') + (exata ? '' : `
+                <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
+                    <span class="icone-web">${ICONE_WEB}</span>
+                    <span class="busca-opcao-texto"><strong>${achadas.length ? 'Não é nenhum desses? ' : ''}Buscar “${esc(texto)}” na web</strong>
+                        <small>Procura em ${midia} e adiciona ao acervo com o DNA criativo</small></span>
+                </li>`);
+            lista.hidden = false;
+            $('busca-hero-texto').setAttribute('aria-expanded', 'true');
+            $('busca-hero-texto').removeAttribute('aria-activedescendant');
+        }
+
+        function fecharSugestoes() {
+            $('busca-hero-lista').hidden = true;
+            $('busca-hero-texto').setAttribute('aria-expanded', 'false');
+            $('busca-hero-texto').removeAttribute('aria-activedescendant');
+            buscaHero.ativa = -1;
+        }
+
+        function marcarOpcao(indice) {
+            const itens = [...document.querySelectorAll('#busca-hero-lista .busca-opcao')];
+            if (!itens.length) return;
+            buscaHero.ativa = (indice + itens.length) % itens.length;
+            itens.forEach((el, i) => { el.classList.toggle('ativa', i === buscaHero.ativa); el.setAttribute('aria-selected', String(i === buscaHero.ativa)); });
+            itens[buscaHero.ativa].scrollIntoView({ block: 'nearest' });
+            $('busca-hero-texto').setAttribute('aria-activedescendant', itens[buscaHero.ativa].id);
+        }
+
+        function statusBusca(html, tipo = '') {
+            const el = $('busca-hero-status');
+            el.className = 'busca-hero-status ' + tipo;
+            el.innerHTML = html;
+        }
+
+        function executarOpcao(opcao) {
+            fecharSugestoes();
+            if (opcao.acao === 'abrir') { statusBusca(''); abrirModal(opcao.titulo); }
+            else buscarOuAdicionar($('busca-hero-texto').value.trim());
+        }
+
+        function enviarBuscaHero() {
+            const texto = $('busca-hero-texto').value.trim();
+            if (buscaHero.ocupado) return;
+            if (!texto) { $('busca-hero-texto').focus(); return; }
+            if (buscaHero.ativa >= 0 && !$('busca-hero-lista').hidden) { executarOpcao(buscaHero.opcoes[buscaHero.ativa]); return; }
+            // Enter sem escolher: se o título exato já está no acervo, abre; senão busca na web
+            const exata = sugestoesDoAcervo(texto).find(o => chaveBusca(o.titulo) === chaveBusca(texto));
+            executarOpcao(exata ? { acao: 'abrir', titulo: exata.titulo } : { acao: 'web' });
+        }
+
+        async function buscarOuAdicionar(texto) {
+            if (!texto || buscaHero.ocupado) return;
+            buscaHero.ocupado = true;
+            $('busca-hero-botao').disabled = true;
+            const inicio = Date.now();
+            const mensagem = () => `<span class="girando" aria-hidden="true"></span><span>“${esc(texto)}” não está no acervo. Buscando na web e gerando o DNA criativo com a IA… <small>${Math.round((Date.now() - inicio) / 1000)} s</small></span>`;
+            statusBusca(mensagem());
+            const relogio = setInterval(() => statusBusca(mensagem()), 1000);
+            try {
+                const params = new URLSearchParams({ nome: texto });
+                if (buscaHero.tipo) params.set('tipo', buscaHero.tipo);
+                const resposta = await api(`/api/buscar-ou-adicionar?${params}`, { method: 'POST' });
+                clearInterval(relogio);
+                if (resposta.status === 404) {
+                    statusBusca(`Não encontramos “${esc(texto)}” na web. Confira o nome${buscaHero.tipo ? ' ou troque o tipo de mídia' : ' ou escolha o tipo de mídia'}.`, 'erro');
+                    return;
+                }
+                if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+                const { obra, adicionada } = await resposta.json();
+                if (adicionada) {
+                    await carregarCatalogo();
+                    toast(`“${obra.titulo}” foi adicionado ao acervo`);
+                    statusBusca(`Adicionado ao acervo: <strong>${esc(obra.titulo)}</strong> (${NOME_TIPO[tipoDe(obra)] || esc(obra.tipo)}).`, 'ok');
+                } else {
+                    if (!porTitulo.has(obra.titulo)) porTitulo.set(obra.titulo, obra);
+                    statusBusca(`<strong>${esc(obra.titulo)}</strong> já estava no acervo.`, 'ok');
+                }
+                $('busca-hero-texto').value = '';
+                abrirModal(obra.titulo);
+            } catch (e) {
+                clearInterval(relogio);
+                if (e.message !== 'Sessão expirada') statusBusca('Não foi possível buscar agora. Verifique a conexão com o servidor e tente de novo.', 'erro');
+            } finally {
+                buscaHero.ocupado = false;
+                $('busca-hero-botao').disabled = false;
+            }
+        }
+
+        $('busca-hero').addEventListener('submit', e => { e.preventDefault(); enviarBuscaHero(); });
+        $('busca-hero-texto').addEventListener('input', () => { if (!buscaHero.ocupado) statusBusca(''); renderizarSugestoes(); });
+        $('busca-hero-texto').addEventListener('focus', renderizarSugestoes);
+        $('busca-hero-texto').addEventListener('keydown', e => {
+            const aberta = !$('busca-hero-lista').hidden;
+            if (e.key === 'ArrowDown') { e.preventDefault(); if (!aberta) renderizarSugestoes(); marcarOpcao(buscaHero.ativa + 1); }
+            else if (e.key === 'ArrowUp' && aberta) { e.preventDefault(); marcarOpcao(buscaHero.ativa - 1); }
+            else if (e.key === 'Escape' && aberta) { e.stopPropagation(); fecharSugestoes(); }
+        });
+        $('busca-hero-lista').addEventListener('mousedown', e => e.preventDefault());   // não tira o foco do campo
+        $('busca-hero-lista').addEventListener('click', e => {
+            const item = e.target.closest('.busca-opcao');
+            if (item) executarOpcao(buscaHero.opcoes[Number(item.dataset.indice)]);
+        });
+        $('busca-hero-texto').addEventListener('blur', () => setTimeout(fecharSugestoes, 120));
+        $('busca-hero-tipos').addEventListener('click', e => {
+            const b = e.target.closest('button[data-tipo]');
+            if (!b || buscaHero.ocupado) return;
+            buscaHero.tipo = b.dataset.tipo;
+            document.querySelectorAll('#busca-hero-tipos button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+            if ($('busca-hero-texto').value.trim() && document.activeElement === $('busca-hero-texto')) renderizarSugestoes();
+        });
+
+        // ================= FAVORITOS =================
+        function alternarCurtida(titulo) {
+            if (estaCurtida(titulo)) {
+                curtidas = curtidas.filter(t => t !== titulo);
+            } else {
+                curtidas.push(titulo);
+                toast(`"${titulo}" foi para o seu perfil`);
+            }
+            salvarCurtidas();
+            atualizarContador();
+            document.querySelectorAll('[data-fav]').forEach(b => {
+                if (b.dataset.fav !== titulo) return;
+                const ativo = estaCurtida(titulo);
+                b.classList.toggle('ativo', ativo);
+                b.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+                if (b.classList.contains('btn-fav-grande')) b.querySelector('span').textContent = ativo ? 'Nos favoritos' : 'Favoritar';
+            });
+            if (!$('aba-paravoce').hidden) gerarRecomendacoes();
+        }
+
+        function atualizarContador() {
+            const n = curtidas.filter(t => porTitulo.has(t)).length;
+            $('contador-curtidas').textContent = n;
+            $('contador-curtidas').hidden = n === 0;
+        }
+
+        // ================= NAVEGAÇÃO =================
+        function irPara(aba) {
+            if (aba === 'admin' && !ehAdmin()) aba = 'catalogo';
+            $('aba-catalogo').hidden = aba !== 'catalogo';
+            $('aba-paravoce').hidden = aba !== 'paravoce';
+            $('aba-admin').hidden = aba !== 'admin';
+            $('aba-perfil').hidden = aba !== 'perfil';
+            $('aba-listas').hidden = aba !== 'listas';
+            if (aba === 'listas') { renderizarListas(); carregarListas(); }
+            if (aba === 'admin') carregarUsuarios();
+            if (aba === 'perfil') carregarPerfil(perfilUsuario || sessao.usuario);
+            document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('ativo', b.dataset.aba === aba));
+            const ativo = document.querySelector('.nav-link.ativo');   // em telas estreitas a barra rola: mostra a aba atual
+            if (ativo && ativo.offsetParent) ativo.parentElement.scrollLeft = Math.max(0, ativo.offsetLeft - ativo.parentElement.offsetLeft - 8);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (aba === 'paravoce') gerarRecomendacoes();
+        }
+
+        // ================= RECOMENDAÇÕES =================
+        function tagsDoPerfil() {
+            const freq = {};
+            curtidas.map(t => porTitulo.get(t)).filter(Boolean)
+                .forEach(o => tagsDe(o).forEach(t => freq[t] = (freq[t] || 0) + 1));
+            return Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 5);
+        }
+
+        async function buscarRecomendacoes(tags, excluir) {
+            const params = new URLSearchParams();
+            tags.forEach(t => params.append('tags', t));
+            excluir.forEach(t => params.append('excluir', t));
+            const resposta = await api(`/api/recomendar?${params}`);
+            if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+            return resposta.json();
+        }
+
+        async function gerarRecomendacoes() {
+            const grid = $('grid-recomendacoes');
+            const favoritos = curtidas.map(t => porTitulo.get(t)).filter(Boolean);
+
+            $('perfil-favoritos').innerHTML = favoritos.slice(-8).reverse().map(o =>
+                `<div class="mini" data-titulo="${esc(o.titulo)}" title="${esc(o.titulo)}">${imagemHTML(o, 'imagem', '')}</div>`).join('');
+
+            if (!favoritos.length) {
+                $('perfil-descricao').textContent = 'Favorite obras no catálogo para montar seu perfil de gosto.';
+                $('perfil-tags').innerHTML = '';
+                $('contagem-recomendacoes').textContent = '';
+                grid.innerHTML = vazioHTML('Seu perfil ainda está vazio', 'Toque no coração de filmes, séries ou jogos que você gosta. As recomendações aparecem aqui, misturando todas as mídias.',
+                    `<button class="btn btn-primary" onclick="irPara('catalogo')">Explorar catálogo ${ICONES.seta}</button>`);
+                return;
+            }
+
+            const tags = tagsDoPerfil();
+            $('perfil-descricao').textContent = `Baseado em ${favoritos.length} ${favoritos.length === 1 ? 'favorito' : 'favoritos'}. Seu DNA criativo:`;
+            $('perfil-tags').innerHTML = tags.map(t => `<span class="tag" style="background: var(--accent-soft); border-color: rgba(139,123,255,0.3); color:#dcd6ff">${esc(t)}</span>`).join('');
+
+            if (!tags.length) {
+                grid.innerHTML = vazioHTML('Favoritos sem tags', 'As obras favoritas ainda não têm DNA criativo.' + (ehAdmin() ? ' Use "Refazer tags com erro" na Administração.' : ''));
+                return;
+            }
+
+            grid.innerHTML = Array(6).fill('<div class="skeleton"></div>').join('');
+            try {
+                const recs = (await buscarRecomendacoes(tags, curtidas)).filter(o => !estaCurtida(o.titulo));
+                recs.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
+                $('contagem-recomendacoes').textContent = `${recs.length} ${recs.length === 1 ? 'sugestão' : 'sugestões'}`;
+                grid.innerHTML = recs.length
+                    ? recs.map(cardHTML).join('')
+                    : vazioHTML('Nenhum cruzamento ainda', 'Não há outras obras com essas tags no acervo. Importe mais títulos para ampliar as sugestões.');
+            } catch (e) {
+                console.error(e);
+                grid.innerHTML = vazioHTML('Erro ao consultar o Neo4j', 'Não foi possível gerar as recomendações agora.');
+            }
+        }
+
+        // ================= MODAL =================
+        let ultimoFoco = null;
+
+        function abrirModal(titulo) {
+            const obra = porTitulo.get(titulo);
+            if (!obra) return;
+            if (!$('modal-fundo').classList.contains('aberto')) ultimoFoco = document.activeElement;
+            const tipo = tipoDe(obra);
+            const tags = tagsDe(obra);
+            const curtida = estaCurtida(obra.titulo);
+            const sinopse = obra.sinopse && !obra.sinopse.startsWith('Sem sinopse') ? obra.sinopse : null;
+
+            $('modal').innerHTML = `
+                <button class="modal-fechar" onclick="fecharModal()" aria-label="Fechar">${ICONES.fechar}</button>
+                <div class="modal-capa">${imagemHTML(obra, 'capa', '')}</div>
+                <div class="modal-corpo">
+                    <div class="modal-poster">${imagemHTML(obra, 'imagem', '')}</div>
+                    <div class="modal-texto">
+                        <span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(obra.tipo || 'Obra')}</span>
+                        <div class="modal-titulo-linha"><h2 id="modal-titulo">${esc(obra.titulo)}</h2>${notaModalHTML(obra.titulo)}</div>
+                        <div class="tags">
+                            ${tags.length ? tags.map(t => `<button class="tag" data-filtrar-tag="${esc(t)}" title="Ver todas com esta tag">${esc(t)}</button>`).join('') : '<span class="tag vazia">Ainda sem tags</span>'}
+                        </div>
+                        <p class="rotulo">Sinopse</p>
+                        <p class="sinopse ${sinopse ? '' : 'sem'}">${sinopse ? esc(sinopse) : 'Sinopse ainda não disponível.' + (ehAdmin() ? ' Use "Completar sinopses e capas" na Administração.' : '')}</p>
+                        <div class="modal-acoes">
+                            ${botaoConclusaoHTML(obra)}
+                            ${botaoSalvarListaHTML(obra)}
+                            <button class="btn btn-primary btn-fav-grande ${curtida ? 'ativo' : ''}" data-fav="${esc(obra.titulo)}">${ICONES.coracao}<span>${curtida ? 'Nos favoritos' : 'Favoritar'}</span></button>
+                        </div>
+                    </div>
+                </div>
+                <section class="avaliacoes" id="modal-avaliacoes" aria-labelledby="aval-titulo">
+                    <h3 class="aval-titulo" id="aval-titulo">Avaliações e comentários</h3>
+                    <div class="aval-carregando">Carregando avaliações…</div>
+                </section>
+                <div class="semelhantes" id="modal-semelhantes" ${tags.length ? '' : 'hidden'}>
+                    <h3>Com o mesmo DNA</h3>
+                    <p>Filmes, séries e jogos que compartilham tags com ${esc(obra.titulo)}.</p>
+                    <div class="trilho" id="modal-trilho">${Array(5).fill('<div class="skeleton"></div>').join('')}</div>
+                </div>`;
+
+            $('modal').scrollTop = 0;
+            $('modal-fundo').classList.add('aberto');
+            $('modal-fundo').setAttribute('aria-hidden', 'false');
+            document.body.classList.add('travado');
+            $('modal').querySelector('.modal-fechar').focus({ preventScroll: true });
+
+            document.querySelectorAll('#modal [data-salvar-lista]').forEach(atualizarBotaoSalvar);
+            carregarAvaliacoes(obra.titulo);
+            if (tags.length) carregarSemelhantes(obra, tags);
+        }
+
+        async function carregarSemelhantes(obra, tags) {
+            try {
+                const recs = (await buscarRecomendacoes(tags, [obra.titulo])).slice(0, 12);
+                if ($('modal-titulo')?.textContent !== obra.titulo) return; // modal já mudou
+                recs.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
+                if (!recs.length) { $('modal-semelhantes').hidden = true; return; }
+                $('modal-trilho').innerHTML = recs.map(cardHTML).join('');
+            } catch { $('modal-semelhantes').hidden = true; }
+        }
+
+        function fecharModal() {
+            if (!$('modal-fundo').classList.contains('aberto')) return;
+            $('modal-fundo').classList.remove('aberto');
+            $('modal-fundo').setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('travado');
+            ultimoFoco?.focus?.({ preventScroll: true });
+        }
+
+        $('modal-fundo').addEventListener('click', e => {
+            if (e.target === $('modal-fundo')) { fecharModal(); return; }
+            const tagBtn = e.target.closest('[data-filtrar-tag]');
+            if (tagBtn) {
+                fecharModal();
+                filtro.tags = new Set([tagBtn.dataset.filtrarTag]);
+                filtro.tipo = 'TODOS';
+                document.querySelectorAll('#filtro-tipo button').forEach(b => b.classList.toggle('ativo', b.dataset.tipo === 'TODOS'));
+                irPara('catalogo');
+                renderizarChips(); renderizarCatalogo();
+            }
+        });
+
+        // ================= FILTROS / ACERVO (administração) =================
+        function abrirDrawer() {
+            $('drawer').classList.add('aberto'); $('drawer-fundo').classList.add('aberto');
+            setTimeout(() => $('filtro-dna-incluir').focus(), 300);
+        }
+        function fecharDrawer() { $('drawer').classList.remove('aberto'); $('drawer-fundo').classList.remove('aberto'); }
+
+        $('manual-tipo').addEventListener('click', e => {
+            const b = e.target.closest('button'); if (!b) return;
+            tipoManual = b.dataset.tipo;
+            document.querySelectorAll('#manual-tipo button').forEach(x => x.classList.toggle('ativo', x === b));
+        });
+        $('input-manual-nome').addEventListener('keydown', e => { if (e.key === 'Enter') adicionarObraManual(); });
+
+        function status(id, texto, tipo = '') { const el = $(id); el.textContent = texto; el.className = 'status ' + tipo; }
+
+        async function adicionarObraManual() {
+            const nome = $('input-manual-nome').value.trim();
+            if (!nome) { status('status-manual', 'Digite o nome da obra.', 'erro'); return; }
+            const btn = $('btn-manual');
+            btn.disabled = true;
+            status('status-manual', `Buscando "${nome}" e gerando o DNA com a IA...`);
+            try {
+                const resposta = await api(`/api/adicionar/${tipoManual}?nome=${encodeURIComponent(nome)}`, { method: 'POST' });
+                const texto = await resposta.text();
+                const obra = texto ? JSON.parse(texto) : null;
+                if (resposta.ok && obra) {
+                    status('status-manual', `"${obra.titulo}" adicionado ao acervo.`, 'ok');
+                    $('input-manual-nome').value = '';
+                    await carregarCatalogo();
+                } else {
+                    status('status-manual', 'Não encontramos essa obra. Confira o nome e o tipo.', 'erro');
+                }
+            } catch {
+                status('status-manual', 'Erro de conexão com o servidor.', 'erro');
+            } finally { btn.disabled = false; }
+        }
+
+        async function popularBanco() {
+            const btn = $('btn-popular');
+            const barra = $('barra-importacao');
+            btn.disabled = true;
+            barra.hidden = false; barra.firstElementChild.style.width = '0';
+            status('status-importacao', 'Buscando tendências...');
+            try {
+                const [filmes, series, jogos] = await Promise.all(
+                    ['filmes', 'series', 'jogos'].map(t => api(`/api/tendencias/${t}`).then(r => r.json()).catch(() => [])));
+                const fila = [
+                    ...filmes.map(nome => ({ nome, tipo: 'filme' })),
+                    ...series.map(nome => ({ nome, tipo: 'serie' })),
+                    ...jogos.map(nome => ({ nome, tipo: 'jogo' }))
+                ];
+                let feitos = 0;
+                for (const item of fila) {
+                    status('status-importacao', `Classificando ${feitos + 1} de ${fila.length}: ${item.nome}`);
+                    try { await api(`/api/adicionar/${item.tipo}?nome=${encodeURIComponent(item.nome)}`, { method: 'POST' }); } catch {}
+                    feitos++;
+                    barra.firstElementChild.style.width = `${(feitos / fila.length) * 100}%`;
+                }
+                status('status-importacao', `Importação concluída: ${fila.length} obras processadas.`, 'ok');
+                await carregarCatalogo();
+            } catch {
+                status('status-importacao', 'Falha ao importar as tendências.', 'erro');
+            } finally { btn.disabled = false; }
+        }
+
+        async function manutencao(rota, idBotao) {
+            const btn = $(idBotao);
+            document.querySelectorAll('#btn-detalhes, #btn-reprocessar').forEach(b => b.disabled = true);
+            status('status-manutencao', rota === 'reprocessar-dna' ? 'Refazendo tags com a IA, pode levar alguns minutos...' : 'Buscando sinopses e capas...');
+            try {
+                const resposta = await api(`/api/${rota}`, { method: 'POST' });
+                const lista = await resposta.json();
+                status('status-manutencao', lista.length ? `${lista.length} ${lista.length === 1 ? 'obra atualizada' : 'obras atualizadas'}.` : 'Nada para atualizar, tudo em dia.', 'ok');
+                await carregarCatalogo();
+            } catch {
+                status('status-manutencao', 'Falha na manutenção.', 'erro');
+            } finally { document.querySelectorAll('#btn-detalhes, #btn-reprocessar').forEach(b => b.disabled = false); }
+        }
+
+        // ================= ADMINISTRAÇÃO =================
+        // A interface só esconde/mostra; quem barra de verdade é o servidor (403 para não administradores).
+        let usuariosAdmin = [];
+        const filtroAdmin = { papel: '', texto: '' };
+        const FORMATO_USUARIO = /^[a-z0-9._-]{3,30}$/;
+
+        function aplicarPapel() {
+            const admin = ehAdmin();
+            $('nav-admin').hidden = !admin;
+            $('menu-admin').hidden = !admin;
+            $('usuario-papel').textContent = admin ? 'Administrador' : 'Usuário comum';
+            $('usuario-papel').classList.toggle('admin', admin);
+            if (!admin && !$('aba-admin').hidden) irPara('catalogo');
+        }
+
+        const dataCurta = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR'); };
+
+        async function carregarUsuarios() {
+            $('admin-usuarios').innerHTML = '<li class="admin-vazio">Carregando usuários…</li>';
+            try {
+                const resposta = await api('/api/admin/usuarios');
+                if (resposta.status === 403) { sessao.papel = 'USUARIO'; aplicarPapel(); return; }
+                if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+                usuariosAdmin = await resposta.json();
+                renderizarUsuarios();
+            } catch (e) {
+                console.error(e);
+                $('admin-usuarios').innerHTML = '<li class="admin-vazio">Não foi possível carregar os usuários. <button class="link-btn" onclick="carregarUsuarios()">Tentar de novo</button></li>';
+            }
+        }
+
+        function renderizarUsuarios() {
+            const admins = usuariosAdmin.filter(u => u.papel === 'ADMIN').length;
+            $('admin-total').textContent = usuariosAdmin.length;
+            $('admin-admins').textContent = admins;
+            $('admin-comuns').textContent = usuariosAdmin.length - admins;
+
+            const texto = filtroAdmin.texto.trim().toLowerCase();
+            const lista = usuariosAdmin.filter(u => (!filtroAdmin.papel || u.papel === filtroAdmin.papel) && (!texto || u.usuario.includes(texto)));
+            if (!lista.length) {
+                $('admin-usuarios').innerHTML = `<li class="admin-vazio">${usuariosAdmin.length ? 'Nenhum usuário com esse filtro.' : 'Nenhum usuário cadastrado.'}</li>`;
+                return;
+            }
+            $('admin-usuarios').innerHTML = lista.map(u => {
+                const admin = u.papel === 'ADMIN';
+                const meta = [
+                    u.criadoEm ? `Desde ${dataCurta(u.criadoEm)}` : '',
+                    u.criadoPor ? `criado por ${esc(u.criadoPor)}` : (admin ? '' : 'cadastro próprio'),
+                    plural(u.notas, 'nota', 'notas'),
+                    plural(u.comentarios, 'comentário', 'comentários')
+                ].filter(Boolean).join(' · ');
+                return `<li class="admin-usuario ${admin ? 'admin-papel' : ''}" data-usuario="${esc(u.usuario)}">
+                    <span class="avatar" aria-hidden="true">${esc(u.usuario[0].toUpperCase())}</span>
+                    <div>
+                        <div class="admin-usuario-nome"><button type="button" class="autor-link" data-perfil="${esc(u.usuario)}">${esc(u.usuario)}</button>
+                            <span class="papel-selo ${admin ? 'admin' : ''}">${admin ? 'Administrador' : 'Comum'}</span>
+                            ${u.usuario === sessao?.usuario ? '<span class="selo-voce">você</span>' : ''}</div>
+                        <div class="admin-usuario-meta">${meta}</div>
+                        <div class="senha-resultado" data-senha-resultado="${esc(u.usuario)}" hidden></div>
+                    </div>
+                    ${admin ? '<span class="protegido">Protegido</span>'
+                        : `<div class="admin-usuario-botoes">
+                            <button type="button" class="btn" data-redefinir-senha="${esc(u.usuario)}" aria-label="Redefinir a senha de ${esc(u.usuario)}">Redefinir senha</button>
+                            <button type="button" class="btn" data-excluir-usuario="${esc(u.usuario)}" aria-label="Excluir ${esc(u.usuario)}">Excluir</button>
+                        </div>`}
+                </li>`;
+            }).join('');
+        }
+
+        async function excluirUsuario(botao) {
+            const usuario = botao.dataset.excluirUsuario;
+            if (!botao.classList.contains('confirmar')) {
+                botao.classList.add('confirmar');
+                botao.textContent = 'Confirmar exclusão';
+                setTimeout(() => { if (botao.isConnected) { botao.classList.remove('confirmar'); botao.textContent = 'Excluir'; } }, 4000);
+                return;
+            }
+            botao.disabled = true;
+            try {
+                const resposta = await api(`/api/admin/usuarios/${encodeURIComponent(usuario)}`, { method: 'DELETE' });
+                if (!resposta.ok && resposta.status !== 404) {
+                    const dados = await resposta.json().catch(() => ({}));
+                    throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                }
+                usuariosAdmin = usuariosAdmin.filter(u => u.usuario !== usuario);
+                renderizarUsuarios();
+                toast(`Conta "${usuario}" excluída`);
+                carregarNotas();   // as notas do usuário saíram das médias
+            } catch (e) {
+                toast(e.message || 'Não foi possível excluir.');
+                botao.disabled = false;
+            }
+        }
+
+        async function criarUsuarioPeloAdmin() {
+            const usuario = $('admin-novo-usuario').value.trim().toLowerCase();
+            const senha = $('admin-nova-senha').value;
+            if (!FORMATO_USUARIO.test(usuario)) { status('admin-status', 'Usuário inválido: use 3 a 30 caracteres (a-z, 0-9, ponto, hífen ou sublinhado).', 'erro'); $('admin-novo-usuario').focus(); return; }
+            if (senha.length < 8) { status('admin-status', 'A senha precisa ter pelo menos 8 caracteres.', 'erro'); $('admin-nova-senha').focus(); return; }
+            $('admin-criar-botao').disabled = true;
+            status('admin-status', 'Criando conta…');
+            try {
+                const resposta = await api('/api/admin/usuarios', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario, senha }) });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok) { status('admin-status', dados.erro || 'Não foi possível criar a conta.', 'erro'); return; }
+                status('admin-status', `Conta "${dados.usuario}" criada. Passe o usuário e a senha para a pessoa.`, 'ok');
+                $('admin-novo-usuario').value = '';
+                $('admin-nova-senha').value = '';
+                carregarUsuarios();
+            } catch {
+                status('admin-status', 'Erro de conexão com o servidor.', 'erro');
+            } finally { $('admin-criar-botao').disabled = false; }
+        }
+
+        function gerarSenha() {
+            const letras = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const bytes = crypto.getRandomValues(new Uint32Array(12));
+            const senha = [...bytes].map(n => letras[n % letras.length]).join('');
+            $('admin-nova-senha').value = senha;
+            mostrarSenhaAdmin(true);
+            $('admin-nova-senha').select();
+        }
+        function mostrarSenhaAdmin(mostrar) {
+            $('admin-nova-senha').type = mostrar ? 'text' : 'password';
+            $('admin-mostrar-senha').textContent = mostrar ? 'Ocultar' : 'Mostrar';
+            $('admin-mostrar-senha').setAttribute('aria-pressed', String(mostrar));
+        }
+
+        $('admin-form').addEventListener('submit', e => { e.preventDefault(); criarUsuarioPeloAdmin(); });
+        $('admin-novo-usuario').addEventListener('input', e => { e.target.value = e.target.value.toLowerCase().replace(/\s/g, ''); });
+        $('admin-gerar-senha').addEventListener('click', gerarSenha);
+        $('admin-mostrar-senha').addEventListener('click', () => mostrarSenhaAdmin($('admin-nova-senha').type === 'password'));
+        $('admin-usuarios').addEventListener('click', e => {
+            const b = e.target.closest('[data-excluir-usuario]'); if (b) { excluirUsuario(b); return; }
+            const s = e.target.closest('[data-redefinir-senha]'); if (s) redefinirSenhaDeUsuario(s);
+        });
+
+        /** Gera uma senha aleatória para um usuário comum e mostra para o administrador repassar. */
+        async function redefinirSenhaDeUsuario(botao) {
+            const usuario = botao.dataset.redefinirSenha;
+            if (!botao.classList.contains('confirmar')) {
+                botao.classList.add('confirmar');
+                botao.textContent = 'Confirmar nova senha';
+                setTimeout(() => { if (botao.isConnected) { botao.classList.remove('confirmar'); botao.textContent = 'Redefinir senha'; } }, 4000);
+                return;
+            }
+            botao.disabled = true;
+            const letras = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const novaSenha = [...crypto.getRandomValues(new Uint32Array(12))].map(n => letras[n % letras.length]).join('');
+            try {
+                const resposta = await api(`/api/admin/usuarios/${encodeURIComponent(usuario)}/senha`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ novaSenha }) });
+                if (resposta.status !== 204) {
+                    const dados = await resposta.json().catch(() => ({}));
+                    throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                }
+                const caixa = document.querySelector(`[data-senha-resultado="${CSS.escape(usuario)}"]`);
+                caixa.innerHTML = `Nova senha: <code>${esc(novaSenha)}</code> — passe para a pessoa (as sessões dela foram encerradas).`;
+                caixa.hidden = false;
+                botao.classList.remove('confirmar');
+                botao.textContent = 'Redefinir senha';
+            } catch (e) {
+                toast(e.message || 'Não foi possível redefinir a senha.');
+            } finally { botao.disabled = false; }
+        }
+        $('admin-busca').addEventListener('input', e => { filtroAdmin.texto = e.target.value; renderizarUsuarios(); });
+        $('admin-filtro').addEventListener('click', e => {
+            const b = e.target.closest('button[data-papel]'); if (!b) return;
+            filtroAdmin.papel = b.dataset.papel;
+            document.querySelectorAll('#admin-filtro button').forEach(x => x.classList.toggle('ativo', x === b));
+            renderizarUsuarios();
+        });
+
+        // ================= AVATARES =================
+        /** Avatar com a foto do usuário (se houver) ou a inicial. */
+        function avatarHTML(usuario, foto, classe = '') {
+            const inicial = esc(String(usuario || '?')[0].toUpperCase());
+            const imagem = foto && /^data:image\/(jpeg|png|webp);base64,/.test(foto) ? `<img src="${esc(foto)}" alt="">` : inicial;
+            return `<span class="avatar ${classe}" aria-hidden="true">${imagem}</span>`;
+        }
+        let minhaFoto = null;
+        function atualizarMeuAvatar() {
+            $('usuario-avatar').innerHTML = minhaFoto ? `<img src="${esc(minhaFoto)}" alt="">` : esc((sessao?.usuario || '?')[0].toUpperCase());
+        }
+
+        // ================= ASSISTI / TERMINEI =================
+        const minhasConcluidas = new Set();
+        const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+        const textoConclusao = (obra, feita) => tipoDe(obra) === 'jogo'
+            ? (feita ? 'Jogo terminado' : 'Terminei o jogo')
+            : (feita ? 'Já assisti' : 'Marcar como assistido');
+        const seloConclusao = obra => tipoDe(obra) === 'jogo' ? 'Jogado' : 'Assistido';
+
+        function seloConcluidaHTML(obra) {
+            return `<span class="selo-concluida" data-selo-concluida="${esc(obra.titulo)}" ${minhasConcluidas.has(obra.titulo) ? '' : 'hidden'}>${ICONE_CHECK}<span>${seloConclusao(obra)}</span></span>`;
+        }
+
+        function botaoConclusaoHTML(obra) {
+            const feita = minhasConcluidas.has(obra.titulo);
+            return `<button class="btn btn-concluida ${feita ? 'ativo' : ''}" data-concluir="${esc(obra.titulo)}" aria-pressed="${feita}">${ICONE_CHECK}<span>${textoConclusao(obra, feita)}</span></button>`;
+        }
+
+        async function carregarMeuResumo() {
+            try {
+                const resposta = await api('/api/perfil/eu/resumo');
+                if (!resposta.ok) return;
+                const dados = await resposta.json();
+                minhaFoto = dados.foto || null;
+                atualizarMeuAvatar();
+                minhasConcluidas.clear();
+                (dados.concluidas || []).forEach(t => minhasConcluidas.add(t));
+                atualizarConclusoesNaTela();
+            } catch (e) { console.warn('Não foi possível carregar o resumo do perfil', e); }
+        }
+
+        function atualizarConclusoesNaTela() {
+            if (!$('aba-listas').hidden) renderizarListas();
+            document.querySelectorAll('[data-selo-concluida]').forEach(el => { el.hidden = !minhasConcluidas.has(el.dataset.seloConcluida); });
+            document.querySelectorAll('[data-concluir]').forEach(b => {
+                const obra = porTitulo.get(b.dataset.concluir) || { titulo: b.dataset.concluir };
+                const feita = minhasConcluidas.has(obra.titulo);
+                b.classList.toggle('ativo', feita);
+                b.setAttribute('aria-pressed', String(feita));
+                b.querySelector('span').textContent = textoConclusao(obra, feita);
+            });
+        }
+
+        async function alternarConclusao(titulo, botao) {
+            const obra = porTitulo.get(titulo) || { titulo };
+            const feita = minhasConcluidas.has(titulo);
+            botao.disabled = true;
+            try {
+                const resposta = feita
+                    ? await api(`/api/perfil/concluidas?titulo=${encodeURIComponent(titulo)}`, { method: 'DELETE' })
+                    : await api('/api/perfil/concluidas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo }) });
+                if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
+                feita ? minhasConcluidas.delete(titulo) : minhasConcluidas.add(titulo);
+                atualizarConclusoesNaTela();
+                if (!feita) toast(tipoDe(obra) === 'jogo' ? `"${titulo}" entrou nos seus jogos terminados` : `"${titulo}" marcado como assistido`);
+                if (!$('aba-perfil').hidden && perfilAtual?.ehEu) carregarPerfil(sessao.usuario, perfilAba);
+            } catch (e) {
+                console.error(e);
+                toast('Não foi possível atualizar agora.');
+            } finally { botao.disabled = false; }
+        }
+
+        // ================= PERFIL =================
+        let perfilAtual = null;
+        let perfilUsuario = null;
+        let perfilAba = 'concluidas';
+        let perfilFiltroTipo = '';
+
+        function abrirPerfil(usuario) {
+            perfilUsuario = usuario || sessao?.usuario;
+            perfilAba = 'concluidas';
+            perfilFiltroTipo = '';
+            fecharModal();
+            irPara('perfil');
+        }
+
+        async function carregarPerfil(usuario, aba = 'concluidas') {
+            perfilAba = aba;
+            if (perfilAtual?.usuario !== usuario) {
+                $('perfil-pagina').innerHTML = '<div class="aval-carregando" style="padding-top: 90px">Carregando perfil…</div>';
+                $('perfil-capa').style.backgroundImage = '';
+            }
+            try {
+                const resposta = await api(`/api/perfil/${encodeURIComponent(usuario)}`);
+                const dados = await resposta.json();
+                if (perfilUsuario !== usuario) return;
+                if (resposta.status === 404) {
+                    perfilAtual = null;
+                    $('perfil-pagina').innerHTML = vazioHTML('Usuário não encontrado', 'Essa conta não existe mais.',
+                        `<button class="btn" onclick="abrirPerfil(sessao.usuario)">Ver meu perfil</button>`);
+                    return;
+                }
+                if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                perfilAtual = dados;
+                (dados.concluidas || []).forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
+                if (dados.ehEu) { minhaFoto = dados.foto || null; atualizarMeuAvatar(); }
+                renderizarPerfil();
+            } catch (e) {
+                console.error(e);
+                $('perfil-pagina').innerHTML = vazioHTML('Não foi possível carregar o perfil', 'Verifique a conexão com o servidor.',
+                    `<button class="btn" onclick="carregarPerfil(perfilUsuario)">Tentar de novo</button>`);
+            }
+        }
+
+        function renderizarPerfil(recarregarAba = true) {
+            const p = perfilAtual;
+            const e = p.estatisticas;
+            $('perfil-capa').style.backgroundImage = p.capaFundo ? `url("${p.capaFundo}")` : '';
+            const admin = p.papel === 'ADMIN';
+            const stat = (valor, rotulo, cor, aba) => {
+                const conteudo = `<b>${valor}</b><span><i class="dot" style="background: ${cor}"></i>${rotulo}</span>`;
+                return aba ? `<button type="button" class="perfil-stat" data-perfil-aba="${aba}">${conteudo}</button>` : `<div class="perfil-stat">${conteudo}</div>`;
+            };
+            const abas = [['concluidas', 'Concluídos'], ['reviews', 'Reviews'], ['seguidores', 'Seguidores'], ['seguindo', 'Seguindo']];
+            if (p.ehEu) abas.push(['pessoas', 'Encontrar pessoas']);
+            $('perfil-pagina').innerHTML = `
+                <div class="perfil-cabeca">
+                    ${avatarHTML(p.usuario, p.foto, 'avatar-grande')}
+                    <div class="perfil-identidade">
+                        <h1>${esc(p.usuario)} <span class="papel-selo ${admin ? 'admin' : ''}">${admin ? 'Administrador' : 'Membro'}</span></h1>
+                        ${p.bio ? `<p class="bio">${esc(p.bio)}</p>` : (p.ehEu ? '<p class="bio" style="color: var(--text-3)">Conte um pouco sobre você em “Editar perfil”.</p>' : '')}
+                        <small>${p.criadoEm ? `Membro desde ${dataCurta(p.criadoEm)}` : ''}</small>
+                    </div>
+                    <div class="perfil-acoes">
+                        ${p.ehEu
+                            ? `<button class="btn" onclick="abrirEditorPerfil()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>Editar perfil</button>
+                               <button class="btn" onclick="abrirRedefinirSenha()">Redefinir senha</button>`
+                            : botaoSeguirHTML(p.usuario, p.euSigo, true)}
+                    </div>
+                </div>
+                <div class="perfil-stats">
+                    ${stat(e.jogos, 'jogos jogados', 'var(--jogo)', 'concluidas:jogo')}
+                    ${stat(e.filmes, 'filmes assistidos', 'var(--filme)', 'concluidas:filme')}
+                    ${stat(e.series, 'séries assistidas', 'var(--serie)', 'concluidas:serie')}
+                    ${stat(e.reviews, e.reviews === 1 ? 'review' : 'reviews', 'var(--estrela)', 'reviews')}
+                    ${stat(e.seguidores, e.seguidores === 1 ? 'seguidor' : 'seguidores', 'var(--accent)', 'seguidores')}
+                    ${stat(e.seguindo, 'seguindo', 'var(--accent-2)', 'seguindo')}
+                </div>
+                <div class="perfil-abas" role="tablist">
+                    ${abas.map(([id, nome]) => `<button type="button" role="tab" data-perfil-aba="${id}" aria-selected="${perfilAba === id}">${nome}</button>`).join('')}
+                </div>
+                <div id="perfil-conteudo"></div>`;
+            if (recarregarAba) renderizarAbaPerfil();
+        }
+
+        function botaoSeguirHTML(usuario, euSigo, grande = false) {
+            return `<button type="button" class="btn ${euSigo ? 'btn-seguir seguindo' : 'btn-primary btn-seguir'}" data-seguir="${esc(usuario)}" aria-pressed="${euSigo}">${euSigo ? 'Seguindo' : 'Seguir'}</button>`;
+        }
+
+        function renderizarAbaPerfil() {
+            const p = perfilAtual;
+            const alvo = $('perfil-conteudo');
+            document.querySelectorAll('.perfil-abas [data-perfil-aba]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.perfilAba === perfilAba)));
+            const quem = p.ehEu ? 'Você' : esc(p.usuario);
+
+            if (perfilAba === 'concluidas') {
+                const lista = p.concluidas.filter(o => !perfilFiltroTipo || tipoDe(o) === perfilFiltroTipo);
+                const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos']];
+                alvo.innerHTML = `
+                    <div class="perfil-filtro">${filtros.map(([t, n]) => `<button type="button" class="chip ${perfilFiltroTipo === t ? 'ativo' : ''}" data-perfil-tipo="${t}">${n}</button>`).join('')}</div>
+                    <div class="grid">${lista.length ? lista.map(cardHTML).join('')
+                        : vazioHTML(p.concluidas.length ? 'Nada nesta categoria' : 'Nenhuma obra concluída ainda',
+                            p.ehEu ? 'Abra um filme, série ou jogo e use “Marcar como assistido” ou “Terminei o jogo”.' : `${quem} ainda não marcou obras aqui.`)}</div>`;
+                return;
+            }
+            if (perfilAba === 'reviews') {
+                alvo.innerHTML = p.reviews.length ? `<ul class="lista-reviews">${p.reviews.map(r => {
+                    const obra = porTitulo.get(r.titulo) || r;
+                    return `<li class="review-item">
+                        <button type="button" class="mini-capa" data-abrir-obra="${esc(r.titulo)}" aria-label="Abrir ${esc(r.titulo)}">${imagemHTML(obra, 'imagem', '')}</button>
+                        <div>
+                            <div class="review-topo">
+                                <button type="button" data-abrir-obra="${esc(r.titulo)}">${esc(r.titulo)}</button>
+                                <span class="tipo ${tipoDe(obra)}">${NOME_TIPO[tipoDe(obra)] || ''}</span>
+                                ${r.estrelas ? `<span aria-label="Nota ${r.estrelas} de 5">${estrelasHTML(r.estrelas)}</span>` : ''}
+                                <time datetime="${esc(r.em)}">${esc(tempoRelativo(r.em))}</time>
+                            </div>
+                            ${r.texto ? `<p>${esc(r.texto)}</p>` : ''}
+                        </div>
+                    </li>`;
+                }).join('')}</ul>`
+                    : `<div class="grid">${vazioHTML('Nenhuma review ainda', p.ehEu ? 'Dê estrelas ou comente em qualquer obra para ela aparecer aqui.' : `${quem} ainda não avaliou nenhuma obra.`)}</div>`;
+                return;
+            }
+            if (perfilAba === 'pessoas') {
+                alvo.innerHTML = `
+                    <label class="search busca-pessoas">${ICONES.busca}<input id="busca-pessoas" type="search" placeholder="Buscar pessoas pelo nome de usuário..." autocomplete="off" aria-label="Buscar pessoas"></label>
+                    <ul class="lista-pessoas" id="lista-pessoas"><li class="aval-carregando">Carregando…</li></ul>`;
+                buscarPessoas('');
+                return;
+            }
+            // seguidores / seguindo
+            alvo.innerHTML = '<ul class="lista-pessoas" id="lista-pessoas"><li class="aval-carregando">Carregando…</li></ul>';
+            const usuario = p.usuario, aba = perfilAba;
+            api(`/api/perfil/${encodeURIComponent(usuario)}/${aba}`).then(r => r.json()).then(lista => {
+                if (perfilAtual?.usuario !== usuario || perfilAba !== aba) return;
+                const vazio = aba === 'seguidores'
+                    ? (p.ehEu ? 'Ninguém segue você ainda.' : `Ninguém segue ${esc(usuario)} ainda.`)
+                    : (p.ehEu ? 'Você ainda não segue ninguém. Use “Encontrar pessoas”.' : `${esc(usuario)} ainda não segue ninguém.`);
+                $('lista-pessoas').innerHTML = Array.isArray(lista) && lista.length ? lista.map(pessoaHTML).join('') : `<li class="admin-vazio">${vazio}</li>`;
+            }).catch(() => { $('lista-pessoas').innerHTML = '<li class="admin-vazio">Não foi possível carregar.</li>'; });
+        }
+
+        function pessoaHTML(u) {
+            const admin = u.papel === 'ADMIN';
+            return `<li class="pessoa">
+                <button type="button" class="autor-link" data-perfil="${esc(u.usuario)}" aria-label="Ver perfil de ${esc(u.usuario)}">${avatarHTML(u.usuario, u.foto)}</button>
+                <div>
+                    <div class="pessoa-nome"><button type="button" class="autor-link" data-perfil="${esc(u.usuario)}"><strong>${esc(u.usuario)}</strong></button>
+                        ${admin ? '<span class="papel-selo admin">Administrador</span>' : ''}${u.ehEu ? '<span class="selo-voce">você</span>' : ''}</div>
+                    <small>${plural(u.concluidas, 'obra concluída', 'obras concluídas')}</small>
+                </div>
+                ${u.ehEu ? '' : botaoSeguirHTML(u.usuario, u.euSigo)}
+            </li>`;
+        }
+
+        let buscaPessoasTimer = null;
+        function buscarPessoas(termo) {
+            clearTimeout(buscaPessoasTimer);
+            buscaPessoasTimer = setTimeout(async () => {
+                try {
+                    const lista = await (await api(`/api/perfil?q=${encodeURIComponent(termo.trim())}`)).json();
+                    if (!$('lista-pessoas') || perfilAba !== 'pessoas') return;
+                    $('lista-pessoas').innerHTML = lista.length ? lista.map(pessoaHTML).join('')
+                        : `<li class="admin-vazio">${termo.trim() ? 'Ninguém encontrado com esse nome.' : 'Ainda não há outras pessoas cadastradas.'}</li>`;
+                } catch { if ($('lista-pessoas')) $('lista-pessoas').innerHTML = '<li class="admin-vazio">Não foi possível buscar.</li>'; }
+            }, termo ? 250 : 0);
+        }
+
+        async function alternarSeguir(botao) {
+            const usuario = botao.dataset.seguir;
+            const sigo = botao.getAttribute('aria-pressed') === 'true';
+            botao.disabled = true;
+            try {
+                const resposta = await api(`/api/perfil/${encodeURIComponent(usuario)}/seguir`, { method: sigo ? 'DELETE' : 'POST' });
+                const dados = await resposta.json();
+                if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                document.querySelectorAll('[data-seguir]').forEach(b => {
+                    if (b.dataset.seguir !== usuario) return;
+                    b.setAttribute('aria-pressed', String(dados.euSigo));
+                    b.textContent = dados.euSigo ? 'Seguindo' : 'Seguir';
+                    b.classList.toggle('btn-primary', !dados.euSigo);
+                    b.classList.toggle('seguindo', dados.euSigo);
+                });
+                if (dados.euSigo) toast(`Agora você segue ${usuario}`);
+                // Atualiza contadores do perfil aberto
+                if (perfilAtual && !$('aba-perfil').hidden) {
+                    if (perfilAtual.usuario === usuario) { perfilAtual.euSigo = dados.euSigo; perfilAtual.estatisticas.seguidores = dados.seguidores; }
+                    else if (perfilAtual.ehEu) perfilAtual.estatisticas.seguindo += dados.euSigo ? 1 : -1;
+                    const aba = perfilAba;
+                    const conteudo = $('perfil-conteudo').innerHTML;
+                    renderizarPerfilMantendoAba(aba, conteudo);
+                }
+            } catch (e) {
+                toast(e.message || 'Não foi possível atualizar.');
+            } finally { botao.disabled = false; }
+        }
+
+        /** Redesenha cabeçalho e números do perfil sem recarregar a lista aberta. */
+        function renderizarPerfilMantendoAba(aba, conteudo) {
+            const valorBusca = $('busca-pessoas')?.value;
+            renderizarPerfil(false);
+            document.querySelectorAll('.perfil-abas [data-perfil-aba]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.perfilAba === aba)));
+            $('perfil-conteudo').innerHTML = conteudo;
+            if (valorBusca !== undefined && $('busca-pessoas')) $('busca-pessoas').value = valorBusca;
+        }
+
+        $('aba-perfil').addEventListener('click', e => {
+            const aba = e.target.closest('[data-perfil-aba]');
+            if (aba) {
+                const [id, tipo] = aba.dataset.perfilAba.split(':');
+                perfilAba = id;
+                if (id === 'concluidas') perfilFiltroTipo = tipo || (aba.closest('.perfil-abas') ? '' : perfilFiltroTipo);
+                renderizarAbaPerfil();
+                if (aba.classList.contains('perfil-stat')) $('perfil-conteudo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+            const tipo = e.target.closest('[data-perfil-tipo]');
+            if (tipo) { perfilFiltroTipo = tipo.dataset.perfilTipo; renderizarAbaPerfil(); return; }
+            const obra = e.target.closest('[data-abrir-obra]');
+            if (obra) abrirModal(obra.dataset.abrirObra);
+        });
+        $('aba-perfil').addEventListener('input', e => { if (e.target.id === 'busca-pessoas') buscarPessoas(e.target.value); });
+
+        // Seguir e abrir perfis funcionam em qualquer lugar da página (perfil, comentários, listas)
+        document.addEventListener('click', e => {
+            const seguir = e.target.closest('[data-seguir]');
+            if (seguir) { alternarSeguir(seguir); return; }
+            const perfil = e.target.closest('[data-perfil]');
+            if (perfil) { abrirPerfil(perfil.dataset.perfil); return; }
+            const concluir = e.target.closest('[data-concluir]');
+            if (concluir) alternarConclusao(concluir.dataset.concluir, concluir);
+        });
+
+        // ================= DIÁLOGOS =================
+        let focoAntesDoDialogo = null;
+        function abrirDialogo(html) {
+            focoAntesDoDialogo = document.activeElement;
+            $('dialogo').innerHTML = `<button type="button" class="modal-fechar" onclick="fecharDialogo()" aria-label="Fechar">${ICONES.fechar}</button>${html}`;
+            $('dialogo-fundo').hidden = false;
+            document.body.classList.add('travado');
+            setTimeout(() => $('dialogo').querySelector('input, textarea, button:not(.modal-fechar)')?.focus(), 30);
+        }
+        function fecharDialogo() {
+            if ($('dialogo-fundo').hidden) return false;
+            $('dialogo-fundo').hidden = true;
+            $('dialogo').innerHTML = '';
+            if (!$('modal-fundo').classList.contains('aberto')) document.body.classList.remove('travado');
+            focoAntesDoDialogo?.focus?.({ preventScroll: true });
+            return true;
+        }
+        $('dialogo-fundo').addEventListener('click', e => { if (e.target === $('dialogo-fundo')) fecharDialogo(); });
+
+        // ---------- Editar perfil ----------
+        let rascunhoPerfil = null;
+
+        function abrirEditorPerfil() {
+            const p = perfilAtual;
+            rascunhoPerfil = { foto: p.foto || '', capaFundo: p.capaFundo || '', bio: p.bio || '', mudou: {} };
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Editar perfil</h2>
+                <p>A foto e a capa de fundo são ajustadas automaticamente (JPG, PNG ou WebP).</p>
+                <div class="editor-capa" id="editor-capa">
+                    <div class="editor-capa-acoes">
+                        <button type="button" class="btn" data-escolher-imagem="capaFundo">Trocar capa de fundo</button>
+                        <button type="button" class="btn" data-remover-imagem="capaFundo">Remover</button>
+                    </div>
+                </div>
+                <div class="editor-foto">
+                    <span id="editor-foto"></span>
+                    <div class="editor-foto-acoes">
+                        <button type="button" class="btn" data-escolher-imagem="foto">Trocar foto</button>
+                        <button type="button" class="btn" data-remover-imagem="foto">Remover</button>
+                    </div>
+                </div>
+                <div class="campo">
+                    <label for="editor-bio">Bio</label>
+                    <textarea class="input" id="editor-bio" maxlength="280" placeholder="Ex.: fã de RPG, terror e séries de investigação">${esc(rascunhoPerfil.bio)}</textarea>
+                    <div class="contador-bio" id="contador-bio"></div>
+                </div>
+                <div class="status" id="status-editor" role="status"></div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="salvar-perfil" onclick="salvarPerfil()">Salvar</button>
+                </div>`);
+            atualizarPreviaEditor();
+        }
+
+        function atualizarPreviaEditor() {
+            $('editor-capa').style.backgroundImage = rascunhoPerfil.capaFundo ? `url("${rascunhoPerfil.capaFundo}")` : '';
+            $('editor-foto').innerHTML = avatarHTML(perfilAtual.usuario, rascunhoPerfil.foto);
+            document.querySelector('[data-remover-imagem="foto"]').hidden = !rascunhoPerfil.foto;
+            document.querySelector('[data-remover-imagem="capaFundo"]').hidden = !rascunhoPerfil.capaFundo;
+            $('contador-bio').textContent = `${$('editor-bio').value.length} / 280`;
+        }
+
+        /** Lê a imagem e recorta/redimensiona no navegador (cobre WxH), devolvendo um data URL JPEG. */
+        function redimensionarImagem(arquivo, largura, altura, qualidade) {
+            return new Promise((ok, falha) => {
+                if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) { falha(new Error('Use uma imagem JPG, PNG ou WebP.')); return; }
+                if (arquivo.size > 15 * 1024 * 1024) { falha(new Error('Imagem muito grande (máximo 15 MB).')); return; }
+                const url = URL.createObjectURL(arquivo);
+                const img = new Image();
+                img.onload = () => {
+                    const escala = Math.max(largura / img.naturalWidth, altura / img.naturalHeight);
+                    const w = largura / escala, h = altura / escala;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = largura; canvas.height = altura;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#0e1017'; ctx.fillRect(0, 0, largura, altura);
+                    ctx.drawImage(img, (img.naturalWidth - w) / 2, (img.naturalHeight - h) / 2, w, h, 0, 0, largura, altura);
+                    URL.revokeObjectURL(url);
+                    ok(canvas.toDataURL('image/jpeg', qualidade));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('Não foi possível ler essa imagem.')); };
+                img.src = url;
+            });
+        }
+
+        let campoImagemEscolhido = null;
+        $('arquivo-imagem').addEventListener('change', async e => {
+            const arquivo = e.target.files[0];
+            e.target.value = '';
+            if (!arquivo || !rascunhoPerfil || !campoImagemEscolhido) return;
+            try {
+                const ehFoto = campoImagemEscolhido === 'foto';
+                const dataUrl = await redimensionarImagem(arquivo, ehFoto ? 320 : 1500, ehFoto ? 320 : 500, ehFoto ? 0.86 : 0.8);
+                rascunhoPerfil[campoImagemEscolhido] = dataUrl;
+                rascunhoPerfil.mudou[campoImagemEscolhido] = true;
+                status('status-editor', '');
+                atualizarPreviaEditor();
+            } catch (erro) { status('status-editor', erro.message, 'erro'); }
+        });
+
+        $('dialogo').addEventListener('click', e => {
+            const escolher = e.target.closest('[data-escolher-imagem]');
+            if (escolher) { campoImagemEscolhido = escolher.dataset.escolherImagem; $('arquivo-imagem').click(); return; }
+            const remover = e.target.closest('[data-remover-imagem]');
+            if (remover) { rascunhoPerfil[remover.dataset.removerImagem] = ''; rascunhoPerfil.mudou[remover.dataset.removerImagem] = true; atualizarPreviaEditor(); }
+        });
+        $('dialogo').addEventListener('input', e => { if (e.target.id === 'editor-bio') { rascunhoPerfil.mudou.bio = true; atualizarPreviaEditor(); } });
+
+        async function salvarPerfil() {
+            const campos = {};
+            if (rascunhoPerfil.mudou.foto) campos.foto = rascunhoPerfil.foto;
+            if (rascunhoPerfil.mudou.capaFundo) campos.capaFundo = rascunhoPerfil.capaFundo;
+            if (rascunhoPerfil.mudou.bio) campos.bio = $('editor-bio').value;
+            if (!Object.keys(campos).length) { fecharDialogo(); return; }
+            $('salvar-perfil').disabled = true;
+            status('status-editor', 'Salvando…');
+            try {
+                const resposta = await api('/api/perfil/eu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(campos) });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok) { status('status-editor', dados.erro || 'Não foi possível salvar.', 'erro'); return; }
+                perfilAtual = dados;
+                minhaFoto = dados.foto || null;
+                atualizarMeuAvatar();
+                fecharDialogo();
+                renderizarPerfil();
+                toast('Perfil atualizado');
+            } catch {
+                status('status-editor', 'Erro de conexão com o servidor.', 'erro');
+            } finally { if ($('salvar-perfil')) $('salvar-perfil').disabled = false; }
+        }
+
+        // ---------- Redefinir senha (qualquer usuário, inclusive o administrador) ----------
+        function abrirRedefinirSenha() {
+            alternarMenuUsuario(false);
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Redefinir senha</h2>
+                <p>Confirme a senha atual e escolha uma nova. As suas outras sessões abertas serão encerradas.</p>
+                <form id="form-senha" novalidate>
+                    <input type="text" autocomplete="username" value="${esc(sessao?.usuario || '')}" hidden readonly>
+                    <div class="campo"><label for="senha-atual">Senha atual</label>
+                        <input class="input" id="senha-atual" type="password" autocomplete="current-password" maxlength="128"></div>
+                    <div class="campo"><label for="senha-nova">Nova senha</label>
+                        <input class="input" id="senha-nova" type="password" autocomplete="new-password" maxlength="128" placeholder="mínimo 8 caracteres"></div>
+                    <div class="campo"><label for="senha-confirmacao">Confirmar nova senha</label>
+                        <input class="input" id="senha-confirmacao" type="password" autocomplete="new-password" maxlength="128"></div>
+                    <label style="display:flex; gap:8px; align-items:center; font-size:13px; color: var(--text-2); cursor:pointer">
+                        <input type="checkbox" id="senha-mostrar"> Mostrar senhas</label>
+                    <div class="status" id="status-senha" role="alert"></div>
+                    <div class="dialogo-acoes">
+                        <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="salvar-senha">Salvar nova senha</button>
+                    </div>
+                </form>`);
+            $('senha-mostrar').addEventListener('change', e => ['senha-atual', 'senha-nova', 'senha-confirmacao'].forEach(id => { $(id).type = e.target.checked ? 'text' : 'password'; }));
+            $('form-senha').addEventListener('submit', e => { e.preventDefault(); salvarNovaSenha(); });
+        }
+
+        async function salvarNovaSenha() {
+            const senhaAtual = $('senha-atual').value, novaSenha = $('senha-nova').value;
+            if (!senhaAtual) { status('status-senha', 'Informe a senha atual.', 'erro'); $('senha-atual').focus(); return; }
+            if (novaSenha.length < 8) { status('status-senha', 'A nova senha precisa ter pelo menos 8 caracteres.', 'erro'); $('senha-nova').focus(); return; }
+            if (novaSenha !== $('senha-confirmacao').value) { status('status-senha', 'A confirmação não confere com a nova senha.', 'erro'); $('senha-confirmacao').focus(); return; }
+            $('salvar-senha').disabled = true;
+            status('status-senha', 'Salvando…');
+            try {
+                const resposta = await api('/api/auth/senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senhaAtual, novaSenha }) });
+                if (resposta.status === 204) { fecharDialogo(); toast('Senha redefinida com sucesso'); return; }
+                const dados = await resposta.json().catch(() => ({}));
+                status('status-senha', dados.erro || 'Não foi possível redefinir a senha.', 'erro');
+                if (resposta.status === 403) { $('senha-atual').value = ''; $('senha-atual').focus(); }
+            } catch {
+                status('status-senha', 'Erro de conexão com o servidor.', 'erro');
+            } finally { if ($('salvar-senha')) $('salvar-senha').disabled = false; }
+        }
+
+        // ================= MINHAS LISTAS =================
+        let minhasListas = [];
+        let listaSelecionada = null;
+        let listaFiltroTipo = '';
+        let ocultarConcluidas = false;
+        const ICONE_MARCADOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h12v17l-6-4.2-6 4.2v-17Z"/></svg>';
+        const ICONE_LISTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>';
+        const listasComObra = titulo => minhasListas.filter(l => l.obras.some(o => o.titulo === titulo));
+
+        async function carregarListas() {
+            try {
+                const resposta = await api('/api/listas');
+                if (!resposta.ok) return;
+                aplicarListas(await resposta.json());
+            } catch (e) { console.warn('Não foi possível carregar as listas', e); }
+        }
+
+        /** Guarda as listas vindas do servidor e atualiza o que estiver na tela. */
+        function aplicarListas(listas) {
+            minhasListas = Array.isArray(listas) ? listas : [];
+            minhasListas.forEach(l => l.obras.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); }));
+            if (!minhasListas.some(l => l.id === listaSelecionada)) listaSelecionada = minhasListas[0]?.id || null;
+            document.querySelectorAll('[data-salvar-lista]').forEach(atualizarBotaoSalvar);
+            if (!$('popover-listas')?.hidden) renderizarPopoverListas();
+            if (!$('aba-listas').hidden) renderizarListas();
+        }
+
+        async function mudarListas(url, opcoes) {
+            const resposta = await api(url, opcoes);
+            const dados = await resposta.json().catch(() => ({}));
+            if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível atualizar a lista.');
+            aplicarListas(dados.listas);
+            return dados;
+        }
+        const json = corpo => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+
+        // ---------- Página "Minhas listas" ----------
+        function renderizarListas() {
+            if (!minhasListas.length) {
+                $('listas-abas').innerHTML = '';
+                $('lista-conteudo').innerHTML = `<div class="grid">${vazioHTML('Você ainda não tem listas', 'Crie uma lista para guardar o que quer ver ou jogar.',
+                    '<button class="btn btn-primary" onclick="abrirNovaLista()">Criar lista</button>')}</div>`;
+                return;
+            }
+            $('listas-abas').innerHTML = minhasListas.map(l => `
+                <button type="button" role="tab" class="lista-chip" data-lista="${esc(l.id)}" aria-selected="${l.id === listaSelecionada}">
+                    ${ICONE_LISTA}<span class="nome-lista">${esc(l.nome)}</span><span class="qtd">${l.obras.length}</span>
+                </button>`).join('');
+
+            const lista = minhasListas.find(l => l.id === listaSelecionada);
+            const concluidas = lista.obras.filter(o => minhasConcluidas.has(o.titulo)).length;
+            const visiveis = lista.obras.filter(o => (!listaFiltroTipo || tipoDe(o) === listaFiltroTipo) && (!ocultarConcluidas || !minhasConcluidas.has(o.titulo)));
+            const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos']];
+            $('lista-conteudo').innerHTML = `
+                <div class="lista-topo">
+                    <div>
+                        <h2>${esc(lista.nome)}</h2>
+                        <small>${plural(lista.obras.length, 'obra', 'obras')}${lista.obras.length ? ` · ${concluidas} ${concluidas === 1 ? 'concluída' : 'concluídas'}` : ''}</small>
+                    </div>
+                    <div class="acoes">
+                        <button type="button" class="btn" onclick="abrirRenomearLista()">Renomear</button>
+                        <button type="button" class="btn" onclick="abrirExcluirLista()">Excluir lista</button>
+                    </div>
+                </div>
+                ${lista.obras.length ? `
+                <div class="lista-filtros">
+                    ${filtros.map(([t, n]) => `<button type="button" class="chip ${listaFiltroTipo === t ? 'ativo' : ''}" data-lista-tipo="${t}">${n}</button>`).join('')}
+                    <label><input type="checkbox" id="ocultar-concluidas" ${ocultarConcluidas ? 'checked' : ''}> Ocultar já vistas/jogadas</label>
+                </div>` : ''}
+                <div class="grid">${visiveis.length
+                    ? visiveis.map((o, i) => `<div class="item-lista">${cardHTML(porTitulo.get(o.titulo) || o, i)}
+                        <small>Adicionado ${esc(tempoRelativo(o.adicionadaEm))}</small>
+                        <button type="button" class="link-btn" data-remover-da-lista="${esc(o.titulo)}">Remover da lista</button></div>`).join('')
+                    : lista.obras.length
+                        ? vazioHTML('Nada com esse filtro', 'Mude o tipo de mídia ou mostre as obras já concluídas.')
+                        : vazioHTML('Lista vazia', 'Abra qualquer filme, série ou jogo e use “Salvar em lista”. Você também pode procurar um título em “O que você quer assistir hoje?”.',
+                            `<button class="btn btn-primary" onclick="irPara('catalogo')">Explorar catálogo ${ICONES.seta}</button>`)}</div>`;
+        }
+
+        $('aba-listas').addEventListener('click', async e => {
+            const chip = e.target.closest('[data-lista]');
+            if (chip) { listaSelecionada = chip.dataset.lista; listaFiltroTipo = ''; renderizarListas(); return; }
+            const tipo = e.target.closest('[data-lista-tipo]');
+            if (tipo) { listaFiltroTipo = tipo.dataset.listaTipo; renderizarListas(); return; }
+            const remover = e.target.closest('[data-remover-da-lista]');
+            if (remover) {
+                remover.disabled = true;
+                try { await mudarListas(`/api/listas/${encodeURIComponent(listaSelecionada)}/obras?titulo=${encodeURIComponent(remover.dataset.removerDaLista)}`, { method: 'DELETE' }); }
+                catch (erro) { toast(erro.message); remover.disabled = false; }
+            }
+        });
+        $('aba-listas').addEventListener('change', e => { if (e.target.id === 'ocultar-concluidas') { ocultarConcluidas = e.target.checked; renderizarListas(); } });
+
+        // ---------- Criar / renomear / excluir (diálogos) ----------
+        function dialogoNomeLista(titulo, valor, textoBotao, acao) {
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">${titulo}</h2>
+                <p>Ex.: “Maratona de terror”, “Jogar com os amigos”, “Clássicos”.</p>
+                <form id="form-lista" novalidate>
+                    <div class="campo"><label for="nome-lista">Nome da lista</label>
+                        <input class="input" id="nome-lista" maxlength="40" value="${esc(valor)}" autocomplete="off"></div>
+                    <div class="status" id="status-lista" role="alert"></div>
+                    <div class="dialogo-acoes">
+                        <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="salvar-lista">${textoBotao}</button>
+                    </div>
+                </form>`);
+            $('form-lista').addEventListener('submit', async e => {
+                e.preventDefault();
+                const nome = $('nome-lista').value.trim();
+                if (!nome) { status('status-lista', 'Dê um nome para a lista.', 'erro'); return; }
+                $('salvar-lista').disabled = true;
+                try { await acao(nome); fecharDialogo(); }
+                catch (erro) { status('status-lista', erro.message, 'erro'); $('salvar-lista').disabled = false; }
+            });
+            setTimeout(() => $('nome-lista')?.select(), 40);
+        }
+
+        function abrirNovaLista() {
+            dialogoNomeLista('Nova lista', '', 'Criar lista', async nome => {
+                const dados = await mudarListas('/api/listas', json({ nome }));
+                listaSelecionada = dados.id;
+                renderizarListas();
+                toast(`Lista "${nome}" criada`);
+            });
+        }
+
+        function abrirRenomearLista() {
+            const lista = minhasListas.find(l => l.id === listaSelecionada);
+            if (!lista) return;
+            dialogoNomeLista('Renomear lista', lista.nome, 'Salvar', nome => mudarListas(`/api/listas/${encodeURIComponent(lista.id)}`, json({ nome })));
+        }
+
+        function abrirExcluirLista() {
+            const lista = minhasListas.find(l => l.id === listaSelecionada);
+            if (!lista) return;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Excluir “${esc(lista.nome)}”?</h2>
+                <p>${lista.obras.length ? `A lista tem ${plural(lista.obras.length, 'obra', 'obras')}. ` : ''}As obras continuam no catálogo; só a lista é apagada.</p>
+                <div class="status" id="status-lista" role="alert"></div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmar-exclusao-lista" style="background: var(--danger)">Excluir lista</button>
+                </div>`);
+            $('confirmar-exclusao-lista').addEventListener('click', async () => {
+                $('confirmar-exclusao-lista').disabled = true;
+                try {
+                    await mudarListas(`/api/listas/${encodeURIComponent(lista.id)}`, { method: 'DELETE' });
+                    fecharDialogo();
+                    toast(`Lista "${lista.nome}" excluída`);
+                } catch (erro) { status('status-lista', erro.message, 'erro'); $('confirmar-exclusao-lista').disabled = false; }
+            });
+        }
+
+        // ---------- "Salvar em lista" na janela da obra ----------
+        function botaoSalvarListaHTML(obra) {
+            return `<div class="salvar-lista-wrap">
+                <button type="button" class="btn btn-salvar-lista" data-salvar-lista="${esc(obra.titulo)}" aria-haspopup="true" aria-expanded="false" aria-controls="popover-listas">${ICONE_MARCADOR}<span></span></button>
+                <div class="popover-listas" id="popover-listas" role="menu" aria-label="Salvar em lista" hidden></div>
+            </div>`;
+        }
+
+        function atualizarBotaoSalvar(botao) {
+            const dentro = listasComObra(botao.dataset.salvarLista);
+            botao.classList.toggle('ativo', dentro.length > 0);
+            botao.querySelector('span').textContent = !dentro.length ? 'Salvar em lista'
+                : dentro.length === 1 ? `Em “${dentro[0].nome}”` : `Em ${dentro.length} listas`;
+        }
+
+        function renderizarPopoverListas() {
+            const botao = document.querySelector('#modal [data-salvar-lista]');
+            if (!botao) return;
+            const titulo = botao.dataset.salvarLista;
+            $('popover-listas').innerHTML = `
+                <div class="titulo-pop">Salvar em…</div>
+                <ul>${minhasListas.map(l => {
+                    const dentro = l.obras.some(o => o.titulo === titulo);
+                    return `<li><button type="button" class="opcao-lista" role="menuitemcheckbox" aria-checked="${dentro}" data-alternar-lista="${esc(l.id)}">
+                        <span class="caixa">${ICONE_CHECK}</span><span class="nome-lista">${esc(l.nome)}</span><small>${l.obras.length}</small></button></li>`;
+                }).join('') || '<li class="popover-erro" style="color: var(--text-3)">Nenhuma lista ainda.</li>'}</ul>
+                <form class="nova-lista-form" id="nova-lista-form" novalidate>
+                    <input class="input" id="nova-lista-nome" maxlength="40" placeholder="Nova lista..." aria-label="Nome da nova lista" autocomplete="off">
+                    <button type="submit" class="btn">Criar</button>
+                </form>
+                <div class="popover-erro" id="popover-erro" hidden></div>`;
+        }
+
+        function alternarPopoverListas(abrir) {
+            const pop = $('popover-listas');
+            const botao = document.querySelector('#modal [data-salvar-lista]');
+            if (!pop || !botao) return;
+            const aberto = abrir ?? pop.hidden;
+            if (aberto) renderizarPopoverListas();
+            pop.hidden = !aberto;
+            botao.setAttribute('aria-expanded', String(aberto));
+            if (aberto) pop.querySelector('.opcao-lista, input')?.focus({ preventScroll: true });
+        }
+
+        async function alternarObraNaLista(listaId, titulo, botao) {
+            const lista = minhasListas.find(l => l.id === listaId);
+            const dentro = lista?.obras.some(o => o.titulo === titulo);
+            botao.disabled = true;
+            try {
+                await mudarListas(`/api/listas/${encodeURIComponent(listaId)}/obras` + (dentro ? `?titulo=${encodeURIComponent(titulo)}` : ''),
+                    dentro ? { method: 'DELETE' } : json({ titulo }));
+                if (!dentro) toast(`Salvo em "${lista.nome}"`);
+                document.querySelector(`#popover-listas [data-alternar-lista="${CSS.escape(listaId)}"]`)?.focus({ preventScroll: true });
+            } catch (erro) {
+                $('popover-erro').textContent = erro.message; $('popover-erro').hidden = false;
+                botao.disabled = false;
+            }
+        }
+
+        async function criarListaComObra(titulo) {
+            const nome = $('nova-lista-nome').value.trim();
+            if (!nome) { $('nova-lista-nome').focus(); return; }
+            try {
+                const dados = await mudarListas('/api/listas', json({ nome }));
+                await mudarListas(`/api/listas/${encodeURIComponent(dados.id)}/obras`, json({ titulo }));
+                toast(`Lista "${nome}" criada com "${titulo}"`);
+            } catch (erro) { $('popover-erro').textContent = erro.message; $('popover-erro').hidden = false; }
+        }
+
+        $('modal').addEventListener('click', e => {
+            const botao = e.target.closest('[data-salvar-lista]');
+            if (botao) { alternarPopoverListas(); return; }
+            const opcao = e.target.closest('[data-alternar-lista]');
+            if (opcao) { alternarObraNaLista(opcao.dataset.alternarLista, document.querySelector('#modal [data-salvar-lista]').dataset.salvarLista, opcao); return; }
+            if ($('popover-listas') && !$('popover-listas').hidden && !e.target.closest('.salvar-lista-wrap')) alternarPopoverListas(false);
+        });
+        $('modal').addEventListener('submit', e => {
+            if (e.target.id !== 'nova-lista-form') return;
+            e.preventDefault();
+            criarListaComObra(document.querySelector('#modal [data-salvar-lista]').dataset.salvarLista);
+        });
+
+        // ================= MENU DO USUÁRIO =================
+        if (sessao?.usuario) {
+            $('usuario-nome').textContent = sessao.usuario;
+            $('usuario-nome-painel').textContent = sessao.usuario;
+            $('usuario-avatar').textContent = sessao.usuario[0].toUpperCase();
+        }
+        aplicarPapel();
+        function alternarMenuUsuario(abrir) {
+            const painel = $('usuario-painel');
+            const aberto = abrir ?? painel.hidden;
+            painel.hidden = !aberto;
+            $('usuario-botao').setAttribute('aria-expanded', String(aberto));
+        }
+        $('usuario-botao').addEventListener('click', (e) => { e.stopPropagation(); alternarMenuUsuario(); });
+        document.addEventListener('click', (e) => { if (!e.target.closest('.usuario-menu')) alternarMenuUsuario(false); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') alternarMenuUsuario(false); });
+
+        if (sessao?.token) {
+            // Confirma a sessão (401 => volta ao login) e o papel vindo do servidor
+            api('/api/auth/eu').then(r => r.ok ? r.json() : null).then(eu => {
+                if (!eu || eu.papel === sessao.papel) return;
+                sessao.papel = eu.papel;
+                try { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao)); } catch {}
+                aplicarPapel();
+            }).catch(() => {});
+            carregarCatalogo();
+        }
+    </script>
+</body>
+</html>

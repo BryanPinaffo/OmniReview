@@ -1,0 +1,450 @@
+// Teste automatizado da interface (index.html) via Chrome DevTools Protocol, sem dependências externas.
+// Requer Node 22+ (WebSocket nativo) e Microsoft Edge ou Google Chrome instalados.
+// Uso: node teste_interface.mjs [http://localhost:8080/]  -> grava teste_interface.json
+// Cria uma conta temporária pela própria tela de cadastro e a exclui ao final.
+import { spawn, execSync } from 'node:child_process';
+import { createServer } from 'node:net';
+import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const URL_APP = process.argv[2] || 'http://localhost:8080/';
+// Porta livre escolhida pelo sistema (evita conectar a um navegador de execução anterior)
+const PORTA = await new Promise((ok) => { const srv = createServer(); srv.listen(0, () => { const { port } = srv.address(); srv.close(() => ok(port)); }); });
+const NAVEGADORES = [
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome', '/usr/bin/chromium',
+];
+const exe = NAVEGADORES.find(existsSync);
+if (!exe) throw new Error('Edge/Chrome não encontrado');
+
+const perfil = mkdtempSync(join(tmpdir(), 'omni-teste-'));
+const nav = spawn(exe, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${PORTA}`,
+  `--user-data-dir=${perfil}`, '--window-size=1440,900', 'about:blank'], { stdio: 'ignore', detached: process.platform !== 'win32' });
+
+// Encerra o navegador e todos os processos filhos (no Windows, kill() só encerra o processo inicial)
+function encerrarNavegador() {
+  try {
+    if (process.platform === 'win32') execSync(`taskkill /PID ${nav.pid} /T /F`, { stdio: 'ignore' });
+    else process.kill(-nav.pid, 'SIGKILL');
+  } catch { /* já encerrado */ }
+}
+process.on('exit', encerrarNavegador);
+
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+let alvo;
+for (let i = 0; i < 50 && !alvo; i++) {
+  await esperar(200);
+  try {
+    alvo = (await (await fetch(`http://127.0.0.1:${PORTA}/json`)).json()).find((t) => t.type === 'page');
+  } catch { /* navegador ainda iniciando */ }
+}
+const ws = new WebSocket(alvo.webSocketDebuggerUrl);
+await new Promise((r) => ws.addEventListener('open', r, { once: true }));
+let seq = 0;
+const pendentes = new Map();
+const errosConsole = [];
+ws.addEventListener('message', (ev) => {
+  const msg = JSON.parse(ev.data);
+  if (msg.id && pendentes.has(msg.id)) { pendentes.get(msg.id)(msg); pendentes.delete(msg.id); }
+  if (msg.method === 'Runtime.exceptionThrown') errosConsole.push(msg.params.exceptionDetails.text);
+  if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') errosConsole.push(msg.params.args.map((a) => a.value).join(' '));
+});
+const cdp = (method, params = {}) => new Promise((r) => { const id = ++seq; pendentes.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
+const avaliar = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
+const aguardar = async (expr, ms = 15000) => {
+  for (let t = 0; t < ms; t += 200) { if (await avaliar(expr)) return true; await esperar(200); }
+  return false;
+};
+
+await cdp('Runtime.enable');
+await cdp('Page.enable');
+const casos = [];
+const caso = (id, descricao, ok, detalhe = '') => { casos.push({ id, descricao, ok, detalhe }); console.log(`${ok ? 'OK  ' : 'FALHA'} ${id} ${descricao} ${detalhe}`); };
+
+// Capturas opcionais para conferência visual: OMNI_CAPTURAS=<pasta>
+const capturar = async (nome) => {
+  if (!process.env.OMNI_CAPTURAS) return;
+  const resposta = await cdp('Page.captureScreenshot', { format: 'png' });
+  (await import('node:fs')).writeFileSync(`${process.env.OMNI_CAPTURAS}/${nome}.png`, Buffer.from(resposta.result.data, 'base64'));
+};
+
+// ---------- Login ----------
+const usuarioTeste = 'teste_ui_' + Math.random().toString(36).slice(2, 8);
+let senhaTeste = 'Senha-' + Math.random().toString(36).slice(2, 10) + '!9';
+const preencher = (id, valor) => avaliar(`(() => { const e = document.getElementById('${id}'); e.value = ${JSON.stringify(valor)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+
+await cdp('Page.navigate', { url: URL_APP });
+const foiParaLogin = await aguardar("location.pathname === '/login.html' && !!document.getElementById('form') && document.readyState === 'complete'");
+caso('T00', 'Sem sessão, o site redireciona para a tela de login', foiParaLogin, await avaliar('location.pathname'));
+
+await preencher('usuario', usuarioTeste);
+await preencher('senha', 'senha-errada-123');
+await avaliar("document.getElementById('form').requestSubmit()");
+const erroLogin = await aguardar("!document.getElementById('alerta').hidden", 15000);
+caso('T11', 'Login com senha errada mostra mensagem de erro e não entra', erroLogin && await avaliar("location.pathname") === '/login.html',
+  (await avaliar("document.getElementById('alerta-texto')?.textContent")) || `página: ${await avaliar('location.href')}`);
+
+await avaliar("document.getElementById('aba-cadastrar').click()");
+await preencher('usuario', usuarioTeste);
+await preencher('senha', senhaTeste);
+await preencher('confirmacao', senhaTeste + 'x');
+const naoConfere = await avaliar("document.getElementById('dica-confirmacao').textContent.includes('não conferem')");
+await preencher('confirmacao', senhaTeste);
+await avaliar("document.getElementById('form').requestSubmit()");
+const entrou = await aguardar("location.pathname === '/' && document.querySelectorAll('#grid-catalogo .card').length > 0", 15000);
+caso('T12', 'Cadastro pela tela valida a confirmação e entra no catálogo', naoConfere && entrou,
+  `usuário ${usuarioTeste}; menu mostra "${await avaliar("document.getElementById('usuario-nome')?.textContent")}"`);
+const tokenTeste = await avaliar("JSON.parse(localStorage.getItem('omnireview:sessao')).token");
+
+caso('T01', 'Catálogo carrega cards do back-end', await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0"),
+  `${await avaliar("document.querySelectorAll('#grid-catalogo .card').length")} cards`);
+
+const comImagem = await avaliar(`(async () => {
+  await new Promise(r => setTimeout(r, 4000));
+  const imgs = [...document.querySelectorAll('#grid-catalogo .card img.poster')];
+  return { total: document.querySelectorAll('#grid-catalogo .card').length, carregadas: imgs.filter(i => i.complete && i.naturalWidth > 0).length };
+})()`);
+caso('T02', 'Cards exibem pôster (imagens carregadas na primeira dobra)', comImagem.carregadas > 0, `${comImagem.carregadas} imagens carregadas`);
+
+// ---------- "O que você quer assistir hoje?" ----------
+const digitarBusca = (valor) => avaliar(`(() => { const e = document.getElementById('busca-hero-texto'); e.focus(); e.value = ${JSON.stringify(valor)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+const tituloAcervo = await avaliar("catalogo[0].titulo");
+await digitarBusca(tituloAcervo.slice(0, Math.max(3, Math.ceil(tituloAcervo.length / 2))).toLowerCase());
+const sugeriu = await aguardar(`!document.getElementById('busca-hero-lista').hidden && [...document.querySelectorAll('#busca-hero-lista .busca-opcao strong')].some(e => e.textContent === ${JSON.stringify(tituloAcervo)})`, 3000);
+await capturar('busca_sugestoes');
+await digitarBusca(tituloAcervo.toUpperCase());
+await avaliar("document.getElementById('busca-hero').requestSubmit()");
+const abriu = await aguardar(`document.getElementById('modal-fundo').classList.contains('aberto') && document.getElementById('modal-titulo').textContent === ${JSON.stringify(tituloAcervo)}`, 5000);
+const naoAdicionou = await avaliar("catalogo.length") === await avaliar("document.querySelectorAll('#grid-catalogo .card').length");
+caso('T16', 'Busca da tela inicial sugere obras do acervo e abre a obra digitada', sugeriu && abriu && naoAdicionou, `"${tituloAcervo}"`);
+await avaliar("fecharModal()");
+
+// Opcional (altera o acervo): OMNI_TESTE_ADICIONAR="<título que não está no acervo>"
+if (process.env.OMNI_TESTE_ADICIONAR) {
+  const nome = process.env.OMNI_TESTE_ADICIONAR;
+  const antes = await avaliar("catalogo.length");
+  await digitarBusca(nome);
+  const ofereceWeb = await aguardar("!!document.querySelector('#busca-hero-lista .busca-opcao.web')", 3000);
+  await avaliar("document.getElementById('busca-hero').requestSubmit()");
+  await esperar(1500);
+  await capturar('busca_adicionando');
+  const adicionou = await aguardar(`catalogo.length === ${antes + 1} && document.getElementById('modal-fundo').classList.contains('aberto')`, 240000);
+  await esperar(800);
+  await capturar('busca_adicionada');
+  caso('T17', 'Título fora do acervo é buscado na web e adicionado automaticamente', ofereceWeb && adicionou,
+    `${await avaliar("document.getElementById('modal-titulo')?.textContent")} — ${await avaliar("document.getElementById('busca-hero-status').textContent")}`);
+  await avaliar("fecharModal()");
+}
+
+// Estado limpo: remove favoritos e recarrega, para a página não manter favoritos em memória
+const chaveCurtidas = `omnireview:curtidas:${usuarioTeste}`;
+await avaliar(`localStorage.removeItem('${chaveCurtidas}')`);
+await cdp('Page.reload');
+await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
+const titulo = await avaliar("document.querySelector('#grid-catalogo .card').dataset.titulo");
+await avaliar("document.querySelector('#grid-catalogo .card [data-fav]').click()");
+const salvo = await avaliar(`JSON.parse(localStorage.getItem('${chaveCurtidas}') || '[]')`);
+await cdp('Page.reload');
+await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
+const contador = await avaliar("document.getElementById('contador-curtidas').textContent");
+const ativo = await avaliar(`document.querySelector('[data-fav="${titulo.replace(/"/g, '\\"')}"]')?.classList.contains('ativo')`);
+caso('T03', 'Favorito persiste após recarregar a página (RF06)', salvo.includes(titulo) && contador === '1' && ativo === true,
+  `"${titulo}", contador=${contador}`);
+
+await avaliar("document.querySelector('#grid-catalogo .card').click()");
+await aguardar("document.getElementById('modal-fundo').classList.contains('aberto')");
+const modal = await avaliar(`({
+  aberto: document.getElementById('modal-fundo').classList.contains('aberto'),
+  titulo: document.getElementById('modal-titulo')?.textContent,
+  sinopse: document.querySelector('.modal .sinopse:not(.sem)')?.textContent?.length || 0,
+  tags: document.querySelectorAll('.modal-texto .tag').length
+})`);
+caso('T04', 'Janela flutuante mostra título, sinopse e tags (RF05)', modal.aberto && modal.sinopse > 20 && modal.tags > 0,
+  `sinopse com ${modal.sinopse} caracteres, ${modal.tags} tags`);
+const semelhantes = await aguardar("document.querySelectorAll('#modal-trilho .card').length > 0", 10000);
+caso('T05', 'Janela mostra obras com o mesmo DNA (RF08)', semelhantes, `${await avaliar("document.querySelectorAll('#modal-trilho .card').length")} obras`);
+
+// ---------- Avaliação por estrelas e comentários ----------
+await aguardar("!!document.getElementById('seletor-estrelas')", 10000);
+const totalAntes = await avaliar("avaliacao.dados.total");
+await avaliar("document.querySelector('#seletor-estrelas [data-estrela=\"4\"]').click()");
+const notaSalva = await aguardar(`avaliacao.dados.minhaNota === 4 && avaliacao.dados.total === ${totalAntes + 1}`, 8000);
+const notaTela = await avaliar(`({
+  modal: document.getElementById('modal-nota')?.textContent.trim(),
+  card: [...document.querySelectorAll('#grid-catalogo .nota-card')].find(e => e.dataset.nota === ${JSON.stringify(modal.titulo)})?.textContent.trim(),
+  acesas: document.querySelectorAll('#seletor-estrelas .aceso').length
+})`);
+caso('T14', 'Avaliar com estrelas atualiza a média ao lado do título (modal e card)',
+  notaSalva && notaTela.acesas === 4 && /\d,\d/.test(notaTela.modal || '') && /\d,\d/.test(notaTela.card || ''),
+  `modal: "${notaTela.modal}", card: "${notaTela.card}"`);
+
+const textoComentario = `Comentário de teste <b>${usuarioTeste}</b>`;
+await avaliar(`(() => { const t = document.getElementById('comentario-texto'); t.value = ${JSON.stringify(textoComentario)}; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await avaliar("document.getElementById('comentario-form').requestSubmit()");
+const publicado = await aguardar(`[...document.querySelectorAll('#aval-lista .comentario p')].some(p => p.textContent === ${JSON.stringify(textoComentario)})`, 8000);
+const semHtml = await avaliar("!document.querySelector('#aval-lista .comentario p b')");
+await capturar('modal_topo');
+await avaliar("document.getElementById('modal-avaliacoes').scrollIntoView()");
+await esperar(400);
+await capturar('modal_avaliacoes');
+await avaliar("document.querySelector('#aval-lista [data-excluir-comentario]').click()");
+await avaliar("document.querySelector('#aval-lista [data-excluir-comentario]').click()");
+const removido = await aguardar(`![...document.querySelectorAll('#aval-lista .comentario p')].some(p => p.textContent === ${JSON.stringify(textoComentario)})`, 8000);
+caso('T15', 'Comentário é publicado (texto escapado, sem HTML) e o autor pode excluí-lo', publicado && semHtml && removido,
+  `publicado=${publicado}, escapado=${semHtml}, excluído=${removido}`);
+await avaliar("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))");
+caso('T06', 'Tecla Esc fecha a janela', await aguardar("!document.getElementById('modal-fundo').classList.contains('aberto')", 3000));
+if (process.env.OMNI_CAPTURAS) { await avaliar("document.querySelector('#grid-catalogo .card').scrollIntoView({ block: 'center' })"); await esperar(600); await capturar('catalogo_com_nota'); await avaliar('window.scrollTo(0, 0)'); }
+
+await avaliar("irPara('paravoce')");
+const recs = await aguardar("document.querySelectorAll('#grid-recomendacoes .card').length > 0", 10000);
+const tiposRec = await avaliar("[...new Set([...document.querySelectorAll('#grid-recomendacoes .card .tipo')].map(e => e.textContent))]");
+caso('T07', 'Aba "Para você" gera recomendações de várias mídias (RF07)', recs && tiposRec.length >= 2, tiposRec.join(', '));
+
+await avaliar("irPara('catalogo')");
+await avaliar("(() => { const i = document.getElementById('filtro-texto'); i.value = 'zzzz-inexistente'; i.dispatchEvent(new Event('input')); })()");
+const vazio = await avaliar("document.querySelectorAll('#grid-catalogo .card').length === 0 && !!document.querySelector('#grid-catalogo .vazio')");
+await avaliar("(() => { const i = document.getElementById('filtro-texto'); i.value = ''; i.dispatchEvent(new Event('input')); })()");
+await avaliar("document.querySelector('#filtro-tipo [data-tipo=jogo]').click()");
+const soJogos = await avaliar("[...document.querySelectorAll('#grid-catalogo .card .tipo')].every(e => e.classList.contains('jogo'))");
+caso('T08', 'Busca e filtro por mídia funcionam (RF04)', vazio && soJogos);
+await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()");
+
+// ---------- Assisti / terminei e perfil ----------
+const obraFilme = await avaliar("catalogo.find(o => tipoDe(o) === 'filme').titulo");
+const obraJogo = await avaliar("catalogo.find(o => tipoDe(o) === 'jogo').titulo");
+const marcar = async (titulo) => {
+  await avaliar(`abrirModal(${JSON.stringify(titulo)})`);
+  await aguardar("!!document.querySelector('#modal [data-concluir]')", 3000);
+  await avaliar("document.querySelector('#modal [data-concluir]').click()");
+  return aguardar(`minhasConcluidas.has(${JSON.stringify(titulo)}) && document.querySelector('#modal [data-concluir]').getAttribute('aria-pressed') === 'true'`, 8000);
+};
+const marcouFilme = await marcar(obraFilme);
+const textoBotaoFilme = await avaliar("document.querySelector('#modal [data-concluir]').textContent.trim()");
+await avaliar('fecharModal()');
+const marcouJogo = await marcar(obraJogo);
+const textoBotaoJogo = await avaliar("document.querySelector('#modal [data-concluir]').textContent.trim()");
+await avaliar('fecharModal()');
+const seloNoCard = await avaliar(`[...document.querySelectorAll('#grid-catalogo [data-selo-concluida]')].some(e => e.dataset.seloConcluida === ${JSON.stringify(obraFilme)} && !e.hidden)`);
+caso('T21', 'Botão "assisti / terminei o jogo" marca a obra e mostra o selo no card', marcouFilme && marcouJogo && seloNoCard,
+  `filme: "${textoBotaoFilme}", jogo: "${textoBotaoJogo}"`);
+
+await avaliar("abrirPerfil(sessao.usuario)");
+await aguardar("!!document.querySelector('.perfil-stats')", 8000);
+const numeros = await avaliar("[...document.querySelectorAll('.perfil-stat')].map(e => e.querySelector('b').textContent + ' ' + e.querySelector('span').textContent.trim())");
+caso('T22', 'Perfil mostra jogos jogados, filmes e séries assistidos e reviews', numeros[0] === '1 jogos jogados' && numeros[1] === '1 filmes assistidos'
+  && numeros[2].startsWith('0 séries') && /^1 review/.test(numeros[3]), numeros.join(' | '));
+
+// Editar perfil: foto e capa de fundo geradas no próprio navegador + bio
+await avaliar('abrirEditorPerfil()');
+const enviarImagem = (campo, w, h, cor) => avaliar(`(async () => {
+  const c = document.createElement('canvas'); c.width = ${w}; c.height = ${h};
+  const g = c.getContext('2d'); const grad = g.createLinearGradient(0, 0, ${w}, ${h});
+  grad.addColorStop(0, '${cor}'); grad.addColorStop(1, '#3dd6f5'); g.fillStyle = grad; g.fillRect(0, 0, ${w}, ${h});
+  const blob = await new Promise(ok => c.toBlob(ok, 'image/png'));
+  const dt = new DataTransfer(); dt.items.add(new File([blob], '${campo}.png', { type: 'image/png' }));
+  campoImagemEscolhido = '${campo}';
+  const input = document.getElementById('arquivo-imagem'); input.files = dt.files;
+  input.dispatchEvent(new Event('change'));
+})()`);
+await enviarImagem('foto', 600, 800, '#8b7bff');
+await enviarImagem('capaFundo', 2400, 900, '#f6b94f');
+await aguardar("rascunhoPerfil.foto.startsWith('data:image/jpeg') && rascunhoPerfil.capaFundo.startsWith('data:image/jpeg')", 5000);
+await preencher('editor-bio', 'Fã de terror e RPG. <script>alert(1)</script>');
+await avaliar("salvarPerfil()");
+const salvouPerfil = await aguardar("document.getElementById('dialogo-fundo').hidden && !!document.querySelector('.perfil-cabeca .avatar img') && document.getElementById('perfil-capa').style.backgroundImage.includes('data:image/jpeg')", 10000);
+const bioTexto = await avaliar("document.querySelector('.perfil-identidade .bio')?.textContent");
+const fotoNoMenu = await avaliar("!!document.querySelector('#usuario-avatar img')");
+await capturar('perfil_proprio');
+caso('T23', 'Perfil aceita foto, capa de fundo e bio (texto escapado)', salvouPerfil && fotoNoMenu && bioTexto?.includes('<script>'),
+  `bio: "${bioTexto}"`);
+
+// Seguir outro usuário (criado só para o teste)
+const outroUsuario = 'teste_seg_' + Math.random().toString(36).slice(2, 7);
+const outro = await avaliar(`fetch('/api/auth/cadastrar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ usuario: '${outroUsuario}', senha: 'Senha-outro-123' }) }).then(r => r.json())`);
+await avaliar("document.querySelector('.perfil-abas [data-perfil-aba=pessoas]').click()");
+await aguardar("!!document.getElementById('busca-pessoas')", 3000);
+await preencher('busca-pessoas', outroUsuario);
+await aguardar(`!!document.querySelector('#lista-pessoas [data-seguir="${outroUsuario}"]')`, 6000);
+await avaliar(`document.querySelector('#lista-pessoas [data-seguir="${outroUsuario}"]').click()`);
+const seguiu = await aguardar(`document.querySelector('[data-seguir="${outroUsuario}"]')?.getAttribute('aria-pressed') === 'true'`, 6000);
+const seguindoNum = await avaliar("perfilAtual.estatisticas.seguindo");
+await avaliar(`abrirPerfil('${outroUsuario}')`);
+await aguardar(`perfilAtual?.usuario === '${outroUsuario}'`, 6000);
+const visao = await avaliar("({ seguidores: perfilAtual.estatisticas.seguidores, botao: document.querySelector('.perfil-acoes [data-seguir]')?.textContent })");
+await avaliar(`document.querySelector('.perfil-acoes [data-seguir]').click()`);
+const deixou = await aguardar("perfilAtual.estatisticas.seguidores === 0 && document.querySelector('.perfil-acoes [data-seguir]').textContent === 'Seguir'", 6000);
+caso('T24', 'Seguir e deixar de seguir outro usuário atualiza os contadores', seguiu && seguindoNum === 1 && visao.seguidores === 1 && visao.botao === 'Seguindo' && deixou,
+  `seguindo=${seguindoNum}, seguidores do outro=${visao.seguidores}`);
+await avaliar(`fetch('/api/auth/conta', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${outro?.token}' },
+  body: JSON.stringify({ senha: 'Senha-outro-123' }) })`);
+
+// Redefinir a própria senha pela tela
+await avaliar('abrirRedefinirSenha()');
+const novaSenhaTeste = 'Nova-' + Math.random().toString(36).slice(2, 10) + '!7';
+await preencher('senha-atual', 'senha-errada-999');
+await preencher('senha-nova', novaSenhaTeste);
+await preencher('senha-confirmacao', novaSenhaTeste);
+await avaliar("document.getElementById('form-senha').requestSubmit()");
+const recusouErrada = await aguardar("document.getElementById('status-senha')?.textContent.includes('incorreta')", 6000);
+await preencher('senha-atual', senhaTeste);
+await avaliar("document.getElementById('form-senha').requestSubmit()");
+const trocou = await aguardar("document.getElementById('dialogo-fundo').hidden", 8000);
+const loginNovo = await avaliar(`fetch('/api/auth/entrar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ usuario: '${usuarioTeste}', senha: ${JSON.stringify(novaSenhaTeste)} }) }).then(r => r.status)`);
+const loginAntigo = await avaliar(`fetch('/api/auth/entrar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ usuario: '${usuarioTeste}', senha: ${JSON.stringify(senhaTeste)} }) }).then(r => r.status)`);
+const continuaLogado = await avaliar("api('/api/auth/eu').then(r => r.status)");
+if (trocou) senhaTeste = novaSenhaTeste;
+caso('T25', 'Redefinir senha: recusa a senha atual errada, troca e mantém a sessão', recusouErrada && trocou && loginNovo === 200 && loginAntigo === 401 && continuaLogado === 200,
+  `nova senha: ${loginNovo}, antiga: ${loginAntigo}, sessão atual: ${continuaLogado}`);
+await avaliar("irPara('catalogo')");
+
+// ---------- Minhas listas ----------
+await aguardar("minhasListas.length >= 2", 8000);
+const padroes = await avaliar("minhasListas.map(l => l.nome)");
+await avaliar(`abrirModal(${JSON.stringify(obraFilme)})`);
+await aguardar("!!document.querySelector('#modal [data-salvar-lista]')", 3000);
+await avaliar("document.querySelector('#modal [data-salvar-lista]').click()");
+await aguardar("!document.getElementById('popover-listas').hidden", 3000);
+await capturar('popover_listas');
+await avaliar("[...document.querySelectorAll('#popover-listas [data-alternar-lista]')].find(b => b.textContent.includes('Quero assistir')).click()");
+const salvouNaPadrao = await aguardar(`minhasListas.find(l => l.nome === 'Quero assistir').obras.some(o => o.titulo === ${JSON.stringify(obraFilme)})
+  && document.querySelector('#modal [data-salvar-lista]').textContent.includes('Quero assistir')`, 8000);
+await avaliar("fecharModal()");
+// cria uma lista nova pelo menu da obra, já com um jogo
+await avaliar(`abrirModal(${JSON.stringify(obraJogo)})`);
+await aguardar("!!document.querySelector('#modal [data-salvar-lista]')", 3000);
+await avaliar("document.querySelector('#modal [data-salvar-lista]').click()");
+await preencher('nova-lista-nome', 'Zerar nas férias');
+await avaliar("document.getElementById('nova-lista-form').requestSubmit()");
+const criouComJogo = await aguardar(`minhasListas.some(l => l.nome === 'Zerar nas férias' && l.obras.some(o => o.titulo === ${JSON.stringify(obraJogo)}))`, 8000);
+await avaliar("fecharModal()");
+// página Minhas listas
+await avaliar("irPara('listas')");
+await aguardar("document.querySelectorAll('#listas-abas .lista-chip').length >= 3", 5000);
+await avaliar("[...document.querySelectorAll('#listas-abas .lista-chip')].find(c => c.textContent.includes('Quero assistir')).click()");
+const mostraFilme = await aguardar(`[...document.querySelectorAll('#lista-conteudo .card')].some(c => c.dataset.titulo === ${JSON.stringify(obraFilme)})`, 3000);
+const seloAssistido = await avaliar(`!document.querySelector('#lista-conteudo [data-selo-concluida="${obraFilme.replace(/"/g, '\\"')}"]')?.hidden`);
+await capturar('minhas_listas');
+await avaliar("document.querySelector('#lista-conteudo [data-remover-da-lista]').click()");
+const removeu = await aguardar("minhasListas.find(l => l.nome === 'Quero assistir').obras.length === 0 && !!document.querySelector('#lista-conteudo .vazio')", 6000);
+// renomeia e exclui a lista criada
+await avaliar("[...document.querySelectorAll('#listas-abas .lista-chip')].find(c => c.textContent.includes('Zerar nas férias')).click()");
+await avaliar("abrirRenomearLista()");
+await preencher('nome-lista', 'Zerar no fim de semana');
+await avaliar("document.getElementById('form-lista').requestSubmit()");
+const renomeou = await aguardar("minhasListas.some(l => l.nome === 'Zerar no fim de semana') && document.querySelector('#lista-conteudo h2').textContent === 'Zerar no fim de semana'", 6000);
+await avaliar("abrirExcluirLista()");
+await avaliar("document.getElementById('confirmar-exclusao-lista').click()");
+const excluiuLista = await aguardar("minhasListas.length === 2 && document.getElementById('dialogo-fundo').hidden", 6000);
+caso('T26', 'Minhas listas: listas padrão, salvar pela obra, criar, ver, remover, renomear e excluir',
+  padroes.join('|') === 'Quero assistir|Quero jogar' && salvouNaPadrao && criouComJogo && mostraFilme && seloAssistido && removeu && renomeou && excluiuLista,
+  `padrão=${padroes.join(', ')}; salvou=${salvouNaPadrao}, criou=${criouComJogo}, mostrou=${mostraFilme}, selo=${seloAssistido}, removeu=${removeu}, renomeou=${renomeou}, excluiu=${excluiuLista}`);
+await avaliar("irPara('catalogo')");
+
+await cdp('Emulation.setDeviceMetricsOverride', { width: 400, height: 860, deviceScaleFactor: 1, mobile: true });
+await cdp('Page.reload');
+await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
+await esperar(800);
+const largura = await avaliar("({ scroll: document.documentElement.scrollWidth, tela: window.innerWidth })");
+caso('T09', 'Sem rolagem horizontal em 400 px (RNF08)', largura.scroll <= largura.tela, `scrollWidth=${largura.scroll}, largura=${largura.tela}`);
+if (process.env.OMNI_CAPTURAS) {
+  await avaliar("document.querySelector('#grid-catalogo .card').click()");
+  await aguardar("!!document.getElementById('seletor-estrelas')", 10000);
+  await capturar('mobile_modal_topo');
+  await avaliar("document.getElementById('modal-avaliacoes').scrollIntoView()");
+  await esperar(400);
+  await capturar('mobile_modal_avaliacoes');
+  await avaliar("fecharModal()");
+  await avaliar("abrirPerfil(sessao.usuario)");
+  await aguardar("!!document.querySelector('.perfil-stats')", 8000);
+  await esperar(500);
+  await capturar('mobile_perfil');
+  console.log('perfil 400px scrollWidth:', await avaliar("document.documentElement.scrollWidth + '/' + window.innerWidth"));
+  await avaliar("irPara('catalogo')");
+}
+
+// ---------- Usuário comum não acessa a administração ----------
+await avaliar("irPara('admin')");
+const semAdminNaTela = await avaliar("document.getElementById('nav-admin').hidden && document.getElementById('aba-admin').hidden && !document.getElementById('aba-catalogo').hidden");
+const statusAdmin = await avaliar(`Promise.all([
+  fetch('/api/admin/usuarios', { headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
+  fetch('/api/tendencias/filmes', { headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
+  fetch('/api/completar-detalhes', { method: 'POST', headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
+  fetch('/api/admin/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${tokenTeste}' }, body: JSON.stringify({ usuario: 'nao_deve_existir', senha: 'senha-qualquer-1' }) }).then(r => r.status)
+])`);
+caso('T18', 'Usuário comum não vê a Administração e o servidor recusa as rotas de admin (403)',
+  semAdminNaTela && statusAdmin.every((x) => x === 403), `status: ${statusAdmin.join(', ')}`);
+
+caso('T10', 'Nenhum erro de JavaScript no console', errosConsole.length === 0, errosConsole.slice(0, 3).join(' | '));
+
+// ---------- Sair e limpeza ----------
+await cdp('Emulation.clearDeviceMetricsOverride');
+await avaliar("document.getElementById('usuario-botao').click()");
+await avaliar("[...document.querySelectorAll('#usuario-painel [role=menuitem]')].find(b => b.textContent.includes('Sair')).click()");
+const voltouLogin = await aguardar("location.pathname === '/login.html'", 8000);
+const statusAposSair = await avaliar(`fetch('/api/obras', { headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status)`);
+caso('T13', 'Sair volta ao login e invalida o token no servidor', voltouLogin && statusAposSair === 401, `GET /api/obras com o token antigo: ${statusAposSair}`);
+
+// Remove a conta criada pelo teste
+const login = await avaliar(`fetch('/api/auth/entrar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ usuario: '${usuarioTeste}', senha: ${JSON.stringify(senhaTeste)} }) }).then(r => r.json())`);
+const excluida = await avaliar(`fetch('/api/auth/conta', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${login?.token}' },
+  body: JSON.stringify({ senha: ${JSON.stringify(senhaTeste)} }) }).then(r => r.status)`);
+console.log(`conta de teste ${usuarioTeste} excluída: ${excluida === 204 ? 'sim' : 'não (' + excluida + ')'}`);
+
+// ---------- Administrador (opcional): OMNI_ADMIN_SENHA=<senha do admin> ----------
+if (process.env.OMNI_ADMIN_SENHA) {
+  await cdp('Page.navigate', { url: new URL('/login.html', URL_APP).href });
+  await aguardar("!!document.getElementById('form') && document.readyState === 'complete'");
+  await preencher('usuario', process.env.OMNI_ADMIN_USUARIO || 'admin');
+  await preencher('senha', process.env.OMNI_ADMIN_SENHA);
+  await avaliar("document.getElementById('form').requestSubmit()");
+  const entrouAdmin = await aguardar("location.pathname === '/' && !document.getElementById('nav-admin').hidden", 15000);
+  await avaliar("irPara('admin')");
+  const listou = await aguardar("[...document.querySelectorAll('#admin-usuarios .admin-usuario')].some(li => li.dataset.usuario === 'admin')", 8000);
+  const novo = 'teste_adm_' + Math.random().toString(36).slice(2, 7);
+  await preencher('admin-novo-usuario', novo);
+  await avaliar("document.getElementById('admin-gerar-senha').click()");
+  await avaliar("document.getElementById('admin-form').requestSubmit()");
+  const criado = await aguardar(`[...document.querySelectorAll('#admin-usuarios .admin-usuario')].some(li => li.dataset.usuario === '${novo}' && li.textContent.includes('Comum'))`, 8000);
+  await capturar('admin_painel');
+  const senhaNovo = await avaliar("document.getElementById('admin-nova-senha').value");
+  const btnExcluir = `document.querySelector('[data-excluir-usuario="${novo}"]')`;
+  await avaliar(`${btnExcluir}.click()`);
+  await avaliar(`${btnExcluir}.click()`);
+  const excluido = await aguardar(`!${btnExcluir}`, 8000);
+  const adminProtegido = await avaliar("!document.querySelector('[data-excluir-usuario=\"admin\"]')");
+  caso('T19', 'Administrador vê os usuários, cria uma conta comum e a exclui', entrouAdmin && listou && criado && excluido && adminProtegido,
+    `entrou=${entrouAdmin}, listou=${listou}, criou=${criado}, excluiu=${excluido}, admin protegido=${adminProtegido}`);
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 400, height: 860, deviceScaleFactor: 1, mobile: true });
+  await esperar(500);
+  const larguraAdmin = await avaliar("({ scroll: document.documentElement.scrollWidth, tela: window.innerWidth })");
+  await capturar('admin_mobile');
+  await cdp('Emulation.clearDeviceMetricsOverride');
+  caso('T20', 'Administração sem rolagem horizontal em 400 px', larguraAdmin.scroll <= larguraAdmin.tela, `scrollWidth=${larguraAdmin.scroll}`);
+  await avaliar("sair()");
+  await aguardar("location.pathname === '/login.html'", 8000);
+}
+
+const resumo = { url: URL_APP, executado_em: new Date().toISOString(), aprovados: casos.filter((c) => c.ok).length, total: casos.length, casos };
+writeFileSync(new URL('./teste_interface.json', import.meta.url), JSON.stringify(resumo, null, 2));
+ws.close();
+// Fecha o navegador inteiro pelo próprio protocolo (encerra todos os processos filhos)
+try {
+  const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${PORTA}/json/version`)).json();
+  const wsBrowser = new WebSocket(webSocketDebuggerUrl);
+  await new Promise((r) => wsBrowser.addEventListener('open', r, { once: true }));
+  wsBrowser.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+  await esperar(1500);
+} catch { /* navegador já fechado */ }
+encerrarNavegador();
+await esperar(500);
+try { rmSync(perfil, { recursive: true, force: true }); } catch { /* perfil ainda em uso */ }
+console.log(`${resumo.aprovados}/${resumo.total} casos aprovados`);
+process.exit(resumo.aprovados === resumo.total ? 0 : 1);

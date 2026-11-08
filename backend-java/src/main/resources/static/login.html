@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar | OmniReview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08090d;
+            --bg-soft: #0e1017;
+            --surface: #13151e;
+            --surface-2: #1a1d29;
+            --line: rgba(255, 255, 255, 0.07);
+            --line-strong: rgba(255, 255, 255, 0.14);
+            --text: #f3f4f8;
+            --text-2: #a5a9bb;
+            --text-3: #6b7085;
+            --accent: #8b7bff;
+            --accent-2: #3dd6f5;
+            --accent-soft: rgba(139, 123, 255, 0.14);
+            --filme: #f6b94f;
+            --serie: #b39dff;
+            --jogo: #4fe3a1;
+            --danger: #ff6b81;
+            --ok: #4fe3a1;
+            --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+            --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+            background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+            display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        }
+        button, input { font: inherit; }
+        [hidden] { display: none !important; }
+
+        /* ---------- Lado da marca ---------- */
+        .marca {
+            position: relative; overflow: hidden; padding: clamp(28px, 5vw, 64px);
+            display: flex; flex-direction: column; justify-content: space-between;
+            background:
+                radial-gradient(700px 500px at 0% 0%, rgba(139, 123, 255, 0.28), transparent 60%),
+                radial-gradient(600px 500px at 100% 100%, rgba(61, 214, 245, 0.16), transparent 60%),
+                var(--bg-soft);
+            border-right: 1px solid var(--line);
+        }
+        .logo { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
+        .logo-mark {
+            width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+            background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--accent));
+            box-shadow: 0 6px 24px -6px rgba(139, 123, 255, 0.7);
+        }
+        .logo-mark svg { width: 19px; height: 19px; }
+        .logo-texto span { color: var(--accent); }
+        .marca h1 {
+            font-family: var(--font-display); font-weight: 700; letter-spacing: -0.035em; line-height: 1.05;
+            font-size: clamp(32px, 4.4vw, 56px); margin: 0 0 16px; max-width: 13ch;
+        }
+        .marca h1 em {
+            font-style: normal; background: linear-gradient(100deg, var(--accent) 10%, var(--accent-2) 90%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .marca p { color: var(--text-2); max-width: 44ch; margin: 0; font-size: 16px; }
+        .midias { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+        .midia {
+            display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-strong); font-size: 13px; font-weight: 600; color: var(--text-2);
+        }
+        .midia i { width: 8px; height: 8px; border-radius: 3px; background: var(--cor); }
+        /* cartões decorativos */
+        .cartazes { position: absolute; right: -40px; bottom: -30px; display: flex; gap: 14px; transform: rotate(-8deg); opacity: 0.55; pointer-events: none; }
+        .cartaz {
+            width: 110px; aspect-ratio: 2/3; border-radius: 14px; border: 1px solid var(--line-strong);
+            background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--cor) 45%, transparent), transparent 65%), linear-gradient(160deg, #1d2030, #0f1118);
+        }
+        .cartaz:nth-child(2) { transform: translateY(-36px); }
+        .cartaz:nth-child(3) { transform: translateY(-12px); }
+        .rodape-marca { color: var(--text-3); font-size: 13px; position: relative; }
+
+        /* ---------- Formulário ---------- */
+        .lado-form { display: grid; place-items: center; padding: clamp(24px, 5vw, 64px) clamp(16px, 4vw, 48px); }
+        .cartao { width: min(420px, 100%); }
+        .cartao h2 { font-family: var(--font-display); font-size: 28px; letter-spacing: -0.02em; margin: 0 0 6px; }
+        .cartao .sub { color: var(--text-2); margin: 0 0 26px; }
+
+        .abas { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 4px; margin-bottom: 26px; }
+        .aba {
+            background: none; border: none; color: var(--text-2); font-weight: 600; font-size: 14px; padding: 10px; border-radius: 9px; cursor: pointer;
+            transition: background .2s, color .2s;
+        }
+        .aba[aria-selected="true"] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+        .aba:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .campo { margin-bottom: 16px; }
+        .campo label { display: block; font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 7px; }
+        .entrada {
+            display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 14px;
+            background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .entrada:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+        .entrada.invalida { border-color: var(--danger); }
+        .entrada svg { width: 18px; height: 18px; color: var(--text-3); flex-shrink: 0; }
+        .entrada input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text); font-size: 15px; }
+        .entrada input::placeholder { color: var(--text-3); }
+        .olho { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 6px; border-radius: 8px; display: grid; place-items: center; }
+        .olho:hover { color: var(--text); }
+        .olho:focus-visible { outline: 2px solid var(--accent); }
+        .dica { font-size: 12.5px; color: var(--text-3); margin-top: 6px; min-height: 1em; }
+        .dica.erro { color: var(--danger); }
+        .dica.ok { color: var(--ok); }
+        .capslock { font-size: 12.5px; color: var(--filme); margin-top: 6px; }
+
+        .forca { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+        .forca i { height: 4px; border-radius: 99px; background: var(--surface-2); transition: background .2s; }
+
+        .alerta {
+            display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; margin-bottom: 18px;
+            background: rgba(255, 107, 129, 0.1); border: 1px solid rgba(255, 107, 129, 0.35); color: #ffc2cc; font-size: 14px;
+        }
+        .alerta svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+        .btn {
+            width: 100%; height: 50px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; font-size: 15px; color: #fff;
+            background: linear-gradient(135deg, var(--accent), #6f5cf0); box-shadow: 0 12px 30px -12px rgba(139, 123, 255, 0.9);
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px;
+            transition: transform .15s, opacity .2s;
+        }
+        .btn:hover { background: linear-gradient(135deg, #9a8cff, #7a68f5); }
+        .btn:active { transform: scale(0.99); }
+        .btn:disabled { opacity: .6; cursor: progress; }
+        .btn:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+        .giro { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: giro .8s linear infinite; }
+        @keyframes giro { to { transform: rotate(360deg); } }
+
+        .troca { text-align: center; color: var(--text-2); font-size: 14px; margin-top: 22px; }
+        .troca button { background: none; border: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; }
+        .troca button:hover { text-decoration: underline; }
+
+        @media (max-width: 860px) {
+            body { grid-template-columns: 1fr; }
+            .marca { border-right: none; border-bottom: 1px solid var(--line); padding-block: 28px; }
+            .marca h1 { font-size: 30px; }
+            .marca p, .midias, .cartazes, .rodape-marca { display: none; }
+            .marca .titulo-marca { margin-top: 18px; }
+        }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+    </style>
+</head>
+<body>
+    <section class="marca" aria-hidden="false">
+        <div class="logo">
+            <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M7 3c0 6 10 6 10 12M17 3c0 6-10 6-10 12M7 21c0-2 2-3.5 5-3.5S17 19 17 21"/></svg></span>
+            <span class="logo-texto">Omni<span>Review</span></span>
+        </div>
+        <div class="titulo-marca">
+            <h1>Seu próximo título, em <em>qualquer mídia.</em></h1>
+            <p>Entre para explorar o catálogo, favoritar o que você ama e receber recomendações que cruzam filmes, séries e jogos pelo mesmo DNA criativo.</p>
+            <div class="midias">
+                <span class="midia" style="--cor: var(--filme)"><i></i>Filmes</span>
+                <span class="midia" style="--cor: var(--serie)"><i></i>Séries</span>
+                <span class="midia" style="--cor: var(--jogo)"><i></i>Jogos</span>
+            </div>
+        </div>
+        <div class="cartazes" aria-hidden="true">
+            <div class="cartaz" style="--cor: var(--filme)"></div>
+            <div class="cartaz" style="--cor: var(--accent)"></div>
+            <div class="cartaz" style="--cor: var(--jogo)"></div>
+        </div>
+        <div class="rodape-marca">Neo4j · Ollama · TMDB · Steam</div>
+    </section>
+
+    <main class="lado-form">
+        <div class="cartao">
+            <h2 id="titulo">Bem-vindo de volta</h2>
+            <p class="sub" id="subtitulo">Entre com seu usuário e senha.</p>
+
+            <div class="abas" role="tablist" aria-label="Acesso">
+                <button class="aba" role="tab" id="aba-entrar" aria-selected="true" aria-controls="form" data-modo="entrar">Entrar</button>
+                <button class="aba" role="tab" id="aba-cadastrar" aria-selected="false" aria-controls="form" data-modo="cadastrar">Criar conta</button>
+            </div>
+
+            <form id="form" method="post" action="/login.html" onsubmit="event.preventDefault()" novalidate>
+                <div class="alerta" id="alerta" role="alert" hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+                    <span id="alerta-texto"></span>
+                </div>
+
+                <div class="campo">
+                    <label for="usuario">Usuário</label>
+                    <div class="entrada" id="caixa-usuario">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+                        <input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="seu.usuario" maxlength="30" required>
+                    </div>
+                    <div class="dica" id="dica-usuario" hidden>3 a 30 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.</div>
+                </div>
+
+                <div class="campo">
+                    <label for="senha">Senha</label>
+                    <div class="entrada" id="caixa-senha">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                        <input id="senha" name="senha" type="password" autocomplete="current-password" placeholder="••••••••" maxlength="128" required>
+                        <button type="button" class="olho" data-alvo="senha" aria-label="Mostrar senha">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                    <div class="forca" id="forca" hidden aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                    <div class="dica" id="dica-senha" hidden>Mínimo de 8 caracteres.</div>
+                    <div class="capslock" id="caps" hidden>Caps Lock está ativado.</div>
+                </div>
+
+                <div class="campo" id="campo-confirmacao" hidden>
+                    <label for="confirmacao">Confirme a senha</label>
+                    <div class="entrada" id="caixa-confirmacao">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 12 4 4 10-10"/></svg>
+                        <input id="confirmacao" name="confirmacao" type="password" autocomplete="new-password" placeholder="••••••••" maxlength="128">
+                        <button type="button" class="olho" data-alvo="confirmacao" aria-label="Mostrar senha">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                    <div class="dica" id="dica-confirmacao"></div>
+                </div>
+
+                <button class="btn" id="enviar" type="submit"><span id="enviar-texto">Entrar</span></button>
+            </form>
+
+            <p class="troca" id="troca">Ainda não tem conta? <button type="button" data-modo="cadastrar">Criar conta</button></p>
+        </div>
+    </main>
+
+    <script>
+        const CHAVE_SESSAO = 'omnireview:sessao';
+        const $ = (id) => document.getElementById(id);
+        const FORMATO_USUARIO = /^[a-z0-9._-]{3,30}$/;
+        let modo = 'entrar';
+
+        function lerSessao() {
+            try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null'); } catch { return null; }
+        }
+        function destino() {
+            const voltar = new URLSearchParams(location.search).get('voltar');
+            return voltar && voltar.startsWith('/') && !voltar.startsWith('//') ? voltar : '/';
+        }
+
+        // Já tem sessão válida? Vai direto para o catálogo.
+        (async () => {
+            const s = lerSessao();
+            if (!s?.token) return;
+            try {
+                const r = await fetch('/api/auth/eu', { headers: { Authorization: `Bearer ${s.token}` } });
+                if (r.ok) location.replace(destino());
+                else localStorage.removeItem(CHAVE_SESSAO);
+            } catch { /* servidor fora do ar: fica na tela de login */ }
+        })();
+
+        function trocarModo(novo) {
+            modo = novo;
+            const cadastro = modo === 'cadastrar';
+            $('aba-entrar').setAttribute('aria-selected', String(!cadastro));
+            $('aba-cadastrar').setAttribute('aria-selected', String(cadastro));
+            $('titulo').textContent = cadastro ? 'Crie sua conta' : 'Bem-vindo de volta';
+            $('subtitulo').textContent = cadastro ? 'Escolha um usuário e uma senha para começar.' : 'Entre com seu usuário e senha.';
+            $('enviar-texto').textContent = cadastro ? 'Criar conta' : 'Entrar';
+            $('campo-confirmacao').hidden = !cadastro;
+            $('forca').hidden = !cadastro;
+            $('dica-usuario').hidden = !cadastro;
+            $('dica-senha').hidden = !cadastro;
+            $('senha').autocomplete = cadastro ? 'new-password' : 'current-password';
+            $('troca').innerHTML = cadastro
+                ? 'Já tem conta? <button type="button" data-modo="entrar">Entrar</button>'
+                : 'Ainda não tem conta? <button type="button" data-modo="cadastrar">Criar conta</button>';
+            esconderAlerta();
+            atualizarValidacao();
+            $('usuario').focus();
+        }
+
+        document.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-modo]');
+            if (b) { e.preventDefault(); trocarModo(b.dataset.modo); }
+            const olho = e.target.closest('.olho');
+            if (olho) {
+                const input = $(olho.dataset.alvo);
+                const mostrar = input.type === 'password';
+                input.type = mostrar ? 'text' : 'password';
+                olho.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+                olho.style.color = mostrar ? 'var(--accent)' : '';
+            }
+        });
+
+        // Usuário sempre em minúsculas, como o servidor guarda
+        $('usuario').addEventListener('input', (e) => {
+            const pos = e.target.selectionStart;
+            e.target.value = e.target.value.toLowerCase().replace(/\s/g, '');
+            e.target.setSelectionRange(pos, pos);
+            atualizarValidacao();
+        });
+        ['senha', 'confirmacao'].forEach((id) => $(id).addEventListener('input', atualizarValidacao));
+        ['senha', 'confirmacao'].forEach((id) => $(id).addEventListener('keyup', (e) => {
+            if (e.getModifierState) $('caps').hidden = !e.getModifierState('CapsLock');
+        }));
+
+        function forcaSenha(s) {
+            let pontos = 0;
+            if (s.length >= 8) pontos++;
+            if (s.length >= 12) pontos++;
+            if (/[a-z]/.test(s) && /[A-Z]/.test(s)) pontos++;
+            if (/\d/.test(s) && /[^A-Za-z0-9]/.test(s)) pontos++;
+            return s.length < 8 ? Math.min(pontos, 1) : Math.max(1, pontos);
+        }
+
+        function atualizarValidacao() {
+            if (modo !== 'cadastrar') {
+                ['caixa-usuario', 'caixa-senha', 'caixa-confirmacao'].forEach((id) => $(id).classList.remove('invalida'));
+                return;
+            }
+            const u = $('usuario').value, s = $('senha').value, c = $('confirmacao').value;
+            const uOk = FORMATO_USUARIO.test(u);
+            $('caixa-usuario').classList.toggle('invalida', u.length > 0 && !uOk);
+            $('dica-usuario').className = 'dica' + (u.length > 0 ? (uOk ? ' ok' : ' erro') : '');
+
+            const nivel = forcaSenha(s);
+            const cores = ['var(--danger)', 'var(--filme)', 'var(--accent-2)', 'var(--ok)'];
+            [...$('forca').children].forEach((barra, i) => barra.style.background = s && i < nivel ? cores[nivel - 1] : '');
+            const sOk = s.length >= 8;
+            $('dica-senha').textContent = !s ? 'Mínimo de 8 caracteres.' : sOk
+                ? ['Senha fraca', 'Senha razoável', 'Senha boa', 'Senha forte'][nivel - 1] + ' · mínimo de 8 caracteres atendido.'
+                : `Faltam ${8 - s.length} caractere(s).`;
+            $('dica-senha').className = 'dica' + (s ? (sOk ? ' ok' : ' erro') : '');
+            $('caixa-senha').classList.toggle('invalida', s.length > 0 && !sOk);
+
+            const cOk = c.length > 0 && c === s;
+            $('dica-confirmacao').textContent = c ? (cOk ? 'As senhas conferem.' : 'As senhas não conferem.') : '';
+            $('dica-confirmacao').className = 'dica' + (c ? (cOk ? ' ok' : ' erro') : '');
+            $('caixa-confirmacao').classList.toggle('invalida', c.length > 0 && !cOk);
+        }
+
+        function mostrarAlerta(texto) { $('alerta-texto').textContent = texto; $('alerta').hidden = false; }
+        function esconderAlerta() { $('alerta').hidden = true; }
+
+        $('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            esconderAlerta();
+            const usuario = $('usuario').value.trim();
+            const senha = $('senha').value;
+            if (!usuario || !senha) { mostrarAlerta('Preencha usuário e senha.'); return; }
+            if (modo === 'cadastrar') {
+                if (!FORMATO_USUARIO.test(usuario)) { mostrarAlerta('Usuário inválido: use de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado.'); return; }
+                if (senha.length < 8) { mostrarAlerta('A senha deve ter pelo menos 8 caracteres.'); return; }
+                if (senha !== $('confirmacao').value) { mostrarAlerta('As senhas não conferem.'); return; }
+            }
+            const botao = $('enviar');
+            botao.disabled = true;
+            const textoOriginal = $('enviar-texto').textContent;
+            botao.innerHTML = '<span class="giro" aria-hidden="true"></span><span id="enviar-texto">' + (modo === 'cadastrar' ? 'Criando conta...' : 'Entrando...') + '</span>';
+            try {
+                const resposta = await fetch(`/api/auth/${modo}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, senha }),
+                });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok) {
+                    mostrarAlerta(dados.erro || 'Não foi possível concluir. Tente novamente.');
+                    if (resposta.status === 401) { $('senha').value = ''; $('senha').focus(); }
+                    return;
+                }
+                localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, usuario: dados.usuario, papel: dados.papel }));
+                location.replace(destino());
+            } catch {
+                mostrarAlerta('Sem conexão com o servidor. Verifique se o back-end está rodando.');
+            } finally {
+                botao.disabled = false;
+                botao.innerHTML = '<span id="enviar-texto">' + textoOriginal + '</span>';
+            }
+        });
+
+        if (new URLSearchParams(location.search).get('expirada')) mostrarAlerta('Sua sessão expirou. Entre novamente.');
+        if (location.hash === '#cadastrar') trocarModo('cadastrar'); else $('usuario').focus();
+    </script>
+</body>
+</html>

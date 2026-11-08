@@ -1,0 +1,39 @@
+@startuml seq_adicionar
+!include estilo.iuml
+title Sequência — Adicionar obra e gerar DNA criativo (UC07 + UC09)
+autonumber
+actor Curador
+participant "index.html\n(navegador)" as UI
+participant RecomendacaoController as C
+participant "TmdbService /\nRawgService" as API
+participant IaService as IA
+participant ObraRepository as R
+database Neo4j
+participant "TMDB / Steam" as EXT
+participant "Ollama\nllama3.2:3b" as LLM
+
+Curador -> UI : informa nome e tipo
+UI -> C : POST /api/adicionar/{tipo}?nome=
+C -> API : buscarDados(nome, tipo)
+API -> EXT : busca + detalhes (pt-BR, URL codificada)
+EXT --> API : título, sinopse, gêneros, imagens
+API --> C : {titulo, sinopse, generos, imagem, capa}
+alt obra não encontrada
+  C --> UI : 404 Not Found
+end
+C -> IA : extrairDnaCriativo(titulo, sinopse, tipo, generos)
+IA -> IA : generos = extrairTagsValidas(generosOficiais)
+loop até 2 tentativas
+  IA -> LLM : POST /api/generate\n(prompt com gêneros oficiais,\nJSON Schema com enum da taxonomia,\ntemperature 0, seed 42)
+  LLM --> IA : {"tags": [...]}
+  IA -> IA : extrairTagsValidas()
+end
+IA -> IA : combinar(tagsDoLlm, generos)\n(máx. 4 tags)
+IA --> C : "Tag1, Tag2, Tag3, Tag4"
+C -> R : save(Obra)
+R -> Neo4j : MERGE (:Obra {titulo})
+C -> R : sincronizarTags(titulo)
+R -> Neo4j : MERGE (o)-[:TEM_TAG]->(:Tag {nome})
+C --> UI : 200 OK (JSON da obra)
+UI -> UI : recarrega catálogo
+@enduml
