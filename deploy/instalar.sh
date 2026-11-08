@@ -9,8 +9,11 @@
 # Pode ser executado de novo depois de "git pull" para atualizar: recompila e reinicia o serviço.
 set -euo pipefail
 
-PORTA="${PORTA:-8080}"
+# Porta local do site (o público acessa pelo Funnel, em HTTPS na 443). Se não for informada com PORTA=...,
+# reaproveita a da instalação anterior ou procura a primeira livre entre 8090 e 8099.
+PORTA="${PORTA:-}"
 APP=/opt/omnireview
+SERVICO=/etc/systemd/system/omnireview.service
 IMAGEM_NEO4J="neo4j:2026.08.1"
 VOLUME_DADOS="omnireview_neo4j_dados"
 
@@ -139,8 +142,26 @@ id omnireview >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/
 install -d -o root -g omnireview -m 750 "$APP" "$APP/config"
 install -o root -g omnireview -m 640 "$JAR" "$APP/omnireview.jar"
 install -o root -g omnireview -m 640 "$SEGREDOS" "$APP/config/segredos.properties"
+
+# Escolha da porta (com o serviço parado, para a porta dele não contar como ocupada)
+systemctl stop omnireview 2>/dev/null || true
+porta_ocupada() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+if [[ -z "$PORTA" && -f "$SERVICO" ]]; then
+    PORTA="$(sed -n 's/.*--server\.port=\([0-9]*\).*/\1/p' "$SERVICO" | head -1)"
+    [[ -n "$PORTA" ]] && porta_ocupada "$PORTA" && PORTA=""   # a anterior foi tomada por outro programa
+fi
+if [[ -z "$PORTA" ]]; then
+    for p in $(seq 8090 8099); do
+        if ! porta_ocupada "$p"; then PORTA="$p"; break; fi
+    done
+    [[ -n "$PORTA" ]] || falha "nenhuma porta livre entre 8090 e 8099. Escolha uma: sudo PORTA=9000 bash deploy/instalar.sh"
+elif porta_ocupada "$PORTA"; then
+    falha "a porta $PORTA já está em uso por outro programa. Escolha outra: sudo PORTA=9000 bash deploy/instalar.sh"
+fi
+ok "Porta local do site: $PORTA"
+
 sed -e "s|__PORTA__|$PORTA|" -e "s|/usr/bin/java|$(readlink -f "$(command -v java)")|" \
-    "$RAIZ/deploy/omnireview.service" > /etc/systemd/system/omnireview.service
+    "$RAIZ/deploy/omnireview.service" > "$SERVICO"
 systemctl daemon-reload
 systemctl enable omnireview >/dev/null 2>&1
 systemctl restart omnireview

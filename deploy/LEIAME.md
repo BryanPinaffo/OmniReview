@@ -12,7 +12,8 @@ e o back-end também, recebendo as visitas pelo Funnel.
 3. Sobe o Neo4j (`deploy/docker-compose.servidor.yml`): versão fixa, porta só local e volume com nome.
 4. Com `--restaurar arquivo.dump`, carrega o banco exportado do notebook.
 5. Compila o back-end, instala em `/opt/omnireview` e cria o serviço `omnireview` (sobe sozinho ao ligar o servidor).
-6. Ativa o Funnel na porta 8080 e mostra o endereço público.
+6. Escolhe uma porta local livre (8090 por padrão; se estiver ocupada, a próxima até 8099), ativa o Funnel nela
+   e mostra o endereço público. Quem visita usa sempre o endereço HTTPS; a porta local não aparece.
 
 Pode ser rodado de novo a qualquer momento para atualizar (mantém o banco, a não ser que use `--restaurar`).
 
@@ -64,14 +65,16 @@ Abra o endereço no celular **com o Wi-Fi desligado** (assim você confirma que 
 | Atualizar para a versão do GitHub | `cd OmniReview && git pull && sudo bash deploy/instalar.sh` |
 | Ver o endereço público | `tailscale funnel status` |
 | Tirar o site da internet (continua rodando local) | `sudo tailscale funnel reset` |
-| Publicar de novo | `sudo tailscale funnel --bg 8080` |
+| Ver a porta local em uso | `grep -o 'server.port=[0-9]*' /etc/systemd/system/omnireview.service` |
+| Publicar de novo | `sudo tailscale funnel --bg <porta>` (a porta do comando acima) |
 | Fazer backup do banco | `docker compose -f deploy/docker-compose.servidor.yml --env-file deploy/.env stop neo4j && docker run --rm -v omnireview_neo4j_dados:/data -v "$PWD":/backups neo4j:2026.08.1 neo4j-admin database dump neo4j --to-path=/backups && docker compose -f deploy/docker-compose.servidor.yml --env-file deploy/.env start neo4j` |
 
 ## Problemas comuns
 
 - **"Ollama não respondeu"**: o site funciona, mas obras novas ficam só com os gêneros oficiais. Confira se o
   Ollama está rodando (`systemctl status ollama`) e se a `omnireview.ollama.url` do `segredos.properties` está certa.
-- **Porta 8080 ocupada no servidor**: use outra, por exemplo `sudo PORTA=8090 bash deploy/instalar.sh`.
+- **Porta ocupada**: o script procura sozinho uma porta livre entre 8090 e 8099. Para escolher outra:
+  `sudo PORTA=9000 bash deploy/instalar.sh`.
 - **O site não sobe**: `journalctl -u omnireview -n 80 --no-pager` mostra o erro (normalmente senha do Neo4j ou
   arquivo de segredos).
 - **Esqueci a senha do admin**: coloque `omnireview.admin.forcar-senha=true` em `/opt/omnireview/config/segredos.properties`,
