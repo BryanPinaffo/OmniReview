@@ -376,10 +376,15 @@ const statusAdmin = await avaliar(`Promise.all([
   fetch('/api/admin/usuarios', { headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
   fetch('/api/tendencias/filmes', { headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
   fetch('/api/completar-detalhes', { method: 'POST', headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status),
-  fetch('/api/admin/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${tokenTeste}' }, body: JSON.stringify({ usuario: 'nao_deve_existir', senha: 'senha-qualquer-1' }) }).then(r => r.status)
+  fetch('/api/admin/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${tokenTeste}' }, body: JSON.stringify({ usuario: 'nao_deve_existir', senha: 'senha-qualquer-1' }) }).then(r => r.status),
+  fetch('/api/admin/obras?titulo=' + encodeURIComponent(catalogo[0].titulo), { method: 'DELETE', headers: { Authorization: 'Bearer ${tokenTeste}' } }).then(r => r.status)
 ])`);
-caso('T18', 'Usuário comum não vê a Administração e o servidor recusa as rotas de admin (403)',
-  semAdminNaTela && statusAdmin.every((x) => x === 403), `status: ${statusAdmin.join(', ')}`);
+await avaliar("abrirModal(catalogo[0].titulo)");
+await aguardar("!!document.querySelector('#modal [data-concluir]')", 3000);
+const semBotaoExcluir = await avaliar("!document.querySelector('#modal [data-excluir-obra]')");
+await avaliar("fecharModal()");
+caso('T18', 'Usuário comum não vê a Administração nem "Excluir obra" e o servidor recusa as rotas de admin (403)',
+  semAdminNaTela && semBotaoExcluir && statusAdmin.every((x) => x === 403), `status: ${statusAdmin.join(', ')}; botão excluir oculto: ${semBotaoExcluir}`);
 
 caso('T10', 'Nenhum erro de JavaScript no console', errosConsole.length === 0, errosConsole.slice(0, 3).join(' | '));
 
@@ -428,6 +433,25 @@ if (process.env.OMNI_ADMIN_SENHA) {
   await capturar('admin_mobile');
   await cdp('Emulation.clearDeviceMetricsOverride');
   caso('T20', 'Administração sem rolagem horizontal em 400 px', larguraAdmin.scroll <= larguraAdmin.tela, `scrollWidth=${larguraAdmin.scroll}`);
+
+  // Excluir obra pela janela (opcional, APAGA a obra): OMNI_OBRA_EXCLUIR="<título de uma obra de teste>"
+  if (process.env.OMNI_OBRA_EXCLUIR) {
+    const alvo = process.env.OMNI_OBRA_EXCLUIR;
+    await avaliar("irPara('catalogo')");
+    await aguardar(`catalogo.some(o => o.titulo === ${JSON.stringify(alvo)})`, 8000);
+    await avaliar(`abrirModal(${JSON.stringify(alvo)})`);
+    const temBotao = await aguardar("!!document.querySelector('#modal [data-excluir-obra]')", 3000);
+    await avaliar("document.querySelector('#modal [data-excluir-obra]').click()");
+    const confirmacao = await aguardar("!!document.getElementById('confirmar-excluir-obra')", 6000);
+    const impactoTela = await avaliar("[...document.querySelectorAll('.impacto-exclusao li')].map(li => li.textContent.trim()).join(' · ')");
+    await capturar('excluir_obra_confirmacao');
+    await avaliar("document.getElementById('confirmar-excluir-obra').click()");
+    const sumiu = await aguardar(`!catalogo.some(o => o.titulo === ${JSON.stringify(alvo)}) && !document.getElementById('modal-fundo').classList.contains('aberto')
+      && ![...document.querySelectorAll('#grid-catalogo .card')].some(c => c.dataset.titulo === ${JSON.stringify(alvo)})`, 10000);
+    const noServidor = await avaliar("api('/api/obras').then(r => r.json()).then(l => l.length)");
+    caso('T27', 'Administrador exclui uma obra pela janela, com confirmação, e ela some do catálogo', temBotao && confirmacao && sumiu,
+      `confirmação: "${impactoTela}"; obras no servidor: ${noServidor}`);
+  }
   await avaliar("sair()");
   await aguardar("location.pathname === '/login.html'", 8000);
 }

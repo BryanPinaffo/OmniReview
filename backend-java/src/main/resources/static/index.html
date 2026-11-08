@@ -450,6 +450,10 @@
         .modal-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
         .btn-fav-grande.ativo { background: rgba(255,107,129,0.14); border-color: rgba(255,107,129,0.5); color: #ffb3bf; }
         .btn-fav-grande.ativo svg { fill: currentColor; }
+        .btn-excluir-obra { color: #ffb3bf; border-color: rgba(255,107,129,0.35); background: rgba(255,107,129,0.08); }
+        .btn-excluir-obra:hover { background: rgba(255,107,129,0.18); border-color: rgba(255,107,129,0.6); }
+        .impacto-exclusao { list-style: none; margin: 0 0 6px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 6px; font-size: 14px; color: var(--text-2); }
+        .impacto-exclusao b { color: var(--text); }
 
         /* ---------- NOTAS (estrelas) ---------- */
         .estrela { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
@@ -1104,7 +1108,7 @@
 
             <div class="bloco">
                 <h3>Manutenção</h3>
-                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam.</p>
+                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam. Para excluir um filme, série ou jogo, abra a obra e use “Excluir obra”.</p>
                 <div style="display: grid; gap: 8px;">
                     <button class="btn btn-block" id="btn-detalhes" onclick="manutencao('completar-detalhes', 'btn-detalhes')">Completar sinopses e capas</button>
                     <button class="btn btn-block" id="btn-reprocessar" onclick="manutencao('reprocessar-dna', 'btn-reprocessar')">Refazer tags com erro</button>
@@ -1978,6 +1982,8 @@
                             ${botaoConclusaoHTML(obra)}
                             ${botaoSalvarListaHTML(obra)}
                             <button class="btn btn-primary btn-fav-grande ${curtida ? 'ativo' : ''}" data-fav="${esc(obra.titulo)}">${ICONES.coracao}<span>${curtida ? 'Nos favoritos' : 'Favoritar'}</span></button>
+                            ${ehAdmin() ? `<button type="button" class="btn btn-excluir-obra" data-excluir-obra="${esc(obra.titulo)}" title="Só o administrador vê esta opção">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Excluir obra</span></button>` : ''}
                         </div>
                     </div>
                 </div>
@@ -3001,6 +3007,66 @@
             if (e.target.id !== 'nova-lista-form') return;
             e.preventDefault();
             criarListaComObra(document.querySelector('#modal [data-salvar-lista]').dataset.salvarLista);
+        });
+
+        // ================= EXCLUIR OBRA (administrador) =================
+        // O botão só aparece para o administrador; o servidor também recusa (403) para os demais.
+        async function abrirExcluirObra(titulo) {
+            let impacto;
+            try {
+                const resposta = await api(`/api/admin/obras/impacto?titulo=${encodeURIComponent(titulo)}`);
+                impacto = await resposta.json();
+                if (!resposta.ok) throw new Error(impacto.erro || 'HTTP ' + resposta.status);
+            } catch (e) { toast(e.message || 'Não foi possível consultar a obra.'); return; }
+            const itens = [
+                [impacto.notas, 'nota de usuário', 'notas de usuários'],
+                [impacto.comentarios, 'comentário', 'comentários'],
+                [impacto.listas, 'lista que contém a obra', 'listas que contêm a obra'],
+                [impacto.concluidas, 'marca de assistido/terminado', 'marcas de assistido/terminado']
+            ];
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Excluir “${esc(titulo)}”?</h2>
+                <p>A obra sai do catálogo para todos os usuários e isto não pode ser desfeito. Também serão apagados:</p>
+                <ul class="impacto-exclusao">${itens.map(([n, um, varios]) => `<li><b>${n}</b> ${n === 1 ? um : varios}</li>`).join('')}</ul>
+                <div class="status" id="status-excluir-obra" role="alert"></div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmar-excluir-obra" style="background: var(--danger)">Excluir obra</button>
+                </div>`);
+            $('confirmar-excluir-obra').addEventListener('click', () => excluirObra(titulo));
+        }
+
+        async function excluirObra(titulo) {
+            $('confirmar-excluir-obra').disabled = true;
+            status('status-excluir-obra', 'Excluindo…');
+            try {
+                const resposta = await api(`/api/admin/obras?titulo=${encodeURIComponent(titulo)}`, { method: 'DELETE' });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok && resposta.status !== 404) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+            } catch (e) {
+                status('status-excluir-obra', e.message || 'Não foi possível excluir.', 'erro');
+                $('confirmar-excluir-obra').disabled = false;
+                return;
+            }
+            // Tira a obra de tudo que está na tela, sem recarregar a página
+            catalogo = catalogo.filter(o => o.titulo !== titulo);
+            porTitulo.delete(titulo);
+            notas.delete(titulo);
+            minhasConcluidas.delete(titulo);
+            if (curtidas.includes(titulo)) { curtidas = curtidas.filter(t => t !== titulo); salvarCurtidas(); }
+            minhasListas.forEach(l => { l.obras = l.obras.filter(o => o.titulo !== titulo); });
+            fecharDialogo();
+            fecharModal();
+            atualizarStats(); renderizarChips(); renderizarCatalogo(); atualizarContador();
+            if (!$('aba-listas').hidden) renderizarListas();
+            if (!$('aba-paravoce').hidden) gerarRecomendacoes();
+            if (!$('aba-perfil').hidden && perfilUsuario) carregarPerfil(perfilUsuario, perfilAba);
+            toast(`"${titulo}" foi excluído do acervo`);
+        }
+
+        $('modal').addEventListener('click', e => {
+            const botao = e.target.closest('[data-excluir-obra]');
+            if (botao) abrirExcluirObra(botao.dataset.excluirObra);
         });
 
         // ================= MENU DO USUÁRIO =================

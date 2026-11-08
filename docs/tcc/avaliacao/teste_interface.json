@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-08T06:04:15.302Z",
-  "aprovados": 26,
-  "total": 26,
+  "executado_em": "2026-11-08T08:34:01.290Z",
+  "aprovados": 27,
+  "total": 27,
   "casos": [
     {
       "id": "T00",
@@ -20,37 +20,37 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_3b76oe; menu mostra \"teste_ui_3b76oe\""
+      "detalhe": "usuário teste_ui_jeal4l; menu mostra \"teste_ui_jeal4l\""
     },
     {
       "id": "T01",
       "descricao": "Catálogo carrega cards do back-end",
       "ok": true,
-      "detalhe": "44 cards"
+      "detalhe": "45 cards"
     },
     {
       "id": "T02",
       "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
       "ok": true,
-      "detalhe": "24 imagens carregadas"
+      "detalhe": "23 imagens carregadas"
     },
     {
       "id": "T16",
       "descricao": "Busca da tela inicial sugere obras do acervo e abre a obra digitada",
       "ok": true,
-      "detalhe": "\"Resident Evil\""
+      "detalhe": "\"__Obra Teste UI__\""
     },
     {
       "id": "T03",
       "descricao": "Favorito persiste após recarregar a página (RF06)",
       "ok": true,
-      "detalhe": "\"Resident Evil\", contador=1"
+      "detalhe": "\"__Obra Teste UI__\", contador=1"
     },
     {
       "id": "T04",
       "descricao": "Janela flutuante mostra título, sinopse e tags (RF05)",
       "ok": true,
-      "detalhe": "sinopse com 406 caracteres, 4 tags"
+      "detalhe": "sinopse com 51 caracteres, 2 tags"
     },
     {
       "id": "T05",
@@ -80,7 +80,7 @@
       "id": "T07",
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
-      "detalhe": "Filme, Série, Jogo"
+      "detalhe": "Jogo, Filme, Série"
     },
     {
       "id": "T08",
@@ -132,9 +132,9 @@
     },
     {
       "id": "T18",
-      "descricao": "Usuário comum não vê a Administração e o servidor recusa as rotas de admin (403)",
+      "descricao": "Usuário comum não vê a Administração nem \"Excluir obra\" e o servidor recusa as rotas de admin (403)",
       "ok": true,
-      "detalhe": "status: 403, 403, 403, 403"
+      "detalhe": "status: 403, 403, 403, 403, 403; botão excluir oculto: true"
     },
     {
       "id": "T10",
@@ -159,6 +159,12 @@
       "descricao": "Administração sem rolagem horizontal em 400 px",
       "ok": true,
       "detalhe": "scrollWidth=400"
+    },
+    {
+      "id": "T27",
+      "descricao": "Administrador exclui uma obra pela janela, com confirmação, e ela some do catálogo",
+      "ok": true,
+      "detalhe": "confirmação: \"undefined\"; obras no servidor: 44"
     }
   ]
 }

@@ -64,7 +64,7 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | Adicionar obra pela busca "O que você quer assistir hoje?" | ✔ | ✔ |
 | Perfil, seguir pessoas, marcar obras como assistidas/terminadas, redefinir a própria senha | ✔ | ✔ |
 | Aba **Administração**: ver todos os usuários, criar, excluir e redefinir a senha de contas comuns | ✔ | — |
-| Adicionar obra manualmente, importar tendências, manutenção do acervo | ✔ | — |
+| Adicionar obra manualmente, importar tendências, manutenção do acervo, excluir obras | ✔ | — |
 
 - A conta de administrador vem da configuração (fora do Git) e é criada no primeiro início; se alguém tiver se
   cadastrado antes com o mesmo nome, a configuração prevalece e as sessões dessa conta são encerradas. Depois disso a
@@ -119,6 +119,8 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | GET | `/api/admin/usuarios` | (admin) Lista os usuários com papel e atividade |
 | POST | `/api/admin/usuarios` | (admin) Cria um usuário comum (`{"usuario", "senha"}`) |
 | DELETE | `/api/admin/usuarios/{usuario}` | (admin) Exclui um usuário comum, com notas e comentários |
+| GET | `/api/admin/obras/impacto?titulo=...` | (admin) Quantas notas, comentários, listas e marcas a obra tem |
+| DELETE | `/api/admin/obras?titulo=...` | (admin) Exclui a obra com notas, comentários, presença em listas e marcas |
 | POST | `/api/auth/senha` | Redefine a própria senha (`{"senhaAtual", "novaSenha"}`) |
 | POST | `/api/admin/usuarios/{usuario}/senha` | (admin) Define uma nova senha para um usuário comum (`{"novaSenha"}`) |
 | GET | `/api/perfil/{usuario}` | Perfil: números, concluídos, reviews, foto, capa e bio |
