@@ -28,9 +28,11 @@ public class InfoObraController {
     private final ObraRepository repository;
     private final TmdbService tmdb;
     private final RawgService rawg;
+    private final LivroService livros;
     private final Map<String, Entrada> cache = new ConcurrentHashMap<>();
 
-    public InfoObraController(ObraRepository repository, TmdbService tmdb, RawgService rawg) {
+    public InfoObraController(ObraRepository repository, TmdbService tmdb, RawgService rawg, LivroService livros) {
+        this.livros = livros;
         this.repository = repository;
         this.tmdb = tmdb;
         this.rawg = rawg;
@@ -59,6 +61,7 @@ public class InfoObraController {
         ficha.put("tipo", tipo);
         Map<String, Object> dados = switch (tipo) {
             case "jogo" -> rawg.fichaJogo(titulo);
+            case "livro" -> livros.ficha(titulo);
             case "serie" -> tmdb.ficha("tv", titulo);
             default -> tmdb.ficha("movie", titulo);
         };
@@ -76,6 +79,7 @@ public class InfoObraController {
         String t = Provedores.normalizar(obra.getTipo());
         if (t.startsWith("jogo") || t.startsWith("game")) return "jogo";
         if (t.startsWith("serie")) return "serie";
+        if (t.startsWith("livro") || t.startsWith("book")) return "livro";
         return "filme";
     }
 }

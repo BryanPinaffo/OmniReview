@@ -73,7 +73,7 @@ public class PerfilService {
                 "RETURN u.usuario AS usuario, coalesce(u.papel, 'USUARIO') AS papel, u.criadoEm AS criadoEm, " +
                 "       u.bio AS bio, u.foto AS foto, u.capaFundo AS capaFundo, " +
                 "       size([x IN tipos WHERE x = 'Filme']) AS filmes, size([x IN tipos WHERE x = 'Serie']) AS series, " +
-                "       size([x IN tipos WHERE x = 'Jogo']) AS jogos, seguidores, seguindo, " +
+                "       size([x IN tipos WHERE x = 'Jogo']) AS jogos, size([x IN tipos WHERE x = 'Livro']) AS livros, seguidores, seguindo, " +
                 "       EXISTS { MATCH (:Usuario {usuario: $eu})-[:SEGUE]->(u) } AS euSigo")
                 .bindAll(Map.of("usuario", normalizar(usuario), "eu", eu)).fetch().one();
         if (base.isEmpty()) return Resultado.falha(404, "Usuário não encontrado.");
@@ -91,6 +91,7 @@ public class PerfilService {
         estatisticas.put("jogos", inteiro(b.get("jogos")));
         estatisticas.put("filmes", inteiro(b.get("filmes")));
         estatisticas.put("series", inteiro(b.get("series")));
+        estatisticas.put("livros", inteiro(b.get("livros")));
         estatisticas.put("reviews", reviews.size());
         estatisticas.put("notas", (int) reviews.stream().filter(r -> r.get("estrelas") != null).count());
         estatisticas.put("comentarios", reviews.stream().mapToInt(r -> (int) r.get("comentarios")).sum());

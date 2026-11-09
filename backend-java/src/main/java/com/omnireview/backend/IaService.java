@@ -46,7 +46,8 @@ public class IaService {
          "Narrativa Rica", "Escolhas Importam", "Finais Múltiplos", "Protagonista Feminina", "Protagonista Silencioso", "Customização de Personagem",
         "Pixel Art", "Retro", "Gráficos Estilizados", "Hiper-realista", "Mundo Subaquático", "Cthulhu", "Detetive", "Investigação", "Tribunal", "Prisional",
         "Conspiração", "Psicopatas", "Serial Killer", "Viagem Espacial", "Mecha", "Isekai", "Gótico", "Lovecraftiano", "Heist", "Assalto", "Máfia", "Gângster",
-         "Conquista Espacial", "Exploração", "Física Realista", "Loot", "Economia Aberta", "Moddable"
+         "Conquista Espacial", "Exploração", "Física Realista", "Loot", "Economia Aberta", "Moddable",
+        "Não Ficção", "Autoajuda", "Negócios", "Filosofia", "Poesia", "Clássico", "Literatura Brasileira", "Young Adult"
     );
 
     // Tags que só fazem sentido para jogos (mecânicas, modos, estilo visual de jogo)
@@ -66,13 +67,22 @@ public class IaService {
     // Formatos de televisão (não se aplicam a filmes nem a jogos)
     static final Set<String> TAGS_SO_SERIES = Set.of("Sitcom", "Telenovela", "Talk Show", "Reality Show", "Minissérie", "Procedural");
 
+    // Categorias de livraria (só para livros)
+    static final Set<String> TAGS_SO_LIVROS = Set.of("Não Ficção", "Autoajuda", "Negócios", "Filosofia", "Poesia", "Clássico",
+            "Literatura Brasileira", "Young Adult");
+
+    // Formatos audiovisuais (não se aplicam a livros)
+    static final Set<String> TAGS_SO_AUDIOVISUAL = Set.of("Animação", "Documentário", "Musical", "Found Footage", "Live-Action",
+            "Stop Motion", "Anime");
+
     /** Tags da taxonomia permitidas para a mídia (o LLM não pode, por exemplo, dar "Battle Royale" a um filme). */
     public static List<String> taxonomiaPara(String tipo) {
         String t = tipo == null ? "" : IaService.normalizar(tipo);
         return TAXONOMIA_OFICIAL.stream().filter(tag -> switch (t) {
-            case "jogo" -> !TAGS_SO_SERIES.contains(tag);
-            case "serie" -> !TAGS_SO_JOGOS.contains(tag);
-            case "filme" -> !TAGS_SO_JOGOS.contains(tag) && !TAGS_SO_SERIES.contains(tag);
+            case "jogo" -> !TAGS_SO_SERIES.contains(tag) && !TAGS_SO_LIVROS.contains(tag);
+            case "serie" -> !TAGS_SO_JOGOS.contains(tag) && !TAGS_SO_LIVROS.contains(tag);
+            case "filme" -> !TAGS_SO_JOGOS.contains(tag) && !TAGS_SO_SERIES.contains(tag) && !TAGS_SO_LIVROS.contains(tag);
+            case "livro" -> !TAGS_SO_JOGOS.contains(tag) && !TAGS_SO_SERIES.contains(tag) && !TAGS_SO_AUDIOVISUAL.contains(tag);
             default -> true;
         }).toList();
     }
@@ -142,7 +152,7 @@ public class IaService {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         String prompt =
-                "Você é um catalogador de filmes, séries e jogos. Escolha de 2 a 4 tags da LISTA PERMITIDA " +
+                "Você é um catalogador de filmes, séries, jogos e livros. Escolha de 2 a 4 tags da LISTA PERMITIDA " +
                 "que melhor descrevem a obra. Responda somente com o JSON pedido.\n\n" +
                 "REGRAS:\n" +
                 "1. Use os GÊNEROS OFICIAIS como ponto de partida e mantenha os que realmente se aplicam.\n" +
@@ -194,6 +204,45 @@ public class IaService {
             throw new IllegalStateException("Resposta do Ollama sem campo 'response'");
         }
         return texto;
+    }
+
+    /**
+     * Traduz uma sinopse para o português do Brasil com o Ollama, se ela parecer estar em inglês.
+     * Em qualquer falha devolve o texto original (a sinopse em inglês é melhor do que nenhuma).
+     */
+    public String traduzirParaPortugues(String texto) {
+        if (texto == null || texto.isBlank() || !pareceIngles(texto)) return texto;
+        try {
+            Map<String, Object> opcoes = new HashMap<>();
+            opcoes.put("temperature", 0);
+            opcoes.put("seed", 42);
+            opcoes.put("num_predict", 700);
+            Map<String, Object> corpo = new HashMap<>();
+            corpo.put("model", modelo);
+            corpo.put("prompt", "Traduza a sinopse abaixo para o português do Brasil, de forma natural e fiel. " +
+                    "Mantenha nomes próprios. Responda somente com a tradução, sem comentários.\n\n" + limitar(texto, 1800));
+            corpo.put("stream", false);
+            corpo.put("options", opcoes);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> resposta = carteiro.postForObject(urlGerar, new HttpEntity<>(corpo, headers), Map.class);
+            String traducao = resposta == null ? null : (String) resposta.get("response");
+            if (traducao == null || traducao.isBlank() || traducao.length() < texto.length() / 3) return texto;
+            return traducao.strip().replaceAll("^(?i)(tradução|sinopse)\\s*:\\s*", "");
+        } catch (Exception e) {
+            System.out.println("Ollama: não foi possível traduzir a sinopse (" + e.getMessage() + ")");
+            return texto;
+        }
+    }
+
+    /** Heurística simples: muitas palavras comuns do inglês e poucas do português. */
+    static boolean pareceIngles(String texto) {
+        String t = " " + texto.toLowerCase(Locale.ROOT).replaceAll("[^a-zà-ú ]", " ") + " ";
+        int en = 0, pt = 0;
+        for (String w : new String[]{" the ", " and ", " of ", " is ", " with ", " his ", " her ", " to ", " in ", " a "}) if (t.contains(w)) en++;
+        for (String w : new String[]{" o ", " e ", " de ", " que ", " um ", " uma ", " com ", " não ", " para ", " seu "}) if (t.contains(w)) pt++;
+        return en >= 4 && en > pt;
     }
 
     /**

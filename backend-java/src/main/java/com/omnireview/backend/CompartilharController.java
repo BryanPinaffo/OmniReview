@@ -67,11 +67,12 @@ public class CompartilharController {
         String nome = obra != null ? obra.getTitulo() : titulo;
         String tipo = obra == null ? "" : switch (InfoObraController.tipoDe(obra)) {
             case "jogo" -> "Jogo";
+            case "livro" -> "Livro";
             case "serie" -> "Série";
             default -> "Filme";
         };
         String titPagina = obra == null ? "OmniReview" : nome + " (" + tipo + ") | OmniReview";
-        String descricao = obra == null ? "Filmes, séries e jogos com o mesmo DNA criativo."
+        String descricao = obra == null ? "Filmes, séries, jogos e livros com o mesmo DNA criativo."
                 : resumir(obra.getSinopse() != null && !obra.getSinopse().startsWith("Sem sinopse")
                         ? obra.getSinopse() : tipo + " no OmniReview: veja onde assistir, avaliações e obras parecidas.");
         String imagem = obra == null ? null : (obra.getImagem() != null ? obra.getImagem() : obra.getCapa());
