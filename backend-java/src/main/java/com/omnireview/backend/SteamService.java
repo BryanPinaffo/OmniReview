@@ -46,8 +46,50 @@ public class SteamService {
             if (itens == null || itens.isEmpty()) {
                 return null;
             }
-            Object id = itens.get(0).get("id");
+            return porAppId(String.valueOf(itens.get(0).get("id")));
+        } catch (Exception e) {
+            System.out.println("Steam: falha ao buscar o jogo '" + nome + "': " + e.getMessage());
+            return null;
+        }
+    }
 
+    /** Até {@code maximo} jogos da busca da loja: {ref ("steam:ID"), titulo, imagem, detalhe}. */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> candidatos(String nome, int maximo) {
+        try {
+            String urlBusca = BASE + "/storesearch/?term=" + URLEncoder.encode(nome, StandardCharsets.UTF_8) + "&" + IDIOMA;
+            Map<String, Object> busca = carteiro.getForObject(java.net.URI.create(urlBusca), Map.class);
+            List<Map<String, Object>> itens = busca == null ? null : (List<Map<String, Object>>) busca.get("items");
+            List<Map<String, Object>> lista = new ArrayList<>();
+            if (itens == null) return lista;
+            for (Map<String, Object> item : itens) {
+                if (lista.size() >= maximo) break;
+                if (item.get("id") == null || !(item.get("name") instanceof String n) || n.isBlank() || pareceExtra(n)) continue;
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("ref", "steam:" + item.get("id"));
+                c.put("titulo", limparTitulo(n));
+                c.put("imagem", "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/" + item.get("id") + "/library_600x900.jpg");
+                c.put("detalhe", "Loja Steam");
+                lista.add(c);
+            }
+            return lista;
+        } catch (Exception e) {
+            System.out.println("Steam: falha ao listar '" + nome + "': " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** DLC, trilha sonora, pacote ou item cosmético (a busca da loja mistura tudo com os jogos). */
+    static boolean pareceExtra(String nome) {
+        String n = nome.toLowerCase(Locale.ROOT);
+        return n.contains(" - ") || n.contains(" – ") || n.matches(".*\\b(dlc|soundtrack|trilha sonora|ost|season pass|passe de temporada|pack|pacote|bundle|expansion|expansão|artbook|demo)\\b.*");
+    }
+
+    /** Jogo pelo id da Steam: {titulo, sinopse, generos, poster, capa, ref, ano}; null se não existir. */
+    @SuppressWarnings("unchecked")
+    public String[] porAppId(String id) {
+        if (id == null || !id.matches("[0-9]{1,10}")) return null;
+        try {
             Map<String, Object> resposta = carteiro.getForObject(
                     java.net.URI.create(BASE + "/appdetails?appids=" + id + "&" + IDIOMA), Map.class);
             Map<String, Object> app = resposta == null ? null : (Map<String, Object>) resposta.get(String.valueOf(id));
@@ -68,9 +110,14 @@ public class SteamService {
 
             String capa = (String) dados.get("header_image");
             String poster = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/" + id + "/library_600x900.jpg";
-            return new String[]{titulo, sinopse, String.join(", ", tags), poster, capa};
+            String ano = null;
+            if (dados.get("release_date") instanceof Map<?, ?> rd && rd.get("date") instanceof String data) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(19|20)[0-9]{2}").matcher(data);
+                if (m.find()) ano = m.group();
+            }
+            return new String[]{titulo, sinopse, String.join(", ", tags), poster, capa, "steam:" + id, ano};
         } catch (Exception e) {
-            System.out.println("Steam: falha ao buscar o jogo '" + nome + "': " + e.getMessage());
+            System.out.println("Steam: falha ao abrir o jogo " + id + ": " + e.getMessage());
             return null;
         }
     }

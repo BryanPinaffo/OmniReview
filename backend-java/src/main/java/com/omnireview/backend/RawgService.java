@@ -54,17 +54,62 @@ public class RawgService {
                     Object id = resultados.get(0).get("id");
                     Map<String, Object> detalhes = carteiro.getForObject(
                             ClienteHttp.uri(BASE + "/games/" + id, Map.of("key", apiKey)), Map.class);
-                    if (detalhes != null) {
-                        String fundo = (String) detalhes.get("background_image");
-                        return new String[]{(String) detalhes.get("name"), (String) detalhes.get("description_raw"),
-                                generosParaTaxonomia(detalhes.get("genres")), fundo, fundo};
-                    }
+                    if (detalhes != null) return dadosDoJogo(detalhes, id);
                 }
             } catch (Exception e) {
                 registrarFalha(e);
             }
         }
         return steamService.buscarJogo(nome);
+    }
+
+    private String[] dadosDoJogo(Map<String, Object> detalhes, Object id) {
+        String fundo = (String) detalhes.get("background_image");
+        String lancamento = (String) detalhes.get("released");
+        return new String[]{(String) detalhes.get("name"), (String) detalhes.get("description_raw"),
+                generosParaTaxonomia(detalhes.get("genres")), fundo, fundo, "rawg:" + id,
+                lancamento != null && lancamento.length() >= 4 ? lancamento.substring(0, 4) : null};
+    }
+
+    /** Até {@code maximo} jogos da busca (RAWG; se ela estiver fora do ar, Steam): {ref, titulo, ano, imagem}. */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> candidatos(String nome, int maximo) {
+        if (rawgDisponivel() && apiKey != null && !apiKey.isBlank()) {
+            try {
+                Map<String, Object> busca = carteiro.getForObject(
+                        ClienteHttp.uri(BASE + "/games", Map.of("search", nome, "key", apiKey, "page_size", maximo)), Map.class);
+                List<Map<String, Object>> resultados = busca == null ? null : (List<Map<String, Object>>) busca.get("results");
+                if (resultados != null) {
+                    List<Map<String, Object>> lista = new ArrayList<>();
+                    for (Map<String, Object> r : resultados) {
+                        if (lista.size() >= maximo) break;
+                        if (r.get("id") == null || !(r.get("name") instanceof String n) || n.isBlank()) continue;
+                        Map<String, Object> c = new java.util.LinkedHashMap<>();
+                        c.put("ref", "rawg:" + r.get("id"));
+                        c.put("titulo", n);
+                        if (r.get("released") instanceof String d && d.length() >= 4) c.put("ano", d.substring(0, 4));
+                        c.put("imagem", r.get("background_image"));
+                        lista.add(c);
+                    }
+                    return lista;
+                }
+            } catch (Exception e) {
+                registrarFalha(e);
+            }
+        }
+        return steamService.candidatos(nome, maximo);
+    }
+
+    /** Jogo pelo id da RAWG: {titulo, sinopse, generos, poster, capa, ref, ano}; null se falhar. */
+    @SuppressWarnings("unchecked")
+    public String[] porId(long id) {
+        try {
+            Map<String, Object> detalhes = carteiro.getForObject(ClienteHttp.uri(BASE + "/games/" + id, Map.of("key", apiKey)), Map.class);
+            return detalhes == null ? null : dadosDoJogo(detalhes, id);
+        } catch (Exception e) {
+            registrarFalha(e);
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")

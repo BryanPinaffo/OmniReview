@@ -75,9 +75,68 @@ public class TmdbService {
                     sinopse,
                     generosParaTaxonomia(obra.get("genre_ids"), obra.get("original_language")),
                     imagem(obra.get("poster_path"), "w500"),
-                    imagem(obra.get("backdrop_path"), "w1280")};
+                    imagem(obra.get("backdrop_path"), "w1280"),
+                    "tmdb:" + tipoTmdb + ":" + obra.get("id")};
         } catch (Exception e) {
             System.out.println("TMDB: falha ao buscar '" + nome + "': " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Até {@code maximo} resultados da busca, para a pessoa confirmar qual é a obra:
+     * {ref ("tmdb:movie:ID"), titulo, ano, imagem, sinopse}. Lista vazia se nada for encontrado ou se falhar.
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> candidatos(String tipoTmdb, String nome, int maximo) {
+        if (apiKey == null || apiKey.isBlank()) return List.of();
+        String campoTitulo = tipoTmdb.equals("tv") ? "name" : "title";
+        String campoData = tipoTmdb.equals("tv") ? "first_air_date" : "release_date";
+        try {
+            Map<String, Object> resposta = carteiro.getForObject(
+                    ClienteHttp.uri(BASE + "/search/" + tipoTmdb, Map.of("query", nome, "api_key", apiKey, "language", "pt-BR")), Map.class);
+            List<Map<String, Object>> resultados = resposta == null ? null : (List<Map<String, Object>>) resposta.get("results");
+            if (resultados == null) return List.of();
+            List<Map<String, Object>> lista = new ArrayList<>();
+            for (Map<String, Object> r : resultados) {
+                if (lista.size() >= maximo) break;
+                if (!(r.get(campoTitulo) instanceof String titulo) || titulo.isBlank()) continue;
+                Map<String, Object> c = new java.util.LinkedHashMap<>();
+                c.put("ref", "tmdb:" + tipoTmdb + ":" + r.get("id"));
+                c.put("titulo", titulo);
+                if (r.get(campoData) instanceof String d && d.length() >= 4) c.put("ano", d.substring(0, 4));
+                c.put("imagem", imagem(r.get("poster_path"), "w342"));
+                c.put("sinopse", r.get("overview") instanceof String o && !o.isBlank() ? o : null);
+                lista.add(c);
+            }
+            return lista;
+        } catch (Exception e) {
+            System.out.println("TMDB: falha ao listar '" + nome + "': " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Filme ("movie") ou série ("tv") pelo id do TMDB: {titulo, sinopse, generos, poster, capa, ref, ano}; null se falhar. */
+    @SuppressWarnings("unchecked")
+    public String[] porId(String tipoTmdb, long id) {
+        if (apiKey == null || apiKey.isBlank()) return null;
+        try {
+            Map<String, Object> d = carteiro.getForObject(
+                    ClienteHttp.uri(BASE + "/" + tipoTmdb + "/" + id, Map.of("api_key", apiKey, "language", "pt-BR")), Map.class);
+            if (d == null) return null;
+            List<Object> ids = new ArrayList<>();
+            if (d.get("genres") instanceof List<?> gs) for (Object g : gs) if (g instanceof Map<?, ?> m) ids.add(m.get("id"));
+            String data = (String) d.get(tipoTmdb.equals("tv") ? "first_air_date" : "release_date");
+            return new String[]{
+                    (String) d.get(tipoTmdb.equals("tv") ? "name" : "title"),
+                    sinopseOuIngles((String) d.get("overview"), tipoTmdb, id),
+                    generosParaTaxonomia(ids, d.get("original_language")),
+                    imagem(d.get("poster_path"), "w500"),
+                    imagem(d.get("backdrop_path"), "w1280"),
+                    "tmdb:" + tipoTmdb + ":" + id,
+                    data != null && data.length() >= 4 ? data.substring(0, 4) : null};
+        } catch (Exception e) {
+            System.out.println("TMDB: falha ao abrir " + tipoTmdb + " " + id + ": " + e.getMessage());
             return null;
         }
     }

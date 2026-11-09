@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RecomendacaoControllerTest {
 
@@ -49,8 +49,32 @@ class RecomendacaoControllerTest {
     void sufixoDeMidiaSoSeparaTitulosIguais() {
         assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (Filme)"));
         assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (Livro)"));
-        assertEquals("Duna (2021)", RecomendacaoController.semSufixoDeMidia("Duna (2021)"));
+        assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (1984)"));
+        assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (Filme, 1984)"));
+        assertEquals("Blade Runner 2049", RecomendacaoController.semSufixoDeMidia("Blade Runner 2049"));
         assertEquals("O Livro (Filme) da Vida", RecomendacaoController.semSufixoDeMidia("O Livro (Filme) da Vida"));
+    }
+
+    @Test
+    void buscaDaSteamIgnoraDlcETrilhaSonora() {
+        assertTrue(SteamService.pareceExtra("Monster Hunter Wilds - Pingente: Pompom Duna F."));
+        assertTrue(SteamService.pareceExtra("Dune: Awakening Soundtrack"));
+        assertTrue(SteamService.pareceExtra("Cyberpunk 2077 Season Pass"));
+        assertFalse(SteamService.pareceExtra("Dune: Awakening"));
+        assertFalse(SteamService.pareceExtra("Hollow Knight"));
+    }
+
+    @Test
+    void identificadorDaFonteSoAceitaFormatosConhecidos() {
+        assertEquals("Filme", RecomendacaoController.tipoDaRef("tmdb:movie:438631"));
+        assertEquals("Serie", RecomendacaoController.tipoDaRef("tmdb:tv:100088"));
+        assertEquals("Jogo", RecomendacaoController.tipoDaRef("rawg:3498"));
+        assertEquals("Jogo", RecomendacaoController.tipoDaRef("steam:1245620"));
+        assertEquals("Livro", RecomendacaoController.tipoDaRef("ol:/works/OL893415W"));
+        // nada de endereços, caminhos ou parâmetros extras (evita usar o servidor para acessar outros sites)
+        for (String ruim : List.of("tmdb:movie:1/../../x", "ol:/works/OL1W?x=1", "http://site", "steam:1;2", "rawg:", "tmdb:person:1", "")) {
+            assertEquals(null, RecomendacaoController.tipoDaRef(ruim), ruim);
+        }
     }
 
     @Test

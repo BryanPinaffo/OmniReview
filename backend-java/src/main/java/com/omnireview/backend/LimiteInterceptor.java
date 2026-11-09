@@ -11,7 +11,7 @@ import java.time.Duration;
  *  - qualquer rota: 600 requisições por minuto por endereço;
  *  - login: 30 tentativas a cada 15 min por endereço (além do bloqueio por usuário do {@link AutenticacaoService});
  *  - cadastro: 5 contas por hora por endereço;
- *  - buscar/adicionar obra na web (chama APIs externas e a IA): 20 por hora por usuário comum e 40 por endereço;
+ *  - listar opções e adicionar obra da web (APIs externas e a IA): 40 por hora por usuário comum e 80 por endereço;
  *  - comentários: 20 a cada 10 min por usuário; listas e participantes: 60 a cada 10 min por usuário.
  * O administrador não tem limite por usuário (só o geral por endereço).
  */
@@ -40,14 +40,15 @@ public class LimiteInterceptor implements HandlerInterceptor {
         boolean admin = sessao.map(AutenticacaoService.Sessao::admin).orElse(false);
 
         long espera = limitador.usar("geral|" + ip, 600, Duration.ofMinutes(1));
-        if (espera == 0 && "POST".equalsIgnoreCase(metodo)) {
+        // Listar opções e confirmar a escolhida chamam APIs externas (e a IA, ao salvar): contam no mesmo limite
+        if (espera == 0 && (rota.equals("/api/buscar-opcoes") || ("POST".equalsIgnoreCase(metodo) && rota.equals("/api/buscar-ou-adicionar")))) {
+            espera = limitador.usar("web|" + ip, 80, Duration.ofHours(1));
+            if (espera == 0 && usuario != null && !admin) espera = limitador.usar("web|u|" + usuario, 40, Duration.ofHours(1));
+        } else if (espera == 0 && "POST".equalsIgnoreCase(metodo)) {
             if (rota.equals("/api/auth/entrar")) {
                 espera = limitador.usar("entrar|" + ip, 30, Duration.ofMinutes(15));
             } else if (rota.equals("/api/auth/cadastrar")) {
                 espera = limitador.usar("cadastrar|" + ip, 5, Duration.ofHours(1));
-            } else if (rota.equals("/api/buscar-ou-adicionar")) {
-                espera = limitador.usar("web|" + ip, 40, Duration.ofHours(1));
-                if (espera == 0 && usuario != null && !admin) espera = limitador.usar("web|u|" + usuario, 20, Duration.ofHours(1));
             } else if (rota.equals("/api/avaliacoes/comentarios") && usuario != null && !admin) {
                 espera = limitador.usar("comentar|" + usuario, 20, Duration.ofMinutes(10));
             } else if (rota.startsWith("/api/listas") && usuario != null && !admin) {

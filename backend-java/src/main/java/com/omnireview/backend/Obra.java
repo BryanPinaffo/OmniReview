@@ -15,6 +15,7 @@ public class Obra {
     private String capa;   // imagem de fundo (horizontal)
     private String adicionadaPor; // usuário que trouxe a obra para o acervo (nulo nas obras anteriores ao histórico)
     private String adicionadaEm;  // data/hora ISO-8601
+    private String fonte;         // identificador na API de origem (ex.: "tmdb:movie:438631", "ol:/works/OL893415W")
 
     // Construtor
     public Obra() {}
@@ -43,5 +44,7 @@ public class Obra {
     public String getAdicionadaPor() { return adicionadaPor; }
     public void setAdicionadaPor(String adicionadaPor) { this.adicionadaPor = adicionadaPor; }
     public String getAdicionadaEm() { return adicionadaEm; }
+    public String getFonte() { return fonte; }
+    public void setFonte(String fonte) { this.fonte = fonte; }
     public void setAdicionadaEm(String adicionadaEm) { this.adicionadaEm = adicionadaEm; }
 }

@@ -21,9 +21,11 @@ public class RecomendacaoController {
     private final IaService iaService;
     private final HistoricoService historico;
     private final LivroService livroService;
+    private final SteamService steamService;
 
     public RecomendacaoController(ObraRepository repository, TmdbService tmdbService, RawgService rawgService, IaService iaService,
-                                  HistoricoService historico, LivroService livroService) {
+                                  HistoricoService historico, LivroService livroService, SteamService steamService) {
+        this.steamService = steamService;
         this.historico = historico;
         this.livroService = livroService;
         this.repository = repository;
@@ -86,9 +88,21 @@ public class RecomendacaoController {
     }
 
     private Obra classificarESalvar(String[] dadosDaWeb, String tipo, String usuario, String origem) {
-        String[] dados = "Livro".equals(tipo) ? livroService.emPortugues(dadosDaWeb) : dadosDaWeb;
-        dados[0] = tituloNoAcervo(dados[0], tipo);   // "Duna" livro e "Duna" filme não podem ocupar o mesmo título
-        Optional<Obra> existente = repository.findById(dados[0]);
+        return classificarESalvar(dadosDaWeb, tipo, usuario, origem, false);
+    }
+
+    /**
+     * @param escolhaExplicita a pessoa escolheu este item exato (pelo id da fonte): se ele ainda não está no acervo,
+     *                         entra como obra nova, com título próprio se o nome já estiver em uso ("Duna (1984)").
+     */
+    private Obra classificarESalvar(String[] dadosDaWeb, String tipo, String usuario, String origem, boolean escolhaExplicita) {
+        String[] dados = "Livro".equals(tipo) ? livroService.emPortugues(dadosDaWeb) : dadosDaWeb.clone();
+        String fonte = campo(dados, 5);
+        Optional<Obra> mesmaFonte = fonte == null ? Optional.empty() : repository.findFirstByFonte(fonte);
+        if (mesmaFonte.isPresent()) dados[0] = mesmaFonte.get().getTitulo();
+        else if (escolhaExplicita) dados[0] = tituloUnico(dados[0], tipo, campo(dados, 6));
+        else dados[0] = tituloNoAcervo(dados[0], tipo);   // "Duna" livro e "Duna" filme não podem ocupar o mesmo título
+        Optional<Obra> existente = mesmaFonte.isPresent() ? mesmaFonte : repository.findById(dados[0]);
         Obra obra = existente.orElseGet(() -> new Obra(dados[0], tipo, null));
         boolean nova = existente.isEmpty();
         if (nova) {
@@ -96,6 +110,7 @@ public class RecomendacaoController {
             obra.setAdicionadaEm(java.time.Instant.now().toString());
         }
         obra.setTipo(tipo);
+        if (fonte != null) obra.setFonte(fonte);
         obra.setDnaCriativo(iaService.extrairDnaCriativo(dados[0], campo(dados, 1), tipo, campo(dados, 2)));
         aplicarDetalhes(obra, dados);
         Obra salva = salvar(obra);
@@ -126,7 +141,19 @@ public class RecomendacaoController {
     @PostMapping("/buscar-ou-adicionar")
     public ResponseEntity<ResultadoBusca> buscarOuAdicionar(@RequestParam String nome, @RequestParam(required = false) String tipo,
                                                             @RequestParam(defaultValue = "false") boolean ignorarAcervo,
+                                                            @RequestParam(required = false) String ref,
                                                             HttpServletRequest req) {
+        // A pessoa confirmou um item exato da lista de opções: salva ele (ou abre, se já estiver no acervo)
+        if (ref != null && !ref.isBlank()) {
+            String tipoRef = tipoDaRef(ref);
+            if (tipoRef == null) return ResponseEntity.badRequest().build();
+            Optional<Obra> jaTem = repository.findFirstByFonte(ref);
+            if (jaTem.isPresent()) return ResponseEntity.ok(ResultadoBusca.obra(jaTem.get(), false));
+            String[] dados = dadosPorRef(ref);
+            if (dados == null || campo(dados, 0) == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(ResultadoBusca.obra(classificarESalvar(dados, tipoRef, usuario(req),
+                    "pela busca “O que você quer ver hoje?”, confirmada pela pessoa", true), true));
+        }
         String consulta = nome == null ? "" : nome.trim();
         if (consulta.isEmpty() || consulta.length() > 120) {
             return ResponseEntity.badRequest().build();
@@ -187,6 +214,107 @@ public class RecomendacaoController {
                 "pela busca “O que você quer assistir hoje?” (digitou “" + consulta + "”)"), true));
     }
 
+    static final int OPCOES_POR_MIDIA_ESPECIFICA = 6;
+    static final int OPCOES_POR_MIDIA_QUALQUER = 3;
+    static final int MAX_OPCOES = 8;
+
+    /**
+     * Opções para a pessoa confirmar antes de adicionar (nada é salvo aqui). Com tipo, até 6 resultados daquela mídia;
+     * sem tipo, até 3 de cada mídia, os títulos mais parecidos com o digitado primeiro. Cada opção:
+     * {ref, tipo, titulo, ano, imagem, sinopse|detalhe, jaNoAcervo, tituloNoAcervo}.
+     */
+    @GetMapping("/buscar-opcoes")
+    public ResponseEntity<Map<String, Object>> buscarOpcoes(@RequestParam String nome, @RequestParam(required = false) String tipo) {
+        String consulta = nome == null ? "" : nome.trim();
+        if (consulta.isEmpty() || consulta.length() > 120) return ResponseEntity.badRequest().build();
+        List<String> tipos;
+        if (tipo == null || tipo.isBlank()) tipos = List.of("Filme", "Serie", "Jogo", "Livro");
+        else if (TIPOS.containsKey(tipo.toLowerCase(Locale.ROOT))) tipos = List.of(TIPOS.get(tipo.toLowerCase(Locale.ROOT)));
+        else return ResponseEntity.badRequest().build();
+        int porMidia = tipos.size() == 1 ? OPCOES_POR_MIDIA_ESPECIFICA : OPCOES_POR_MIDIA_QUALQUER;
+
+        List<CompletableFuture<List<Map<String, Object>>>> buscas = tipos.stream()
+                .map(t -> CompletableFuture.supplyAsync(() -> candidatosDe(t, consulta, porMidia)).exceptionally(e -> List.of()))
+                .toList();
+        List<Map<String, Object>> opcoes = new ArrayList<>();
+        for (int i = 0; i < tipos.size(); i++) {
+            String t = tipos.get(i);
+            Set<String> titulosVistos = new HashSet<>();
+            int ordem = 0;
+            for (Map<String, Object> c : buscas.get(i).join()) {
+                Map<String, Object> o = new LinkedHashMap<>(c);
+                String titulo = (String) c.get("titulo");
+                o.put("tipo", t.toLowerCase(Locale.ROOT));
+                // Já no acervo? Pelo id da fonte; nas obras antigas (sem fonte), só o 1º resultado com aquele título
+                Optional<Obra> noAcervo = repository.findFirstByFonte((String) c.get("ref"));
+                if (noAcervo.isEmpty() && titulosVistos.add(chaveDeBusca(titulo))) {
+                    noAcervo = mesmaObraNoAcervo(titulo, t).filter(obra -> obra.getFonte() == null);
+                }
+                o.put("jaNoAcervo", noAcervo.isPresent());
+                noAcervo.ifPresent(obra -> o.put("tituloNoAcervo", obra.getTitulo()));
+                if (o.get("sinopse") instanceof String s && s.length() > 180) {
+                    int corte = s.lastIndexOf(' ', 180);
+                    o.put("sinopse", s.substring(0, corte > 80 ? corte : 180) + "…");
+                }
+                o.put("_pontos", semelhanca(consulta, titulo) * 100 - ordem++ * 10 - i);
+                opcoes.add(o);
+            }
+        }
+        opcoes.sort(Comparator.comparingInt((Map<String, Object> o) -> (int) o.get("_pontos")).reversed());
+        List<Map<String, Object>> saida = opcoes.stream().limit(MAX_OPCOES).toList();
+        saida.forEach(o -> o.remove("_pontos"));
+        return ResponseEntity.ok(Map.of("opcoes", saida));
+    }
+
+    private List<Map<String, Object>> candidatosDe(String tipo, String nome, int maximo) {
+        return switch (tipo) {
+            case "Filme" -> tmdbService.candidatos("movie", nome, maximo);
+            case "Serie" -> tmdbService.candidatos("tv", nome, maximo);
+            case "Jogo" -> rawgService.candidatos(nome, maximo);
+            case "Livro" -> livroService.candidatos(nome, maximo);
+            default -> List.of();
+        };
+    }
+
+    private static final java.util.regex.Pattern REF = java.util.regex.Pattern.compile(
+            "tmdb:(movie|tv):([0-9]{1,10})|rawg:([0-9]{1,10})|steam:([0-9]{1,10})|ol:(/works/OL[0-9]{1,12}W)|gb:([A-Za-z0-9_-]{8,20})");
+
+    /** Mídia de um identificador de fonte, ou null se o formato for inválido (nada fora deste formato é aceito). */
+    static String tipoDaRef(String ref) {
+        java.util.regex.Matcher m = ref == null ? null : REF.matcher(ref);
+        if (m == null || !m.matches()) return null;
+        if (m.group(1) != null) return m.group(1).equals("tv") ? "Serie" : "Filme";
+        if (m.group(3) != null || m.group(4) != null) return "Jogo";
+        return "Livro";
+    }
+
+    private String[] dadosPorRef(String ref) {
+        java.util.regex.Matcher m = REF.matcher(ref);
+        if (!m.matches()) return null;
+        if (m.group(1) != null) return tmdbService.porId(m.group(1), Long.parseLong(m.group(2)));
+        if (m.group(3) != null) return rawgService.porId(Long.parseLong(m.group(3)));
+        if (m.group(4) != null) return steamService.porAppId(m.group(4));
+        if (m.group(6) != null) return livroService.porVolumeGoogle(m.group(6));
+        return livroService.porChave(m.group(5));
+    }
+
+    /**
+     * Título livre no acervo para uma obra nova escolhida pela pessoa. O nome puro, se ninguém usa; senão, com a
+     * mídia (outra mídia já tem esse nome) e/ou o ano (a mesma mídia já tem: "Duna (1984)").
+     */
+    private String tituloUnico(String titulo, String tipo, String ano) {
+        if (!repository.existsById(titulo)) return titulo;
+        String midia = NOME_MIDIA.getOrDefault(tipo, tipo);
+        boolean outraMidia = repository.findById(titulo).map(o -> !tipo.equals(o.getTipo())).orElse(false);
+        List<String> tentativas = new ArrayList<>();
+        if (outraMidia) tentativas.add(titulo + " (" + midia + ")");
+        if (ano != null) tentativas.add(titulo + " (" + ano + ")");
+        if (!outraMidia) tentativas.add(titulo + " (" + midia + ")");
+        if (ano != null) tentativas.add(titulo + " (" + midia + ", " + ano + ")");
+        for (String t : tentativas) if (!repository.existsById(t)) return t;
+        for (int n = 2; ; n++) if (!repository.existsById(titulo + " (" + n + ")")) return titulo + " (" + n + ")";
+    }
+
     /**
      * Índices das mídias empatadas no melhor resultado, quando o empate é forte (título igual ou um começando
      * com o outro). Ex.: "Duna" acha o filme "Duna" e o livro "Duna" (ambos iguais): pergunta. Já "Duna" com filme
@@ -215,7 +343,8 @@ public class RecomendacaoController {
     }
 
     private static final Map<String, String> NOME_MIDIA = Map.of("Filme", "Filme", "Serie", "Série", "Jogo", "Jogo", "Livro", "Livro");
-    private static final java.util.regex.Pattern SUFIXO_MIDIA = java.util.regex.Pattern.compile("\\s+\\((Filme|Série|Jogo|Livro)\\)$");
+    private static final java.util.regex.Pattern SUFIXO_MIDIA = java.util.regex.Pattern.compile(
+            "\\s+\\((?:Filme|Série|Jogo|Livro|(?:Filme|Série|Jogo|Livro), (?:19|20)[0-9]{2}|(?:19|20)[0-9]{2})\\)$");
 
     /** "Duna (Filme)" -> "Duna": o sufixo só existe para separar obras de mídias diferentes com o mesmo nome. */
     static String semSufixoDeMidia(String titulo) {
@@ -332,7 +461,8 @@ public class RecomendacaoController {
             @RequestParam(required = false) List<String> tags,
             @RequestParam(required = false) List<String> excluir,
             @RequestParam(required = false) String dna,
-            @RequestParam(required = false) String titulo) {
+            @RequestParam(required = false) String titulo,
+            @RequestParam(required = false) String tipo) {
 
         List<String> consulta = new ArrayList<>();
         if (tags != null) consulta.addAll(tags);
@@ -349,7 +479,9 @@ public class RecomendacaoController {
         if (excluir != null) excluidos.addAll(excluir);
         if (titulo != null) excluidos.add(titulo);
 
-        return intercalarPorTipo(repository.recomendarPorTags(consulta, excluidos), MAX_RECOMENDACOES);
+        // Com tipo (filme|serie|jogo|livro), só aquela mídia; sem tipo, todas intercaladas
+        String tipoObra = tipo == null || tipo.isBlank() ? null : TIPOS.get(tipo.toLowerCase(Locale.ROOT));
+        return intercalarPorTipo(repository.recomendarPorTags(consulta, excluidos, tipoObra), MAX_RECOMENDACOES);
     }
 
     /** Agrupa por tipo mantendo a ordem do ranking e intercala (round-robin) até o limite. */
