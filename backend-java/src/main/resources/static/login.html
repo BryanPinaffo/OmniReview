@@ -247,7 +247,8 @@
         }
         function destino() {
             const voltar = new URLSearchParams(location.search).get('voltar');
-            return voltar && voltar.startsWith('/') && !voltar.startsWith('//') ? voltar : '/';
+            // Só caminhos deste site ("/..."): bloqueia "//outro.site" e "/\outro.site", que o navegador trata como outro domínio
+            return voltar && /^\/(?![\/\\])/.test(voltar) && !/[\u0000-\u001f]/.test(voltar) ? voltar : '/';
         }
 
         // Já tem sessão válida? Vai direto para o catálogo.
