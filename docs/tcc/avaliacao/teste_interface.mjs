@@ -364,6 +364,130 @@ caso('T26', 'Minhas listas: listas padrão, salvar pela obra, criar, ver, remove
   `padrão=${padroes.join(', ')}; salvou=${salvouNaPadrao}, criou=${criouComJogo}, mostrou=${mostraFilme}, selo=${seloAssistido}, removeu=${removeu}, renomeou=${renomeou}, excluiu=${excluiuLista}`);
 await avaliar("irPara('catalogo')");
 
+// ---------- Compartilhar obra: link direto, prévia pública e retorno após o login ----------
+{
+  const base = URL_APP.replace(/\/$/, '');
+  const urlAtual = () => avaliar('location.pathname + location.search');
+  await avaliar(`abrirModal(${JSON.stringify(obraFilme)})`);
+  await avaliar("document.querySelector('#modal [data-compartilhar]').click()");
+  await aguardar("!!document.getElementById('link-compartilhar')", 3000);
+  await capturar('compartilhar');
+  const link = await avaliar("document.getElementById('link-compartilhar').value");
+  const linkOk = link === `${base}/obra?t=${encodeURIComponent(obraFilme)}`;
+  const zap = await avaliar("document.querySelector('.compartilhar-redes a').href");
+  // prévia: a página /obra é pública (sem token) e traz título e pôster para o WhatsApp
+  const previa = await avaliar(`fetch(${JSON.stringify(link)}).then(async r => ({ status: r.status, html: await r.text() }))`);
+  const previaOk = previa.status === 200 && previa.html.includes('property="og:title"') && previa.html.includes('og:image')
+    && previa.html.includes(obraFilme.replace(/&/g, '&amp;').replace(/"/g, '&quot;'));
+  await avaliar('fecharDialogo(); fecharModal()');
+  // logado: o link abre a obra direto e limpa o endereço
+  await cdp('Page.navigate', { url: link });
+  const abriuLogado = await aguardar(`document.getElementById('modal-titulo')?.textContent === ${JSON.stringify(obraFilme)}`, 15000);
+  const enderecoLimpo = (await urlAtual()) === '/';
+  // deslogado: vai para o login guardando o destino; com a sessão de volta, o login devolve para a obra
+  const sessaoGuardada = await avaliar("localStorage.getItem('omnireview:sessao')");
+  await avaliar("localStorage.removeItem('omnireview:sessao')");
+  await cdp('Page.navigate', { url: link });
+  await aguardar("location.pathname === '/login.html'", 10000);
+  const loginComVoltar = (await urlAtual()).includes('voltar=' + encodeURIComponent('/?obra='));
+  await avaliar(`localStorage.setItem('omnireview:sessao', ${JSON.stringify(sessaoGuardada)})`);
+  await cdp('Page.reload');
+  const voltouParaObra = await aguardar(`location.pathname === '/' && document.getElementById('modal-titulo')?.textContent === ${JSON.stringify(obraFilme)}`, 15000);
+  // o "voltar" do login não aceita outro domínio
+  await cdp('Page.navigate', { url: `${base}/login.html?voltar=${encodeURIComponent('/\\exemplo.com')}` });
+  await aguardar("location.pathname === '/' && document.querySelectorAll('#grid-catalogo .card').length > 0", 10000);
+  const semRedirExterno = (await avaliar('location.host')) === new URL(base).host;
+  await avaliar('fecharModal()');
+  caso('T30', 'Compartilhar: gera link direto, prévia pública com pôster, abre a obra (logado ou após o login) e não redireciona para fora',
+    linkOk && zap.startsWith('https://wa.me/') && previaOk && abriuLogado && enderecoLimpo && loginComVoltar && voltouParaObra && semRedirExterno,
+    `link=${linkOk}, prévia=${previaOk}, abriu=${abriuLogado}, endereço limpo=${enderecoLimpo}, login guarda destino=${loginComVoltar}, voltou=${voltouParaObra}, sem redirecionamento externo=${semRedirExterno}`);
+}
+
+// ---------- Listas em conjunto e compartilhadas (três pessoas no mesmo navegador, trocando a sessão) ----------
+{
+  const base = URL_APP.replace(/\/$/, '');
+  const sessaoDono = await avaliar("localStorage.getItem('omnireview:sessao')");
+  const cadastrar = nome => avaliar(`fetch('/api/auth/cadastrar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario: '${nome}', senha: 'Senha-grupo-123' }) }).then(r => r.json())`);
+  const sufixo = Math.random().toString(36).slice(2, 7);
+  const membro = await cadastrar('teste_mb_' + sufixo);
+  const visitante = await cadastrar('teste_vi_' + sufixo);
+  const entrarComo = async s => { await avaliar(`localStorage.setItem('omnireview:sessao', ${JSON.stringify(typeof s === 'string' ? s : JSON.stringify({ token: s.token, usuario: s.usuario, papel: s.papel }))})`); };
+  const listaSel = "minhasListas.find(l => l.id === listaSelecionada)";
+
+  // dono: cria a lista, adiciona um filme, convida o participante e cria o link
+  await avaliar("irPara('listas')");
+  await avaliar("abrirNovaLista()");
+  await preencher('nome-lista', 'Maratona do grupo');
+  await avaliar("document.getElementById('form-lista').requestSubmit()");
+  await aguardar(`${listaSel}?.nome === 'Maratona do grupo'`, 6000);
+  const idLista = await avaliar('listaSelecionada');
+  await avaliar(`mudarListas('/api/listas/${idLista}/obras', json({ titulo: ${JSON.stringify(obraFilme)} }))`);
+  await avaliar("abrirParticipantes()");
+  await preencher('novo-membro', membro.usuario);
+  await avaliar("document.getElementById('form-membro').requestSubmit()");
+  const convidou = await aguardar(`${listaSel}.membros.includes('${membro.usuario}') && !!document.querySelector('[data-remover-membro="${membro.usuario}"]')`, 6000);
+  await capturar('lista_participantes');
+  await avaliar('fecharDialogo()');
+  const chipGrupo = await aguardar(`!!document.querySelector('#listas-abas [data-lista="${idLista}"] path[d^="M3 19.5"]')`, 3000);
+  await avaliar("abrirCompartilharLista()");
+  await avaliar("document.getElementById('ativar-link-lista').click()");
+  await aguardar("!!document.getElementById('link-compartilhar')", 6000);
+  await capturar('lista_compartilhar');
+  const linkLista = await avaliar("document.getElementById('link-compartilhar').value");
+  await avaliar('fecharDialogo()');
+  await capturar('lista_em_conjunto_dono');
+
+  // visitante (não participa): o link mostra a lista só para ver
+  await entrarComo(visitante);
+  await cdp('Page.navigate', { url: linkLista });
+  const visitaOk = await aguardar(`document.querySelector('#dialogo h2')?.textContent === 'Maratona do grupo'
+    && !!document.querySelector('#dialogo [data-abrir-obra="${obraFilme.replace(/"/g, '\\"')}"]')`, 15000);
+  await capturar('lista_visitante');
+  const visitanteSemLista = await avaliar(`!minhasListas.some(l => l.id === '${idLista}')`);
+  await avaliar(`document.querySelector('#dialogo [data-abrir-obra]').click()`);
+  const abriuObraDaVisita = await aguardar(`document.getElementById('modal-titulo')?.textContent === ${JSON.stringify(obraFilme)}`, 6000);
+  await avaliar('fecharModal()');
+
+  // participante: o link leva para a lista; ele adiciona um jogo pela janela da obra e não vê as opções do dono
+  await entrarComo(membro);
+  await cdp('Page.navigate', { url: linkLista });
+  const membroNaLista = await aguardar(`!document.getElementById('aba-listas').hidden && listaSelecionada === '${idLista}'
+    && document.querySelector('.lista-pessoas')?.textContent.includes('${usuarioTeste}')`, 15000);
+  const botoesMembro = await avaliar("[...document.querySelectorAll('.lista-topo .acoes .btn')].map(b => b.textContent.trim())");
+  await avaliar(`abrirModal(${JSON.stringify(obraJogo)})`);
+  await aguardar("!!document.querySelector('#modal [data-salvar-lista]')", 3000);
+  await avaliar("document.querySelector('#modal [data-salvar-lista]').click()");
+  await aguardar(`!!document.querySelector('#popover-listas [data-alternar-lista="${idLista}"]')`, 3000);
+  const mostraDono = await avaliar(`document.querySelector('#popover-listas [data-alternar-lista="${idLista}"]').textContent.includes('de ${usuarioTeste}')`);
+  await avaliar(`document.querySelector('#popover-listas [data-alternar-lista="${idLista}"]').click()`);
+  const membroAdicionou = await aguardar(`${listaSel}?.obras.some(o => o.titulo === ${JSON.stringify(obraJogo)} && o.adicionadaPor === '${membro.usuario}')`, 6000);
+  await avaliar('fecharModal()');
+
+  // dono de novo: vê o jogo "adicionado por" o participante; desativa o link
+  await entrarComo(sessaoDono);
+  await cdp('Page.navigate', { url: base + '/' });
+  await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0", 15000);
+  await avaliar(`listaSelecionada = '${idLista}'; irPara('listas')`);
+  const donoVePor = await aguardar(`[...document.querySelectorAll('#lista-conteudo .item-lista small')].some(s => s.textContent.includes('por ${membro.usuario}'))`, 8000);
+  await avaliar("abrirCompartilharLista()");
+  await avaliar("document.getElementById('desativar-link-lista').click()");
+  const desativou = await aguardar(`!${listaSel}.link && !!document.getElementById('ativar-link-lista')`, 6000);
+  await avaliar('fecharDialogo()');
+  const linkMorto = await avaliar(`api('/api/listas/compartilhada/' + ${JSON.stringify(new URL(linkLista).searchParams.get('c'))}).then(r => r.status)`);
+
+  // limpeza: participante e visitante excluem as contas; o dono exclui a lista
+  for (const s of [membro, visitante]) {
+    await avaliar(`fetch('/api/auth/conta', { method: 'DELETE', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ${s.token}' }, body: JSON.stringify({ senha: 'Senha-grupo-123' }) })`);
+  }
+  await avaliar(`mudarListas('/api/listas/${idLista}', { method: 'DELETE' })`);
+  await avaliar("irPara('catalogo')");
+  caso('T31', 'Listas em conjunto e compartilhadas: dono convida e gera link; visitante só vê; participante adiciona; dono vê quem adicionou e desativa o link',
+    convidou && chipGrupo && linkLista.startsWith(base + '/lista?c=') && visitaOk && visitanteSemLista && abriuObraDaVisita
+    && membroNaLista && botoesMembro.join('|') === 'Participantes|Sair da lista' && mostraDono && membroAdicionou && donoVePor && desativou && linkMorto === 404,
+    `convidou=${convidou}, ícone=${chipGrupo}, visitante vê=${visitaOk}/${visitanteSemLista}/${abriuObraDaVisita}, participante=${membroNaLista} [${botoesMembro.join(', ')}], popover=${mostraDono}, adicionou=${membroAdicionou}, dono vê "por"=${donoVePor}, link desativado=${desativou}/${linkMorto}`);
+}
+
 // ---------- Ficha da obra: onde assistir/jogar, duração, temporadas, tempo de jogo ----------
 const fichaDe = async (titulo, nomeCaptura) => {
   await avaliar(`abrirModal(${JSON.stringify(titulo)})`);

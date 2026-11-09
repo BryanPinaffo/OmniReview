@@ -189,6 +189,8 @@ public class AvaliacaoService {
         neo4j.query("MATCH (:Usuario {usuario: $usuario})-[a:AVALIOU]->() DELETE a").bindAll(Map.of("usuario", usuario)).run();
         // Listas pessoais (a propriedade "dono" permite apagar mesmo depois que o nó do usuário já saiu)
         neo4j.query("MATCH (l:Lista {dono: $usuario}) DETACH DELETE l").bindAll(Map.of("usuario", usuario)).run();
+        // Participação em listas de outras pessoas (as obras que a pessoa adicionou continuam nelas)
+        neo4j.query("MATCH (:Usuario {usuario: $usuario})-[r:COLABORA]->(:Lista) DELETE r").bindAll(Map.of("usuario", usuario)).run();
     }
 
     // ---------------- Auxiliares ----------------

@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-08T23:59:58.117Z",
-  "aprovados": 26,
-  "total": 26,
+  "executado_em": "2026-11-09T00:24:03.408Z",
+  "aprovados": 28,
+  "total": 28,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_kcedur; menu mostra \"teste_ui_kcedur\""
+      "detalhe": "usuário teste_ui_1cpzpa; menu mostra \"teste_ui_1cpzpa\""
     },
     {
       "id": "T01",
@@ -129,6 +129,18 @@
       "descricao": "Minhas listas: listas padrão, salvar pela obra, criar, ver, remover, renomear e excluir",
       "ok": true,
       "detalhe": "padrão=Quero assistir, Quero jogar; salvou=true, criou=true, mostrou=true, selo=true, removeu=true, renomeou=true, excluiu=true"
+    },
+    {
+      "id": "T30",
+      "descricao": "Compartilhar: gera link direto, prévia pública com pôster, abre a obra (logado ou após o login) e não redireciona para fora",
+      "ok": true,
+      "detalhe": "link=true, prévia=true, abriu=true, endereço limpo=true, login guarda destino=true, voltou=true, sem redirecionamento externo=true"
+    },
+    {
+      "id": "T31",
+      "descricao": "Listas em conjunto e compartilhadas: dono convida e gera link; visitante só vê; participante adiciona; dono vê quem adicionou e desativa o link",
+      "ok": true,
+      "detalhe": "convidou=true, ícone=true, visitante vê=true/true/true, participante=true [Participantes, Sair da lista], popover=true, adicionou=true, dono vê \"por\"=true, link desativado=true/404"
     },
     {
       "id": "T28",

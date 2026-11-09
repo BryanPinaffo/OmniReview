@@ -9,9 +9,12 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="theme-color" content="#08090d">
     <script>
-        // Sem sessão: vai para o login antes de desenhar a página
-        try { if (!JSON.parse(localStorage.getItem('omnireview:sessao') || 'null')?.token) location.replace('/login.html'); }
-        catch { location.replace('/login.html'); }
+        // Sem sessão: vai para o login antes de desenhar a página (guardando o endereço, ex.: link compartilhado de uma obra)
+        (() => {
+            const login = '/login.html' + (location.search ? '?voltar=' + encodeURIComponent(location.pathname + location.search) : '');
+            try { if (!JSON.parse(localStorage.getItem('omnireview:sessao') || 'null')?.token) location.replace(login); }
+            catch { location.replace(login); }
+        })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -763,6 +766,36 @@
         .dialogo > p { color: var(--text-2); margin: 0 0 18px; font-size: 14px; }
         .dialogo .modal-fechar { top: 16px; right: 16px; width: 36px; height: 36px; }
         .dialogo-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+        /* Compartilhar obra */
+        .compartilhar-obra { display: flex; gap: 14px; align-items: center; margin: 14px 0 16px; padding: 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+        .compartilhar-obra img, .compartilhar-obra .sem-poster { width: 54px; aspect-ratio: 2/3; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--surface-2); }
+        .compartilhar-obra b { display: block; font-size: 15px; }
+        .compartilhar-obra small { color: var(--text-3); font-size: 12.5px; }
+        .compartilhar-link { display: flex; gap: 8px; }
+        .compartilhar-link input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 13.5px; }
+        .compartilhar-redes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .compartilhar-redes .btn { flex: 1 1 140px; justify-content: center; text-decoration: none; }
+        /* Listas em conjunto e compartilhadas */
+        .lista-pessoas { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: var(--text-2); }
+        .lista-pessoas svg, .lista-topo .acoes .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .lista-pessoas b { color: var(--text); font-weight: 600; }
+        .opcao-lista em { font-style: normal; color: var(--text-3); font-size: 12px; }
+        .membros { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+        .membros li { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+        .membro-avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #8b7bff, #3dd6f5); }
+        .membro-nome { display: grid; flex: 1; min-width: 0; line-height: 1.25; }
+        .membro-nome b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .membro-nome small { color: var(--text-3); font-size: 12px; }
+        .membro-voce { font-weight: 400; color: var(--text-3); font-size: 12.5px; }
+        .membros-vazio { color: var(--text-3); font-size: 14px; margin: 4px 0 12px; }
+        .form-membro { margin-top: 14px; }
+        .form-membro label { display: block; font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+        .lista-visita { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin-top: 4px; }
+        .mini-obra { display: grid; gap: 4px; text-align: left; background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font: inherit; min-width: 0; }
+        .mini-obra img, .mini-obra .sem-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: grid; place-items: center; color: var(--text-3); font-weight: 700; transition: transform .2s, border-color .2s; }
+        .mini-obra:hover img, .mini-obra:focus-visible img { transform: translateY(-2px); border-color: rgba(139,123,255,0.6); }
+        .mini-obra span { font-size: 13px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+        .mini-obra small { font-size: 11.5px; color: var(--text-3); }
         .editor-capa { height: 150px; border-radius: 14px; background-size: cover; background-position: center; position: relative; overflow: hidden; border: 1px solid var(--line-strong);
             background-color: var(--surface);
             background-image: radial-gradient(400px 200px at 20% 0%, rgba(139,123,255,0.45), transparent 70%), radial-gradient(400px 200px at 90% 100%, rgba(61,214,245,0.3), transparent 70%); }
@@ -1186,7 +1219,8 @@
             busca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
             faisca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
             estrela: '<svg class="estrela" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.36l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93z"/></svg>',
-            seta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+            seta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+            compartilhar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>'
         };
         const TAGS_INVALIDAS = ['deu erro', 'sem classificação', 'processando dna...'];
         const NOME_TIPO = { filme: 'Filme', serie: 'Série', jogo: 'Jogo' };
@@ -1197,7 +1231,10 @@
 
         function irParaLogin(expirada) {
             try { localStorage.removeItem(CHAVE_SESSAO); } catch {}
-            location.replace('/login.html' + (expirada ? '?expirada=1' : ''));
+            const params = new URLSearchParams();
+            if (expirada) params.set('expirada', '1');
+            if (expirada && location.search) params.set('voltar', location.pathname + location.search);
+            location.replace('/login.html' + (params.size ? '?' + params : ''));
         }
 
         /** fetch para a API com o token; sessão inválida ou expirada leva de volta ao login. */
@@ -2047,6 +2084,7 @@
                             ${botaoConclusaoHTML(obra)}
                             ${botaoSalvarListaHTML(obra)}
                             <button class="btn btn-primary btn-fav-grande ${curtida ? 'ativo' : ''}" data-fav="${esc(obra.titulo)}">${ICONES.coracao}<span>${curtida ? 'Nos favoritos' : 'Favoritar'}</span></button>
+                            <button type="button" class="btn" data-compartilhar="${esc(obra.titulo)}">${ICONES.compartilhar}<span>Compartilhar</span></button>
                             ${ehAdmin() ? `<button type="button" class="btn btn-excluir-obra" data-excluir-obra="${esc(obra.titulo)}" title="Só o administrador vê esta opção">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Excluir obra</span></button>` : ''}
                         </div>
@@ -2893,7 +2931,10 @@
         let ocultarConcluidas = false;
         const ICONE_MARCADOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h12v17l-6-4.2-6 4.2v-17Z"/></svg>';
         const ICONE_LISTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>';
+        const ICONE_GRUPO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.5.2 4 1.8 4.5 4.4"/></svg>';
         const listasComObra = titulo => minhasListas.filter(l => l.obras.some(o => o.titulo === titulo));
+        const ehEmConjunto = l => !!l && (!l.souDono || (l.membros || []).length > 0);
+        const nomesDosMembros = l => l.membros.map(m => m === sessao?.usuario ? 'você' : `<b>${esc(m)}</b>`).join(', ');
 
         async function carregarListas() {
             try {
@@ -2931,11 +2972,13 @@
                 return;
             }
             $('listas-abas').innerHTML = minhasListas.map(l => `
-                <button type="button" role="tab" class="lista-chip" data-lista="${esc(l.id)}" aria-selected="${l.id === listaSelecionada}">
-                    ${ICONE_LISTA}<span class="nome-lista">${esc(l.nome)}</span><span class="qtd">${l.obras.length}</span>
+                <button type="button" role="tab" class="lista-chip" data-lista="${esc(l.id)}" aria-selected="${l.id === listaSelecionada}"
+                    ${ehEmConjunto(l) ? `title="Lista em conjunto${l.souDono ? '' : ' de ' + esc(l.dono)}"` : ''}>
+                    ${ehEmConjunto(l) ? ICONE_GRUPO : ICONE_LISTA}<span class="nome-lista">${esc(l.nome)}</span><span class="qtd">${l.obras.length}</span>
                 </button>`).join('');
 
             const lista = minhasListas.find(l => l.id === listaSelecionada);
+            const conjunto = ehEmConjunto(lista);
             const concluidas = lista.obras.filter(o => minhasConcluidas.has(o.titulo)).length;
             const visiveis = lista.obras.filter(o => (!listaFiltroTipo || tipoDe(o) === listaFiltroTipo) && (!ocultarConcluidas || !minhasConcluidas.has(o.titulo)));
             const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos']];
@@ -2943,11 +2986,17 @@
                 <div class="lista-topo">
                     <div>
                         <h2>${esc(lista.nome)}</h2>
-                        <small>${plural(lista.obras.length, 'obra', 'obras')}${lista.obras.length ? ` · ${concluidas} ${concluidas === 1 ? 'concluída' : 'concluídas'}` : ''}</small>
+                        <small>${plural(lista.obras.length, 'obra', 'obras')}${lista.obras.length ? ` · ${concluidas} ${concluidas === 1 ? 'concluída' : 'concluídas'}` : ''}${lista.souDono && lista.link ? ' · link de compartilhamento ativo' : ''}</small>
+                        ${conjunto ? `<p class="lista-pessoas">${ICONE_GRUPO}<span>${lista.souDono ? 'Sua lista' : `Lista de <b>${esc(lista.dono)}</b>`}${lista.membros.length ? ` · com ${nomesDosMembros(lista)}` : ''}</span></p>` : ''}
                     </div>
                     <div class="acoes">
+                        ${lista.souDono ? `
+                        <button type="button" class="btn" onclick="abrirCompartilharLista()">${ICONES.compartilhar}Compartilhar</button>
+                        <button type="button" class="btn" onclick="abrirParticipantes()">${ICONE_GRUPO}Participantes${lista.membros.length ? ` (${lista.membros.length})` : ''}</button>
                         <button type="button" class="btn" onclick="abrirRenomearLista()">Renomear</button>
-                        <button type="button" class="btn" onclick="abrirExcluirLista()">Excluir lista</button>
+                        <button type="button" class="btn" onclick="abrirExcluirLista()">Excluir lista</button>` : `
+                        <button type="button" class="btn" onclick="abrirParticipantes()">${ICONE_GRUPO}Participantes</button>
+                        <button type="button" class="btn" onclick="sairDaLista()">Sair da lista</button>`}
                     </div>
                 </div>
                 ${lista.obras.length ? `
@@ -2957,7 +3006,7 @@
                 </div>` : ''}
                 <div class="grid">${visiveis.length
                     ? visiveis.map((o, i) => `<div class="item-lista">${cardHTML(porTitulo.get(o.titulo) || o, i)}
-                        <small>Adicionado ${esc(tempoRelativo(o.adicionadaEm))}</small>
+                        <small>Adicionado ${esc(tempoRelativo(o.adicionadaEm))}${conjunto && o.adicionadaPor ? ` por ${o.adicionadaPor === sessao?.usuario ? 'você' : esc(o.adicionadaPor)}` : ''}</small>
                         <button type="button" class="link-btn" data-remover-da-lista="${esc(o.titulo)}">Remover da lista</button></div>`).join('')
                     : lista.obras.length
                         ? vazioHTML('Nada com esse filtro', 'Mude o tipo de mídia ou mostre as obras já concluídas.')
@@ -3040,6 +3089,197 @@
             });
         }
 
+        // ---------- Compartilhar lista (link só para ver) ----------
+        const listaAtual = () => minhasListas.find(l => l.id === listaSelecionada);
+        const linkDaLista = codigo => `${location.origin}/lista?c=${encodeURIComponent(codigo)}`;
+
+        function abrirCompartilharLista() {
+            const lista = listaAtual();
+            if (!lista?.souDono) return;
+            abrirDialogo(`<h2 id="dialogo-titulo">Compartilhar “${esc(lista.nome)}”</h2><div id="compartilhar-lista-corpo"></div>`);
+            montarCompartilharLista();
+        }
+
+        function montarCompartilharLista() {
+            const lista = listaAtual();
+            const corpo = $('compartilhar-lista-corpo');
+            if (!lista || !corpo) return;
+            if (!lista.link) {
+                corpo.innerHTML = `
+                    <p>Crie um link para mostrar esta lista a quem você quiser. Quem abrir vê as obras, mas não consegue mudar nada.</p>
+                    <div class="status" id="status-link-lista" role="alert"></div>
+                    <div class="dialogo-acoes">
+                        <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="ativar-link-lista">Criar link</button>
+                    </div>`;
+                $('ativar-link-lista').addEventListener('click', () => mudarLinkLista(lista, true));
+                $('ativar-link-lista').focus();
+                return;
+            }
+            const link = linkDaLista(lista.link);
+            const texto = `Olha minha lista "${lista.nome}" no OmniReview`;
+            corpo.innerHTML = `
+                <p>Quem abrir o link vê a lista, mas não consegue mudar nada. Para alguém adicionar obras junto com você, use <b>Participantes</b>.</p>
+                <div class="compartilhar-link">
+                    <input id="link-compartilhar" type="text" readonly value="${esc(link)}" aria-label="Link da lista">
+                    <button type="button" class="btn btn-primary" id="copiar-link">Copiar</button>
+                </div>
+                <div class="compartilhar-redes">
+                    <a class="btn" href="https://wa.me/?text=${encodeURIComponent(texto + '\n' + link)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                    <a class="btn" href="https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(texto)}" target="_blank" rel="noopener noreferrer">Telegram</a>
+                    ${navigator.share ? '<button type="button" class="btn" id="compartilhar-sistema">Mais opções…</button>' : ''}
+                </div>
+                <div class="status" id="status-link-lista" role="alert"></div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" id="desativar-link-lista">Desativar link</button>
+                    <button type="button" class="btn btn-primary" onclick="fecharDialogo()">Pronto</button>
+                </div>`;
+            $('link-compartilhar').addEventListener('focus', e => e.target.select());
+            $('copiar-link').addEventListener('click', () => copiarLink(link));
+            $('compartilhar-sistema')?.addEventListener('click', () => navigator.share({ title: lista.nome, text: texto, url: link }).catch(() => {}));
+            $('desativar-link-lista').addEventListener('click', () => mudarLinkLista(lista, false));
+            $('copiar-link').focus();
+        }
+
+        async function mudarLinkLista(lista, ativar) {
+            try {
+                await mudarListas(`/api/listas/${encodeURIComponent(lista.id)}/link`, { method: ativar ? 'POST' : 'DELETE' });
+                montarCompartilharLista();
+                if (!ativar) toast('Link desativado: quem tinha o endereço não consegue mais abrir a lista');
+            } catch (erro) { status('status-link-lista', erro.message, 'erro'); }
+        }
+
+        // ---------- Lista em conjunto: participantes ----------
+        function abrirParticipantes() {
+            const lista = listaAtual();
+            if (!lista) return;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Participantes</h2>
+                <p>Quem participa pode adicionar e remover obras desta lista. Só o dono renomeia, exclui, compartilha e escolhe quem participa.</p>
+                <div id="participantes-corpo"></div>`);
+            montarParticipantes();
+        }
+
+        function montarParticipantes() {
+            const lista = listaAtual();
+            const corpo = $('participantes-corpo');
+            if (!lista || !corpo) return;
+            const eu = sessao?.usuario;
+            const pessoa = (nome, papel, acao) => `
+                <li><span class="membro-avatar" aria-hidden="true">${esc(iniciais(nome))}</span>
+                    <span class="membro-nome"><b>${esc(nome)}${nome === eu ? ' <span class="membro-voce">(você)</span>' : ''}</b><small>${papel}</small></span>${acao || ''}</li>`;
+            corpo.innerHTML = `
+                <ul class="membros">
+                    ${pessoa(lista.dono, 'Dono')}
+                    ${lista.membros.map(m => pessoa(m, 'Pode adicionar e remover obras',
+                        lista.souDono ? `<button type="button" class="link-btn" data-remover-membro="${esc(m)}">Remover</button>` : '')).join('')}
+                </ul>
+                ${lista.membros.length ? '' : '<p class="membros-vazio">Ninguém mais participa ainda.</p>'}
+                ${lista.souDono ? `
+                <form id="form-membro" class="form-membro" novalidate>
+                    <label for="novo-membro">Adicionar pelo nome de usuário</label>
+                    <div class="compartilhar-link">
+                        <input class="input" id="novo-membro" list="sugestoes-membro" autocomplete="off" maxlength="40" placeholder="ex.: maria_silva">
+                        <datalist id="sugestoes-membro"></datalist>
+                        <button type="submit" class="btn btn-primary" id="adicionar-membro">Adicionar</button>
+                    </div>
+                </form>` : ''}
+                <div class="status" id="status-membro" role="alert"></div>
+                <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo()">Fechar</button></div>`;
+            if (!lista.souDono) return;
+            let espera;
+            $('novo-membro').addEventListener('input', e => {
+                clearTimeout(espera);
+                const termo = e.target.value.trim().replace(/^@/, '');
+                if (termo.length < 2) return;
+                espera = setTimeout(async () => {
+                    try {
+                        const pessoas = await (await api(`/api/perfil?q=${encodeURIComponent(termo)}`)).json();
+                        if ($('sugestoes-membro')) $('sugestoes-membro').innerHTML = pessoas
+                            .filter(p => p.usuario !== lista.dono && !lista.membros.includes(p.usuario))
+                            .slice(0, 8).map(p => `<option value="${esc(p.usuario)}">`).join('');
+                    } catch {}
+                }, 250);
+            });
+            $('form-membro').addEventListener('submit', async e => {
+                e.preventDefault();
+                const usuario = $('novo-membro').value.trim();
+                if (!usuario) { $('novo-membro').focus(); return; }
+                $('adicionar-membro').disabled = true;
+                try {
+                    await mudarListas(`/api/listas/${encodeURIComponent(lista.id)}/membros`, json({ usuario }));
+                    montarParticipantes();
+                    status('status-membro', `${usuario.replace(/^@/, '')} agora participa da lista.`, 'ok');
+                    $('novo-membro')?.focus();
+                } catch (erro) { status('status-membro', erro.message, 'erro'); $('adicionar-membro').disabled = false; }
+            });
+        }
+
+        $('dialogo').addEventListener('click', async e => {
+            const remover = e.target.closest('[data-remover-membro]');
+            if (remover) {
+                const lista = listaAtual();
+                remover.disabled = true;
+                try {
+                    await mudarListas(`/api/listas/${encodeURIComponent(lista.id)}/membros?usuario=${encodeURIComponent(remover.dataset.removerMembro)}`, { method: 'DELETE' });
+                    montarParticipantes();
+                } catch (erro) { status('status-membro', erro.message, 'erro'); remover.disabled = false; }
+                return;
+            }
+            const obra = e.target.closest('[data-abrir-obra]');
+            if (obra) { fecharDialogo(); abrirModal(obra.dataset.abrirObra); }
+        });
+
+        function sairDaLista() {
+            const lista = listaAtual();
+            if (!lista || lista.souDono) return;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Sair de “${esc(lista.nome)}”?</h2>
+                <p>A lista continua com ${esc(lista.dono)} e os outros participantes. As obras que você adicionou ficam nela. Para voltar, o dono precisa te adicionar de novo.</p>
+                <div class="status" id="status-lista" role="alert"></div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" onclick="fecharDialogo()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmar-sair-lista" style="background: var(--danger)">Sair da lista</button>
+                </div>`);
+            $('confirmar-sair-lista').addEventListener('click', async () => {
+                $('confirmar-sair-lista').disabled = true;
+                try {
+                    await mudarListas(`/api/listas/${encodeURIComponent(lista.id)}/membros?usuario=${encodeURIComponent(sessao.usuario)}`, { method: 'DELETE' });
+                    fecharDialogo();
+                    toast(`Você saiu de "${lista.nome}"`);
+                } catch (erro) { status('status-lista', erro.message, 'erro'); $('confirmar-sair-lista').disabled = false; }
+            });
+        }
+
+        // Chegou por um link de lista (/?lista=...): participante vai para a lista; os demais veem só para consulta
+        async function abrirListaDoLink() {
+            const codigo = new URLSearchParams(location.search).get('lista');
+            if (!codigo) return;
+            history.replaceState(null, '', location.pathname);
+            let d;
+            try {
+                const r = await api(`/api/listas/compartilhada/${encodeURIComponent(codigo)}`);
+                d = await r.json();
+                if (!r.ok) throw new Error(d.erro || 'Não foi possível abrir a lista.');
+            } catch (e) { if (e.message !== 'Sessão expirada') toast(e.message); return; }
+            if (d.participo) {
+                await carregarListas();
+                listaSelecionada = d.id;
+                irPara('listas');
+                return;
+            }
+            d.obras.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">${esc(d.nome)}</h2>
+                <p>Lista de <b>${esc(d.dono)}</b>${d.membros.length ? ` com ${d.membros.map(esc).join(', ')}` : ''} · ${plural(d.obras.length, 'obra', 'obras')}. Toque numa obra para ver os detalhes.</p>
+                ${d.obras.length ? `<div class="lista-visita">${d.obras.map(o => `
+                    <button type="button" class="mini-obra" data-abrir-obra="${esc(o.titulo)}">
+                        ${o.imagem || o.capa ? `<img src="${esc(o.imagem || o.capa)}" alt="" loading="lazy">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
+                        <span>${esc(o.titulo)}</span><small>${NOME_TIPO[tipoDe(o)] || ''}</small>
+                    </button>`).join('')}</div>` : '<p class="membros-vazio">Esta lista ainda está vazia.</p>'}
+                <div class="dialogo-acoes"><button type="button" class="btn btn-primary" onclick="fecharDialogo()">Fechar</button></div>`);
+        }
+
         // ---------- "Salvar em lista" na janela da obra ----------
         function botaoSalvarListaHTML(obra) {
             return `<div class="salvar-lista-wrap">
@@ -3064,7 +3304,7 @@
                 <ul>${minhasListas.map(l => {
                     const dentro = l.obras.some(o => o.titulo === titulo);
                     return `<li><button type="button" class="opcao-lista" role="menuitemcheckbox" aria-checked="${dentro}" data-alternar-lista="${esc(l.id)}">
-                        <span class="caixa">${ICONE_CHECK}</span><span class="nome-lista">${esc(l.nome)}</span><small>${l.obras.length}</small></button></li>`;
+                        <span class="caixa">${ICONE_CHECK}</span><span class="nome-lista">${esc(l.nome)}${l.souDono ? '' : ` <em>· de ${esc(l.dono)}</em>`}</span><small>${l.obras.length}</small></button></li>`;
                 }).join('') || '<li class="popover-erro" style="color: var(--text-3)">Nenhuma lista ainda.</li>'}</ul>
                 <form class="nova-lista-form" id="nova-lista-form" novalidate>
                     <input class="input" id="nova-lista-nome" maxlength="40" placeholder="Nova lista..." aria-label="Nome da nova lista" autocomplete="off">
@@ -3124,6 +3364,59 @@
 
         // ================= EXCLUIR OBRA (administrador) =================
         // O botão só aparece para o administrador; o servidor também recusa (403) para os demais.
+        // ================= COMPARTILHAR OBRA =================
+        // O link /obra?t=... é público (mostra pôster e sinopse na prévia do WhatsApp etc.) e leva direto à obra
+        const linkDaObra = titulo => `${location.origin}/obra?t=${encodeURIComponent(titulo)}`;
+
+        function abrirCompartilhar(titulo) {
+            const obra = porTitulo.get(titulo);
+            if (!obra) return;
+            const link = linkDaObra(titulo);
+            const tipo = NOME_TIPO[tipoDe(obra)] || 'Obra';
+            const texto = `Olha ${tipo === 'Série' ? 'essa série' : tipo === 'Jogo' ? 'esse jogo' : 'esse filme'} no OmniReview: ${titulo}`;
+            const poster = obra.imagem || obra.capa;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Compartilhar</h2>
+                <p>Quem abrir o link vai direto para esta obra.</p>
+                <div class="compartilhar-obra">
+                    ${poster ? `<img src="${esc(poster)}" alt="">` : '<span class="sem-poster"></span>'}
+                    <div><b>${esc(titulo)}</b><small>${esc(tipo)}</small></div>
+                </div>
+                <div class="compartilhar-link">
+                    <input id="link-compartilhar" type="text" readonly value="${esc(link)}" aria-label="Link da obra">
+                    <button type="button" class="btn btn-primary" id="copiar-link">Copiar</button>
+                </div>
+                <div class="compartilhar-redes">
+                    <a class="btn" href="https://wa.me/?text=${encodeURIComponent(texto + '\n' + link)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                    <a class="btn" href="https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(texto)}" target="_blank" rel="noopener noreferrer">Telegram</a>
+                    ${navigator.share ? '<button type="button" class="btn" id="compartilhar-sistema">Mais opções…</button>' : ''}
+                </div>`);
+            $('link-compartilhar').addEventListener('focus', e => e.target.select());
+            $('copiar-link').addEventListener('click', () => copiarLink(link));
+            $('compartilhar-sistema')?.addEventListener('click', () => navigator.share({ title: titulo, text: texto, url: link }).catch(() => {}));
+        }
+
+        async function copiarLink(link) {
+            let ok = false;
+            try { await navigator.clipboard.writeText(link); ok = true; }
+            catch {   // sem HTTPS (ex.: acesso pelo IP da rede) a API de área de transferência não existe
+                const campo = $('link-compartilhar');
+                campo.focus(); campo.select();
+                try { ok = document.execCommand('copy'); } catch {}
+            }
+            if (ok) { $('copiar-link').textContent = 'Copiado!'; toast('Link copiado'); }
+            else toast('Selecione o link e copie manualmente');
+        }
+
+        // Chegou por um link compartilhado (/?obra=...): abre a obra e limpa o endereço
+        function abrirObraDoLink() {
+            const titulo = new URLSearchParams(location.search).get('obra');
+            if (!titulo) return;
+            history.replaceState(null, '', location.pathname);
+            if (porTitulo.has(titulo)) abrirModal(titulo);
+            else toast(`"${titulo}" não está mais no catálogo`);
+        }
+
         async function abrirExcluirObra(titulo) {
             let impacto;
             try {
@@ -3180,6 +3473,8 @@
         $('modal').addEventListener('click', e => {
             const botao = e.target.closest('[data-excluir-obra]');
             if (botao) abrirExcluirObra(botao.dataset.excluirObra);
+            const compartilhar = e.target.closest('[data-compartilhar]');
+            if (compartilhar) abrirCompartilhar(compartilhar.dataset.compartilhar);
         });
 
         // ================= MENU DO USUÁRIO =================
@@ -3207,7 +3502,7 @@
                 try { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao)); } catch {}
                 aplicarPapel();
             }).catch(() => {});
-            carregarCatalogo();
+            carregarCatalogo().then(() => { abrirObraDoLink(); abrirListaDoLink(); });
         }
     </script>
 </body>

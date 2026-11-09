@@ -12,7 +12,9 @@ import java.util.*;
  * "Minhas listas": listas pessoais de obras que o usuário quer ver ou jogar.
  *
  * Modelo no grafo:
- *   (:Usuario)-[:CRIOU]->(:Lista {id, dono, nome, criadaEm, ordem, padrao})-[:CONTEM {em}]->(:Obra)
+ *   (:Usuario)-[:CRIOU]->(:Lista {id, dono, nome, criadaEm, ordem, padrao, linkToken?})-[:CONTEM {em, por}]->(:Obra)
+ *   (:Usuario)-[:COLABORA {desde}]->(:Lista)   participantes de uma lista em conjunto
+ * linkToken: código aleatório do link "só para ver" (removido quando o dono desativa o link).
  * A propriedade "dono" repete o login para que as listas possam ser apagadas junto com a conta.
  * Toda conta começa com duas listas padrão: "Quero assistir" e "Quero jogar" (podem ser renomeadas ou excluídas).
  */
@@ -23,6 +25,8 @@ public class ListaService {
     static final int MAX_LISTAS = 30;
     static final int MAX_OBRAS_POR_LISTA = 500;
     static final List<String> LISTAS_PADRAO = List.of("Quero assistir", "Quero jogar");
+    static final int MAX_MEMBROS = 20;
+    private static final java.security.SecureRandom ALEATORIO = new java.security.SecureRandom();
 
     /** Resultado de uma operação: corpo da resposta ou erro com status HTTP. */
     public record Resultado(boolean ok, Object corpo, String erro, int status) {
@@ -59,19 +63,98 @@ public class ListaService {
 
     // ---------------- Consultas ----------------
 
-    /** Todas as listas do usuário, com as obras (mais recentes primeiro). Cria as listas padrão no primeiro acesso. */
+    // Obras da lista (mais recentes primeiro) e participantes; usado pelas listas do usuário e pelo link compartilhado
+    private static final String CORPO_LISTA =
+            "OPTIONAL MATCH (l)-[c:CONTEM]->(o:Obra) " +
+            "WITH l, c, o ORDER BY c.em DESC " +
+            "WITH l, collect(CASE WHEN o IS NULL THEN null ELSE {titulo: o.titulo, tipo: o.tipo, imagem: o.imagem, capa: o.capa, " +
+            "     dnaCriativo: o.dnaCriativo, sinopse: o.sinopse, adicionadaEm: c.em, adicionadaPor: c.por} END) AS obras " +
+            "OPTIONAL MATCH (m:Usuario)-[:COLABORA]->(l) " +
+            "WITH l, obras, m ORDER BY m.usuario " +
+            "WITH l, obras, collect(m.usuario) AS membros ";
+
+    /**
+     * Listas do usuário: as que ele criou e as que participa (listas em conjunto), com as obras.
+     * Cria as listas padrão no primeiro acesso. O link de compartilhamento só aparece para o dono.
+     */
     public List<Map<String, Object>> listas(String eu) {
         criarPadraoSeNecessario(eu);
         Collection<Map<String, Object>> linhas = neo4j.query(
-                "MATCH (l:Lista {dono: $eu}) " +
-                "OPTIONAL MATCH (l)-[c:CONTEM]->(o:Obra) " +
-                "WITH l, c, o ORDER BY c.em DESC " +
-                "WITH l, collect(CASE WHEN o IS NULL THEN null ELSE {titulo: o.titulo, tipo: o.tipo, imagem: o.imagem, capa: o.capa, " +
-                "     dnaCriativo: o.dnaCriativo, sinopse: o.sinopse, adicionadaEm: c.em} END) AS obras " +
-                "RETURN l.id AS id, l.nome AS nome, l.criadaEm AS criadaEm, coalesce(l.padrao, false) AS padrao, obras " +
-                "ORDER BY coalesce(l.ordem, 100), l.criadaEm, l.nome")
+                "MATCH (l:Lista) WHERE l.dono = $eu OR EXISTS { MATCH (:Usuario {usuario: $eu})-[:COLABORA]->(l) } " +
+                CORPO_LISTA +
+                "RETURN l.id AS id, l.nome AS nome, l.criadaEm AS criadaEm, coalesce(l.padrao, false) AS padrao, obras, " +
+                "       l.dono AS dono, l.dono = $eu AS souDono, membros, " +
+                "       CASE WHEN l.dono = $eu THEN l.linkToken ELSE null END AS link " +
+                "ORDER BY CASE WHEN l.dono = $eu THEN 0 ELSE 1 END, coalesce(l.ordem, 100), l.criadaEm, l.nome")
                 .bindAll(Map.of("eu", eu)).fetch().all();
         return new ArrayList<>(linhas);
+    }
+
+    /** Lista aberta por um link compartilhado (só leitura para quem não participa). */
+    public Resultado compartilhada(String eu, String token) {
+        if (token == null || token.isBlank()) return Resultado.falha(404, "Link inválido ou desativado.");
+        return neo4j.query("MATCH (l:Lista {linkToken: $token}) " + CORPO_LISTA +
+                        "RETURN l.id AS id, l.nome AS nome, l.dono AS dono, obras, membros, " +
+                        "       (l.dono = $eu OR $eu IN membros) AS participo")
+                .bindAll(Map.of("eu", eu, "token", token)).fetch().one()
+                .map(Resultado::sucesso)
+                .orElseGet(() -> Resultado.falha(404, "Link inválido ou desativado pelo dono da lista."));
+    }
+
+    /** Dados públicos para a prévia do link (WhatsApp etc.): nome, dono, quantidade e alguns títulos/pôster. */
+    public Optional<Map<String, Object>> previa(String token) {
+        if (token == null || token.isBlank()) return Optional.empty();
+        return neo4j.query("MATCH (l:Lista {linkToken: $token}) " +
+                        "OPTIONAL MATCH (l)-[c:CONTEM]->(o:Obra) WITH l, c, o ORDER BY c.em DESC " +
+                        "RETURN l.nome AS nome, l.dono AS dono, count(o) AS total, collect(o.titulo)[0..5] AS titulos, " +
+                        "       [x IN collect(coalesce(o.imagem, o.capa)) WHERE x STARTS WITH 'https://'][0] AS imagem")
+                .bindAll(Map.of("token", token)).fetch().one();
+    }
+
+    // ---------------- Compartilhar e participantes ----------------
+
+    /** Cria (ou devolve o já existente) link de visualização da lista. Só o dono. */
+    public Resultado ativarLink(String eu, String id) {
+        if (!existe(eu, id)) return falhaDono(eu, id);
+        String token = neo4j.query("MATCH (l:Lista {id: $id, dono: $eu}) SET l.linkToken = coalesce(l.linkToken, $novo) RETURN l.linkToken AS t")
+                .bindAll(Map.of("eu", eu, "id", id, "novo", novoToken())).fetchAs(String.class).one().orElse(null);
+        return Resultado.sucesso(Map.of("link", token, "listas", listas(eu)));
+    }
+
+    /** Desativa o link: quem tiver o endereço antigo não consegue mais abrir a lista. */
+    public Resultado desativarLink(String eu, String id) {
+        if (!existe(eu, id)) return falhaDono(eu, id);
+        neo4j.query("MATCH (l:Lista {id: $id, dono: $eu}) REMOVE l.linkToken").bindAll(Map.of("eu", eu, "id", id)).run();
+        return Resultado.sucesso(Map.of("listas", listas(eu)));
+    }
+
+    /** O dono convida alguém (pelo nome de usuário) para editar a lista junto. */
+    public Resultado adicionarMembro(String eu, String id, String usuarioInformado) {
+        if (!existe(eu, id)) return falhaDono(eu, id);
+        String alvo = AutenticacaoService.normalizar(usuarioInformado == null ? "" : usuarioInformado.replaceFirst("^@", ""));
+        if (alvo.isEmpty()) return Resultado.falha(400, "Informe o nome de usuário.");
+        if (alvo.equals(eu)) return Resultado.falha(400, "Você já é o dono da lista.");
+        if (contar("MATCH (u:Usuario {usuario: $alvo}) RETURN count(u) AS n", Map.of("alvo", alvo)) == 0)
+            return Resultado.falha(404, "Não existe usuário \"" + alvo + "\".");
+        Map<String, Object> p = Map.of("id", id, "alvo", alvo, "agora", Instant.now(relogio).toString());
+        if (contar("MATCH (:Usuario {usuario: $alvo})-[r:COLABORA]->(:Lista {id: $id}) RETURN count(r) AS n", p) > 0)
+            return Resultado.falha(409, alvo + " já participa desta lista.");
+        if (contar("MATCH (:Usuario)-[r:COLABORA]->(:Lista {id: $id}) RETURN count(r) AS n", p) >= MAX_MEMBROS)
+            return Resultado.falha(400, "A lista já tem " + MAX_MEMBROS + " participantes.");
+        neo4j.query("MATCH (u:Usuario {usuario: $alvo}), (l:Lista {id: $id}) MERGE (u)-[r:COLABORA]->(l) ON CREATE SET r.desde = $agora")
+                .bindAll(p).run();
+        return Resultado.sucesso(Map.of("listas", listas(eu)));
+    }
+
+    /** O dono remove um participante, ou o próprio participante sai da lista. */
+    public Resultado removerMembro(String eu, String id, String usuarioInformado) {
+        String alvo = AutenticacaoService.normalizar(usuarioInformado == null ? "" : usuarioInformado);
+        boolean saindo = alvo.equals(eu);
+        if (!saindo && !existe(eu, id)) return falhaDono(eu, id);
+        if (saindo && !podeEditar(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
+        neo4j.query("MATCH (:Usuario {usuario: $alvo})-[r:COLABORA]->(:Lista {id: $id}) DELETE r")
+                .bindAll(Map.of("alvo", alvo, "id", id)).run();
+        return Resultado.sucesso(Map.of("listas", listas(eu)));
     }
 
     /** As duas listas padrão são criadas uma única vez por conta (se o usuário excluí-las, não voltam). */
@@ -109,25 +192,26 @@ public class ListaService {
         String nome = limparNome(nomeInformado);
         String erro = validarNome(nome);
         if (erro != null) return Resultado.falha(400, erro);
-        if (!existe(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
+        if (!existe(eu, id)) return falhaDono(eu, id);
         if (nomeEmUso(eu, nome, id)) return Resultado.falha(409, "Você já tem uma lista com esse nome.");
         neo4j.query("MATCH (l:Lista {id: $id, dono: $eu}) SET l.nome = $nome").bindAll(Map.of("eu", eu, "id", id, "nome", nome)).run();
         return Resultado.sucesso(Map.of("listas", listas(eu)));
     }
 
     public Resultado excluir(String eu, String id) {
-        if (!existe(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
+        if (!existe(eu, id)) return falhaDono(eu, id);
         neo4j.query("MATCH (l:Lista {id: $id, dono: $eu}) DETACH DELETE l").bindAll(Map.of("eu", eu, "id", id)).run();
         return Resultado.sucesso(Map.of("listas", listas(eu)));
     }
 
+    // Dono e participantes podem adicionar e remover obras
     public Resultado adicionarObra(String eu, String id, String titulo) {
-        if (!existe(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
-        long naLista = contar("MATCH (:Lista {id: $id, dono: $eu})-[c:CONTEM]->() RETURN count(c) AS n", Map.of("eu", eu, "id", id));
+        if (!podeEditar(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
+        long naLista = contar("MATCH (:Lista {id: $id})-[c:CONTEM]->() RETURN count(c) AS n", Map.of("id", id));
         if (naLista >= MAX_OBRAS_POR_LISTA) return Resultado.falha(400, "Esta lista já tem " + MAX_OBRAS_POR_LISTA + " obras.");
         long feito = neo4j.query(
-                "MATCH (l:Lista {id: $id, dono: $eu}), (o:Obra {titulo: $titulo}) " +
-                "MERGE (l)-[c:CONTEM]->(o) ON CREATE SET c.em = $agora RETURN count(c) AS n")
+                "MATCH (l:Lista {id: $id}), (o:Obra {titulo: $titulo}) " +
+                "MERGE (l)-[c:CONTEM]->(o) ON CREATE SET c.em = $agora, c.por = $eu RETURN count(c) AS n")
                 .bindAll(Map.of("eu", eu, "id", id, "titulo", titulo == null ? "" : titulo, "agora", Instant.now(relogio).toString()))
                 .fetchAs(Long.class).one().orElse(0L);
         if (feito == 0) return Resultado.falha(404, "Obra não encontrada.");
@@ -135,9 +219,9 @@ public class ListaService {
     }
 
     public Resultado removerObra(String eu, String id, String titulo) {
-        if (!existe(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
-        neo4j.query("MATCH (:Lista {id: $id, dono: $eu})-[c:CONTEM]->(:Obra {titulo: $titulo}) DELETE c")
-                .bindAll(Map.of("eu", eu, "id", id, "titulo", titulo == null ? "" : titulo)).run();
+        if (!podeEditar(eu, id)) return Resultado.falha(404, "Lista não encontrada.");
+        neo4j.query("MATCH (:Lista {id: $id})-[c:CONTEM]->(:Obra {titulo: $titulo}) DELETE c")
+                .bindAll(Map.of("id", id, "titulo", titulo == null ? "" : titulo)).run();
         return Resultado.sucesso(Map.of("listas", listas(eu)));
     }
 
@@ -146,6 +230,23 @@ public class ListaService {
     /** A lista existe e pertence ao usuário (lista de outra pessoa responde como inexistente). */
     private boolean existe(String eu, String id) {
         return contar("MATCH (l:Lista {id: $id, dono: $eu}) RETURN count(l) AS n", Map.of("eu", eu, "id", id == null ? "" : id)) > 0;
+    }
+
+    /** Dono ou participante da lista. */
+    private boolean podeEditar(String eu, String id) {
+        return contar("MATCH (l:Lista {id: $id}) WHERE l.dono = $eu OR EXISTS { MATCH (:Usuario {usuario: $eu})-[:COLABORA]->(l) } " +
+                      "RETURN count(l) AS n", Map.of("eu", eu, "id", id == null ? "" : id)) > 0;
+    }
+
+    /** Ação só do dono: participante recebe 403 (com explicação); quem não participa, 404. */
+    private Resultado falhaDono(String eu, String id) {
+        return podeEditar(eu, id) ? Resultado.falha(403, "Só o dono da lista pode fazer isso.") : Resultado.falha(404, "Lista não encontrada.");
+    }
+
+    private static String novoToken() {
+        byte[] b = new byte[18];
+        ALEATORIO.nextBytes(b);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
     }
 
     private boolean nomeEmUso(String eu, String nome, String ignorarId) {

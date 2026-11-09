@@ -133,11 +133,17 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | GET | `/api/favoritos` | Seus favoritos (base do "Para você"), salvos na conta |
 | POST / DELETE | `/api/favoritos` | Favorita (`{"titulo"}`) / desfavorita (`?titulo=`) |
 | POST | `/api/favoritos/importar` | Leva para a conta os favoritos que estavam só no navegador (`{"titulos": [...]}`) |
-| GET | `/api/listas` | Suas listas com as obras (cria as padrão no primeiro acesso) |
+| GET | `/api/listas` | Suas listas e as listas em conjunto de que participa, com as obras (cria as padrão no primeiro acesso) |
+| POST / DELETE | `/api/listas/{id}/link` | (dono) Cria / desativa o link "só para ver" da lista (`/lista?c=<código>`) |
+| GET | `/api/listas/compartilhada/{código}` | Lista aberta pelo link (qualquer usuário logado; só leitura para quem não participa) |
+| POST | `/api/listas/{id}/membros` | (dono) Adiciona participante pelo nome de usuário (`{"usuario"}`); participantes adicionam e removem obras |
+| DELETE | `/api/listas/{id}/membros?usuario=...` | Dono remove participante; com o próprio nome, o participante sai da lista |
+| GET | `/lista?c=...` | Link público da lista: prévia (nome, dono, títulos) e redireciona para ela no site |
 | POST | `/api/listas` | Cria uma lista (`{"nome"}`) |
 | POST / DELETE | `/api/listas/{id}` | Renomeia (`{"nome"}`) / exclui a lista |
 | POST / DELETE | `/api/listas/{id}/obras` | Adiciona (`{"titulo"}`) / remove (`?titulo=`) uma obra |
 | GET | `/api/obras` | Catálogo completo |
+| GET | `/obra?t=...` | Link de compartilhamento (público, sem login): prévia com título, sinopse e pôster (Open Graph) e redireciona para a obra no site |
 | GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo (TMDB/JustWatch, RAWG, Steam; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
