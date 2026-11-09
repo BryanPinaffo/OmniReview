@@ -20,7 +20,7 @@ por travessia no grafo com peso IDF, intercalando filmes, séries, jogos e livro
 2. **Segredos:** copie `backend-java/config/segredos.exemplo.properties` para
    `backend-java/config/segredos.properties` e preencha a senha do Neo4j, as chaves do TMDB e da RAWG e a URL do
    Ollama. Esse arquivo é ignorado pelo Git. Também é possível usar variáveis de ambiente
-   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_RAWG_API_KEY`, `OMNIREVIEW_GOOGLEBOOKS_API_KEY` (opcional), `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
+   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_RAWG_API_KEY`, `OMNIREVIEW_GOOGLEBOOKS_API_KEY` e `OMNIREVIEW_IGDB_CLIENT_ID`/`OMNIREVIEW_IGDB_CLIENT_SECRET` (opcionais), `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
 3. **Ollama:** `ollama pull llama3.2:3b` no servidor de IA.
 4. **Back-end:** `cd backend-java && ./mvnw spring-boot:run` e abra <http://localhost:8080>.
    Na primeira execução, o grafo de tags é criado automaticamente a partir das obras existentes.
@@ -185,7 +185,7 @@ completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não 
 | POST / DELETE | `/api/listas/{id}/obras` | Adiciona (`{"titulo"}`) / remove (`?titulo=`) uma obra |
 | GET | `/api/obras` | Catálogo completo |
 | GET | `/obra?t=...` | Link de compartilhamento (público, sem login): prévia com título, sinopse e pôster (Open Graph) e redireciona para a obra no site |
-| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo, autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
+| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo e tempo para zerar (história, com extras, 100% — IGDB), autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | GET | `/api/buscar-opcoes?nome=...[&tipo=filme\|serie\|jogo\|livro]` | Opções encontradas na web para a pessoa confirmar (nada é salvo): `{"opcoes": [{ref, tipo, titulo, ano, imagem, sinopse\|detalhe, jaNoAcervo, tituloNoAcervo}]}` |

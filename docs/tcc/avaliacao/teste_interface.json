@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T03:39:58.589Z",
-  "aprovados": 36,
-  "total": 36,
+  "executado_em": "2026-11-09T03:59:24.333Z",
+  "aprovados": 33,
+  "total": 33,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_p2rcpc; menu mostra \"teste_ui_p2rcpc\""
+      "detalhe": "usuário teste_ui_p6ymu8; menu mostra \"teste_ui_p6ymu8\""
     },
     {
       "id": "T01",
@@ -68,7 +68,7 @@
       "id": "T14",
       "descricao": "Avaliar com estrelas atualiza a média ao lado do título (modal e card)",
       "ok": true,
-      "detalhe": "modal: \"4,0/ 5 · 3 avaliações\", card: \"4,0\""
+      "detalhe": "modal: \"4,0/ 5 · 1 avaliação\", card: \"4,0\""
     },
     {
       "id": "T15",
@@ -170,7 +170,7 @@
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":5}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":4}"
     },
     {
       "id": "T28",
@@ -201,24 +201,6 @@
       "descricao": "Sair volta ao login e invalida o token no servidor",
       "ok": true,
       "detalhe": "GET /api/obras com o token antigo: 401"
-    },
-    {
-      "id": "T19",
-      "descricao": "Administrador vê os usuários, cria uma conta comum e a exclui",
-      "ok": true,
-      "detalhe": "entrou=true, listou=true, criou=true, excluiu=true, admin protegido=true"
-    },
-    {
-      "id": "T20",
-      "descricao": "Administração sem rolagem horizontal em 400 px",
-      "ok": true,
-      "detalhe": "scrollWidth=400"
-    },
-    {
-      "id": "T33",
-      "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
-      "ok": true,
-      "detalhe": "teste_adm_gbk excluiu a conta de teste_adm_rr6d4pela Administração | teste_adm_gbk criou a conta de teste_adm_rr6d4pela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }

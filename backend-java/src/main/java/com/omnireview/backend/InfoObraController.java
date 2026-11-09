@@ -29,10 +29,12 @@ public class InfoObraController {
     private final TmdbService tmdb;
     private final RawgService rawg;
     private final LivroService livros;
+    private final IgdbService igdb;
     private final Map<String, Entrada> cache = new ConcurrentHashMap<>();
 
-    public InfoObraController(ObraRepository repository, TmdbService tmdb, RawgService rawg, LivroService livros) {
+    public InfoObraController(ObraRepository repository, TmdbService tmdb, RawgService rawg, LivroService livros, IgdbService igdb) {
         this.livros = livros;
+        this.igdb = igdb;
         this.repository = repository;
         this.tmdb = tmdb;
         this.rawg = rawg;
@@ -70,7 +72,11 @@ public class InfoObraController {
         // Steam é a reserva quando a RAWG cai: guarda por pouco tempo para o tempo médio aparecer quando ela voltar
         ficha.put("encontrada", dados != null && !"Steam".equals(dados.get("fonte")));
         if (tipo.equals("jogo")) {
-            // A RAWG mede o tempo médio jogado; o tempo para zerar fica no HowLongToBeat
+            // Tempo para zerar (história / com extras / 100%) informado pelos jogadores no IGDB
+            Map<String, Object> zerar = igdb.tempoParaZerar(RecomendacaoController.semSufixoDeMidia(titulo));
+            if (zerar != null && !zerar.isEmpty()) ficha.put("tempoParaZerar", zerar);
+            if (zerar == null && igdb.disponivel()) ficha.put("encontrada", false);   // falha momentânea: tenta de novo logo
+            // A RAWG mede o tempo médio jogado; o HowLongToBeat fica como link para quem quiser comparar
             ficha.put("linkTempoParaZerar", "https://howlongtobeat.com/?q=" + URLEncoder.encode(titulo, StandardCharsets.UTF_8).replace("+", "%20"));
         }
         return ficha;

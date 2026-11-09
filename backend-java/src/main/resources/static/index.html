@@ -2326,13 +2326,17 @@
             if (f.duracaoEpisodioMinutos) fatos.push(['Por episódio', '~' + duracaoTexto(f.duracaoEpisodioMinutos)]);
             if (f.situacao) fatos.push(['Situação', f.situacao]);
             if (f.tempoMedioHoras) fatos.push(['Tempo médio de jogo', `${f.tempoMedioHoras} h`]);
+            const zerar = f.tempoParaZerar || {};
+            if (zerar.historia) fatos.push(['Para zerar (história)', `~${zerar.historia} h`]);
+            if (zerar.extras) fatos.push(['Com extras', `~${zerar.extras} h`]);
+            if (zerar.completo) fatos.push(['100%', `~${zerar.completo} h`]);
             if (f.autores) fatos.push([f.autores.includes(',') ? 'Autores' : 'Autor', f.autores]);
             if (f.editora) fatos.push(['Editora', f.editora]);
             if (f.paginas) fatos.push(['Páginas', `${f.paginas} páginas`]);
             if (f.tempoLeituraHoras) fatos.push(['Tempo de leitura', `~${f.tempoLeituraHoras} h`]);
             if (f.ano) fatos.push(['Publicado em', String(f.ano)]);
             const hltb = linkSeguro(f.linkTempoParaZerar);
-            const cartaoHltb = hltb ? `<div><dt>Tempo para zerar</dt><dd><a href="${esc(hltb)}" target="_blank" rel="noopener noreferrer">Ver no HowLongToBeat ${SETA_EXTERNA}</a></dd></div>` : '';
+            const cartaoHltb = hltb ? `<div><dt>${zerar.historia ? 'Comparar' : 'Tempo para zerar'}</dt><dd><a href="${esc(hltb)}" target="_blank" rel="noopener noreferrer">${zerar.historia ? 'HowLongToBeat' : 'Ver no HowLongToBeat'} ${SETA_EXTERNA}</a></dd></div>` : '';
 
             const ehJogo = tipo === 'jogo', ehLivro = tipo === 'livro';
             const lista = (ehJogo ? f.ondeJogar : ehLivro ? f.ondeLer : f.ondeAssistir) || [];
@@ -2349,7 +2353,7 @@
                 <p class="rotulo">${ehJogo ? 'Onde jogar' : ehLivro ? 'Onde ler ou comprar' : 'Onde assistir'}</p>
                 ${provedores ? `<div class="provedores">${provedores}</div>`
                     : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : ehLivro ? 'Não encontramos este livro nas livrarias.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
-                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : ehLivro ? `Dados do livro: ${esc(f.fonteDados || 'Open Library')} · tempo de leitura estimado a 40 páginas por hora` : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
+                ${ehJogo && f.fonte !== 'RAWG' && !zerar.historia ? '' : `<p class="ficha-fonte">${ehJogo ? [f.fonte === 'RAWG' ? 'Lojas e tempo médio: RAWG' : '', zerar.historia ? `Tempo para zerar: IGDB${zerar.respostas ? ` (${zerar.respostas} ${zerar.respostas === 1 ? 'jogador' : 'jogadores'})` : ''}` : ''].filter(Boolean).join(' · ') : ehLivro ? `Dados do livro: ${esc(f.fonteDados || 'Open Library')} · tempo de leitura estimado a 40 páginas por hora` : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
         }
 
         async function carregarSemelhantes(obra, tags) {

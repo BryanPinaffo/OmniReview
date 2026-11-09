@@ -20,7 +20,7 @@ import java.util.Set;
 public class RawgService {
 
     private static final String BASE = "https://api.rawg.io/api";
-    static final Duration PAUSA_APOS_FALHA = Duration.ofMinutes(10);
+    static final Duration PAUSA_APOS_FALHA = Duration.ofMinutes(30);   // a RAWG passou dias fora do ar: não fazer cada visitante esperar
 
     // Gêneros da RAWG (slug) -> tags da taxonomia do IaService
     private static final Map<String, String> GENEROS_RAWG = Map.ofEntries(
