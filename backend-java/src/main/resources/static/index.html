@@ -776,9 +776,9 @@
         .compartilhar-redes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
         .compartilhar-redes .btn { flex: 1 1 140px; justify-content: center; text-decoration: none; }
         /* Listas em conjunto e compartilhadas */
-        .lista-pessoas { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: var(--text-2); }
-        .lista-pessoas svg, .lista-topo .acoes .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-        .lista-pessoas b { color: var(--text); font-weight: 600; }
+        .lista-participantes { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: var(--text-2); }
+        .lista-participantes svg, .lista-topo .acoes .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .lista-participantes b { color: var(--text); font-weight: 600; }
         .opcao-lista em { font-style: normal; color: var(--text-3); font-size: 12px; }
         .membros { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
         .membros li { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
@@ -2987,7 +2987,7 @@
                     <div>
                         <h2>${esc(lista.nome)}</h2>
                         <small>${plural(lista.obras.length, 'obra', 'obras')}${lista.obras.length ? ` · ${concluidas} ${concluidas === 1 ? 'concluída' : 'concluídas'}` : ''}${lista.souDono && lista.link ? ' · link de compartilhamento ativo' : ''}</small>
-                        ${conjunto ? `<p class="lista-pessoas">${ICONE_GRUPO}<span>${lista.souDono ? 'Sua lista' : `Lista de <b>${esc(lista.dono)}</b>`}${lista.membros.length ? ` · com ${nomesDosMembros(lista)}` : ''}</span></p>` : ''}
+                        ${conjunto ? `<p class="lista-participantes">${ICONE_GRUPO}<span>${lista.souDono ? 'Sua lista' : `Lista de <b>${esc(lista.dono)}</b>`}${lista.membros.length ? ` · com ${nomesDosMembros(lista)}` : ''}</span></p>` : ''}
                     </div>
                     <div class="acoes">
                         ${lista.souDono ? `

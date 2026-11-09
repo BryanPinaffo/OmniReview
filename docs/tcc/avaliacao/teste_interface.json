@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T00:24:03.408Z",
-  "aprovados": 28,
-  "total": 28,
+  "executado_em": "2026-11-09T00:41:31.919Z",
+  "aprovados": 29,
+  "total": 29,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_1cpzpa; menu mostra \"teste_ui_1cpzpa\""
+      "detalhe": "usuário teste_ui_zmymek; menu mostra \"teste_ui_zmymek\""
     },
     {
       "id": "T01",
@@ -68,7 +68,7 @@
       "id": "T14",
       "descricao": "Avaliar com estrelas atualiza a média ao lado do título (modal e card)",
       "ok": true,
-      "detalhe": "modal: \"4,0/ 5 · 1 avaliação\", card: \"4,0\""
+      "detalhe": "modal: \"4,0/ 5 · 3 avaliações\", card: \"4,0\""
     },
     {
       "id": "T15",
@@ -141,6 +141,12 @@
       "descricao": "Listas em conjunto e compartilhadas: dono convida e gera link; visitante só vê; participante adiciona; dono vê quem adicionou e desativa o link",
       "ok": true,
       "detalhe": "convidou=true, ícone=true, visitante vê=true/true/true, participante=true [Participantes, Sair da lista], popover=true, adicionou=true, dono vê \"por\"=true, link desativado=true/404"
+    },
+    {
+      "id": "T32",
+      "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
+      "ok": true,
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":4}"
     },
     {
       "id": "T28",

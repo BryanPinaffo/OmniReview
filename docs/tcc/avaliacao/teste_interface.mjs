@@ -453,7 +453,7 @@ await avaliar("irPara('catalogo')");
   await entrarComo(membro);
   await cdp('Page.navigate', { url: linkLista });
   const membroNaLista = await aguardar(`!document.getElementById('aba-listas').hidden && listaSelecionada === '${idLista}'
-    && document.querySelector('.lista-pessoas')?.textContent.includes('${usuarioTeste}')`, 15000);
+    && document.querySelector('.lista-participantes')?.textContent.includes('${usuarioTeste}')`, 15000);
   const botoesMembro = await avaliar("[...document.querySelectorAll('.lista-topo .acoes .btn')].map(b => b.textContent.trim())");
   await avaliar(`abrirModal(${JSON.stringify(obraJogo)})`);
   await aguardar("!!document.querySelector('#modal [data-salvar-lista]')", 3000);
@@ -486,6 +486,26 @@ await avaliar("irPara('catalogo')");
     convidou && chipGrupo && linkLista.startsWith(base + '/lista?c=') && visitaOk && visitanteSemLista && abriuObraDaVisita
     && membroNaLista && botoesMembro.join('|') === 'Participantes|Sair da lista' && mostraDono && membroAdicionou && donoVePor && desativou && linkMorto === 404,
     `convidou=${convidou}, ícone=${chipGrupo}, visitante vê=${visitaOk}/${visitanteSemLista}/${abriuObraDaVisita}, participante=${membroNaLista} [${botoesMembro.join(', ')}], popover=${mostraDono}, adicionou=${membroAdicionou}, dono vê "por"=${donoVePor}, link desativado=${desativou}/${linkMorto}`);
+}
+
+// ---------- Encontrar pessoas: cartões um embaixo do outro, com o nome legível (regressão de CSS) ----------
+{
+  await avaliar("abrirPerfil(sessao.usuario)");
+  await aguardar("!!document.querySelector('[role=tab][data-perfil-aba=\"pessoas\"]')", 8000);
+  await avaliar("document.querySelector('[role=tab][data-perfil-aba=\"pessoas\"]').click()");
+  await aguardar("document.querySelectorAll('#lista-pessoas .pessoa').length > 0", 8000);
+  await capturar('encontrar_pessoas');
+  const layout = await avaliar(`(() => { try {
+    const ul = document.getElementById('lista-pessoas');
+    const itens = [...ul.querySelectorAll('.pessoa')];
+    const nomes = itens.map(li => li.querySelector('.pessoa-nome strong').getBoundingClientRect());
+    return { display: getComputedStyle(ul).display, largura: Math.min(...itens.map(li => li.getBoundingClientRect().width)),
+             empilhados: itens.every((li, i) => i === 0 || li.getBoundingClientRect().top > itens[i - 1].getBoundingClientRect().top),
+             nomeEmUmaLinha: nomes.every(r => r.height < 30), qtd: itens.length };
+  } catch (e) { return { erro: String(e), html: document.getElementById('aba-perfil')?.innerHTML.slice(0, 300) }; } })()`) || {};
+  caso('T32', 'Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)',
+    layout.display === 'grid' && layout.largura > 300 && layout.empilhados && layout.nomeEmUmaLinha, JSON.stringify(layout));
+  await avaliar("irPara('catalogo')");
 }
 
 // ---------- Ficha da obra: onde assistir/jogar, duração, temporadas, tempo de jogo ----------
