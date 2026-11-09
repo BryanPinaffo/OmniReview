@@ -462,7 +462,9 @@ public class RecomendacaoController {
             @RequestParam(required = false) List<String> excluir,
             @RequestParam(required = false) String dna,
             @RequestParam(required = false) String titulo,
-            @RequestParam(required = false) String tipo) {
+            @RequestParam(required = false) String tipo,
+            @RequestParam(defaultValue = "false") boolean paraMim,
+            HttpServletRequest req) {
 
         List<String> consulta = new ArrayList<>();
         if (tags != null) consulta.addAll(tags);
@@ -481,7 +483,9 @@ public class RecomendacaoController {
 
         // Com tipo (filme|serie|jogo|livro), só aquela mídia; sem tipo, todas intercaladas
         String tipoObra = tipo == null || tipo.isBlank() ? null : TIPOS.get(tipo.toLowerCase(Locale.ROOT));
-        return intercalarPorTipo(repository.recomendarPorTags(consulta, excluidos, tipoObra), MAX_RECOMENDACOES);
+        // paraMim=true ("Para você"): sem o que a pessoa já favoritou ou já viu, jogou ou leu
+        String quem = paraMim ? usuario(req) : null;
+        return intercalarPorTipo(repository.recomendarPorTags(consulta, excluidos, tipoObra, quem), MAX_RECOMENDACOES);
     }
 
     /** Agrupa por tipo mantendo a ordem do ranking e intercala (round-robin) até o limite. */

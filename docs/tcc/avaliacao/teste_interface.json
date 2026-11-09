@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T04:11:56.482Z",
-  "aprovados": 34,
-  "total": 34,
+  "executado_em": "2026-11-09T04:20:44.398Z",
+  "aprovados": 35,
+  "total": 35,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_b59iyp; menu mostra \"teste_ui_b59iyp\""
+      "detalhe": "usuário teste_ui_y99dti; menu mostra \"teste_ui_y99dti\""
     },
     {
       "id": "T01",
@@ -32,7 +32,7 @@
       "id": "T02",
       "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
       "ok": true,
-      "detalhe": "23 imagens carregadas"
+      "detalhe": "24 imagens carregadas"
     },
     {
       "id": "T16",
@@ -87,6 +87,12 @@
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
       "detalhe": "Livro, Série, Filme"
+    },
+    {
+      "id": "T39",
+      "descricao": "\"Para você\" não sugere favoritos nem o que já foi visto, jogado ou lido",
+      "ok": true,
+      "detalhe": "\"Esquire's The New Rules for Men\" marcado como visto e removido das sugestões: true; nenhum favorito na lista: true"
     },
     {
       "id": "T36",

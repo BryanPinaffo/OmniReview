@@ -246,6 +246,20 @@ caso('T07', 'Aba "Para você" gera recomendações de várias mídias (RF07)', r
   await avaliar(`document.querySelector('#filtro-paravoce [data-tipo=""]').click()`);
   const voltou = await aguardar("new Set([...document.querySelectorAll('#grid-recomendacoes .card .tipo')].map(e => e.textContent)).size >= 2", 10000);
   const coerente = Object.values(porTipo).every(r => (r.n > 0 && r.todos) || (r.n === 0 && r.vazio));
+  // Marcar como visto/jogado/lido um item sugerido o tira do "Para você" (e favoritos nunca aparecem)
+  const sugerido = await avaliar("document.querySelector('#grid-recomendacoes .card')?.dataset.titulo");
+  const semFavoritos = await avaliar("[...document.querySelectorAll('#grid-recomendacoes .card')].every(c => !estaCurtida(c.dataset.titulo))");
+  await avaliar(`abrirModal(${JSON.stringify(sugerido)})`);
+  await aguardar("!!document.querySelector('#modal [data-concluir]')", 5000);
+  await avaliar("document.querySelector('#modal [data-concluir]').click()");
+  await aguardar(`minhasConcluidas.has(${JSON.stringify(sugerido)})`, 6000);
+  await avaliar('fecharModal()');
+  const sumiu = await aguardar(`document.querySelectorAll('#grid-recomendacoes .card').length > 0
+    && ![...document.querySelectorAll('#grid-recomendacoes .card')].some(c => c.dataset.titulo === ${JSON.stringify(sugerido)})`, 10000);
+  await avaliar(`api('/api/perfil/concluidas?titulo=' + encodeURIComponent(${JSON.stringify(sugerido)}), { method: 'DELETE' }).then(() => minhasConcluidas.delete(${JSON.stringify(sugerido)}))`);
+  caso('T39', '"Para você" não sugere favoritos nem o que já foi visto, jogado ou lido', semFavoritos && sumiu,
+    `"${sugerido}" marcado como visto e removido das sugestões: ${sumiu}; nenhum favorito na lista: ${semFavoritos}`);
+
   caso('T36', '"Para você" filtra por mídia (Filmes, Séries, Jogos, Livros) e volta a misturar em "Todos"',
     coerente && Object.values(porTipo).some(r => r.n > 0) && voltou,
     Object.entries(porTipo).map(([t, r]) => `${t}: ${r.n}`).join(', ') + `; todos de novo=${voltou}`);

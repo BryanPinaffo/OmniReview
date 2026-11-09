@@ -37,8 +37,10 @@ public interface ObraRepository extends Neo4jRepository<Obra, String> {
            "UNWIND obras AS o " +
            "WITH o, sum(peso) AS score, count(t) AS comuns " +
            "WHERE NOT o.titulo IN $excluir AND ($tipo IS NULL OR o.tipo = $tipo) " +   // tipo nulo = todas as mídias
+           // "Para você": tira o que a pessoa já favoritou ou já viu / jogou / leu ($usuario nulo = não tira nada)
+           "  AND ($usuario IS NULL OR NOT EXISTS { MATCH (:Usuario {usuario: $usuario})-[:CURTIU|CONCLUIU]->(o) }) " +
            "RETURN o ORDER BY score DESC, comuns DESC, o.titulo LIMIT 60")
-    List<Obra> recomendarPorTags(List<String> tags, List<String> excluir, String tipo);
+    List<Obra> recomendarPorTags(List<String> tags, List<String> excluir, String tipo, String usuario);
 
     /** A obra que veio deste item da API de origem (ver {@link Obra#getFonte()}). */
     java.util.Optional<Obra> findFirstByFonte(String fonte);

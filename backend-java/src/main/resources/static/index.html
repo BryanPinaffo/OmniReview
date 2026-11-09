@@ -2244,8 +2244,9 @@
 
         let paraVoceTipo = '';   // filtro de mídia do "Para você" ('' = todas)
 
-        async function buscarRecomendacoes(tags, excluir, tipo = '') {
+        async function buscarRecomendacoes(tags, excluir, tipo = '', paraMim = false) {
             const params = new URLSearchParams();
+            if (paraMim) params.set('paraMim', 'true');   // o servidor tira favoritos e o que já foi visto/jogado/lido
             tags.forEach(t => params.append('tags', t));
             excluir.forEach(t => params.append('excluir', t));
             if (tipo) params.set('tipo', tipo);
@@ -2271,7 +2272,7 @@
             }
 
             const tags = tagsDoPerfil();
-            $('perfil-descricao').textContent = `Baseado em ${favoritos.length} ${favoritos.length === 1 ? 'favorito' : 'favoritos'}. Seu DNA criativo:`;
+            $('perfil-descricao').textContent = `Baseado em ${favoritos.length} ${favoritos.length === 1 ? 'favorito' : 'favoritos'}, sem o que você já viu, jogou ou leu. Seu DNA criativo:`;
             $('perfil-tags').innerHTML = tags.map(t => `<span class="tag" style="background: var(--accent-soft); border-color: rgba(139,123,255,0.3); color:#dcd6ff">${esc(t)}</span>`).join('');
 
             if (!tags.length) {
@@ -2282,7 +2283,8 @@
             grid.innerHTML = Array(6).fill('<div class="skeleton"></div>').join('');
             try {
                 const tipoPedido = paraVoceTipo;
-                const recs = (await buscarRecomendacoes(tags, curtidas, tipoPedido)).filter(o => !estaCurtida(o.titulo));
+                const recs = (await buscarRecomendacoes(tags, [], tipoPedido, true))
+                    .filter(o => !estaCurtida(o.titulo) && !minhasConcluidas.has(o.titulo));
                 if (tipoPedido !== paraVoceTipo) return;   // a pessoa trocou o filtro enquanto carregava
                 recs.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
                 const midia = { filme: 'filmes', serie: 'séries', jogo: 'jogos', livro: 'livros' }[tipoPedido];
@@ -2292,7 +2294,7 @@
                     : midia
                         ? vazioHTML(`Nenhum cruzamento com ${midia}`, `Ainda não há ${midia} no acervo com o mesmo DNA dos seus favoritos. Veja as outras mídias ou procure um título em “O que você quer ver hoje?”.`,
                             `<button class="btn" onclick="filtrarParaVoce('')">Ver todas as mídias</button>`)
-                        : vazioHTML('Nenhum cruzamento ainda', 'Não há outras obras com essas tags no acervo. Importe mais títulos para ampliar as sugestões.');
+                        : vazioHTML('Nada novo por aqui', 'Você já favoritou ou viu tudo o que combina com o seu DNA. Procure novos títulos em “O que você quer ver hoje?” para ampliar as sugestões.');
             } catch (e) {
                 console.error(e);
                 grid.innerHTML = vazioHTML('Erro ao consultar o Neo4j', 'Não foi possível gerar as recomendações agora.');
@@ -2782,6 +2784,7 @@
                 if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
                 feita ? minhasConcluidas.delete(titulo) : minhasConcluidas.add(titulo);
                 atualizarConclusoesNaTela();
+                if (!$('aba-paravoce').hidden) gerarRecomendacoes();
                 if (!feita) toast(tipoDe(obra) === 'jogo' ? `"${titulo}" entrou nos seus jogos terminados` : tipoDe(obra) === 'livro' ? `"${titulo}" marcado como lido` : `"${titulo}" marcado como assistido`);
                 if (!$('aba-perfil').hidden && perfilAtual?.ehEu) carregarPerfil(sessao.usuario, perfilAba);
             } catch (e) {
