@@ -130,11 +130,15 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | POST / DELETE | `/api/perfil/{usuario}/seguir` | Segue / deixa de seguir |
 | GET | `/api/perfil/{usuario}/seguidores` · `/seguindo` | Listas de seguidores e de quem a pessoa segue |
 | GET | `/api/perfil?q=...` | Busca pessoas pelo nome de usuário |
+| GET | `/api/favoritos` | Seus favoritos (base do "Para você"), salvos na conta |
+| POST / DELETE | `/api/favoritos` | Favorita (`{"titulo"}`) / desfavorita (`?titulo=`) |
+| POST | `/api/favoritos/importar` | Leva para a conta os favoritos que estavam só no navegador (`{"titulos": [...]}`) |
 | GET | `/api/listas` | Suas listas com as obras (cria as padrão no primeiro acesso) |
 | POST | `/api/listas` | Cria uma lista (`{"nome"}`) |
 | POST / DELETE | `/api/listas/{id}` | Renomeia (`{"nome"}`) / exclui a lista |
 | POST / DELETE | `/api/listas/{id}/obras` | Adiciona (`{"titulo"}`) / remove (`?titulo=`) uma obra |
 | GET | `/api/obras` | Catálogo completo |
+| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo (TMDB/JustWatch, RAWG, Steam; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | POST | `/api/buscar-ou-adicionar?nome=...[&tipo=filme\|serie\|jogo]` | Busca da tela inicial: devolve a obra do acervo ou a busca na web, gera o DNA e adiciona (`{"obra", "adicionada"}`) |

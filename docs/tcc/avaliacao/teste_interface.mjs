@@ -139,20 +139,37 @@ if (process.env.OMNI_TESTE_ADICIONAR) {
   await avaliar("fecharModal()");
 }
 
-// Estado limpo: remove favoritos e recarrega, para a página não manter favoritos em memória
+// Favoritos ficam no servidor: valem depois de recarregar e mesmo com os dados do navegador apagados
 const chaveCurtidas = `omnireview:curtidas:${usuarioTeste}`;
-await avaliar(`localStorage.removeItem('${chaveCurtidas}')`);
+const favoritosServidor = () => avaliar("api('/api/favoritos').then(r => r.json())");
 await cdp('Page.reload');
 await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
 const titulo = await avaliar("document.querySelector('#grid-catalogo .card').dataset.titulo");
+const tituloSel = titulo.replace(/"/g, '\\"');
 await avaliar("document.querySelector('#grid-catalogo .card [data-fav]').click()");
-const salvo = await avaliar(`JSON.parse(localStorage.getItem('${chaveCurtidas}') || '[]')`);
+await aguardar(`api('/api/favoritos').then(r => r.json()).then(l => l.includes(${JSON.stringify(titulo)}))`, 6000);
+const salvo = await favoritosServidor();
+// simula outro aparelho: apaga tudo que o site guardou no navegador, menos a sessão
+await avaliar("Object.keys(localStorage).filter(k => k !== 'omnireview:sessao').forEach(k => localStorage.removeItem(k))");
 await cdp('Page.reload');
 await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
+await aguardar("document.getElementById('contador-curtidas').textContent === '1'", 6000);
 const contador = await avaliar("document.getElementById('contador-curtidas').textContent");
-const ativo = await avaliar(`document.querySelector('[data-fav="${titulo.replace(/"/g, '\\"')}"]')?.classList.contains('ativo')`);
-caso('T03', 'Favorito persiste após recarregar a página (RF06)', salvo.includes(titulo) && contador === '1' && ativo === true,
-  `"${titulo}", contador=${contador}`);
+const ativo = await aguardar(`document.querySelector('[data-fav="${tituloSel}"]')?.classList.contains('ativo')`, 4000);
+caso('T03', 'Favorito fica salvo na conta (servidor): volta após recarregar e sem os dados do navegador (RF06)', salvo.includes(titulo) && contador === '1' && ativo === true,
+  `"${titulo}", servidor=${salvo.length}, contador=${contador}`);
+
+// Migração: favoritos antigos que estavam só no navegador vão para o servidor e saem do navegador
+const favAntigo = await avaliar(`catalogo.find(o => o.titulo !== ${JSON.stringify(titulo)}).titulo`);
+await avaliar(`localStorage.setItem('${chaveCurtidas}', JSON.stringify([${JSON.stringify(favAntigo)}, '__titulo_que_nao_existe__']))`);
+await cdp('Page.reload');
+await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0");
+const migrou = await aguardar(`api('/api/favoritos').then(r => r.json()).then(l => l.length === 2 && l.includes(${JSON.stringify(favAntigo)}))`, 6000);
+const localLimpo = await aguardar(`localStorage.getItem('${chaveCurtidas}') === null`, 4000);
+await avaliar(`alternarCurtida(${JSON.stringify(favAntigo)})`);   // desfaz, para os próximos casos contarem 1 favorito
+const desfez = await aguardar(`api('/api/favoritos').then(r => r.json()).then(l => l.length === 1)`, 6000);
+caso('T29', 'Favoritos antigos do navegador migram para a conta; desfavoritar remove do servidor', migrou && localLimpo && desfez,
+  `migrou=${migrou}, navegador limpo=${localLimpo}, desfez=${desfez}`);
 
 await avaliar("document.querySelector('#grid-catalogo .card').click()");
 await aguardar("document.getElementById('modal-fundo').classList.contains('aberto')");
@@ -346,6 +363,32 @@ caso('T26', 'Minhas listas: listas padrão, salvar pela obra, criar, ver, remove
   padroes.join('|') === 'Quero assistir|Quero jogar' && salvouNaPadrao && criouComJogo && mostraFilme && seloAssistido && removeu && renomeou && excluiuLista,
   `padrão=${padroes.join(', ')}; salvou=${salvouNaPadrao}, criou=${criouComJogo}, mostrou=${mostraFilme}, selo=${seloAssistido}, removeu=${removeu}, renomeou=${renomeou}, excluiu=${excluiuLista}`);
 await avaliar("irPara('catalogo')");
+
+// ---------- Ficha da obra: onde assistir/jogar, duração, temporadas, tempo de jogo ----------
+const fichaDe = async (titulo, nomeCaptura) => {
+  await avaliar(`abrirModal(${JSON.stringify(titulo)})`);
+  await aguardar("!document.querySelector('#modal-ficha .ficha-carregando')", 20000);
+  await esperar(300);
+  const r = await avaliar(`({
+    fatos: [...document.querySelectorAll('#modal-ficha .ficha-fatos dt')].map(d => d.textContent),
+    rotulo: document.querySelector('#modal-ficha .rotulo')?.textContent || '',
+    links: [...document.querySelectorAll('#modal-ficha a.provedor')].map(a => ({ href: a.href, alvo: a.target, rel: a.rel })),
+    texto: document.getElementById('modal-ficha').innerText.replace(/\\s+/g, ' ').slice(0, 160) })`);
+  if (nomeCaptura) { await avaliar("document.getElementById('modal-ficha').scrollIntoView({ block: 'center' })"); await esperar(400); await capturar(nomeCaptura); }
+  await avaliar("fecharModal()");
+  return r;
+};
+const linksOk = l => l.every(a => /^https:\/\//.test(a.href) && a.alvo === '_blank' && a.rel.includes('noopener'));
+const obraSerie = await avaliar("catalogo.find(o => tipoDe(o) === 'serie')?.titulo");
+const fFilme = await fichaDe(obraFilme, 'ficha_filme');
+const fSerie = obraSerie ? await fichaDe(obraSerie, 'ficha_serie') : { fatos: [], links: [] };
+const fJogo = await fichaDe(obraJogo, 'ficha_jogo');
+caso('T28', 'Ficha da obra: duração do filme, temporadas da série, tempo de jogo e onde assistir/jogar com links',
+  fFilme.fatos.includes('Duração') && fFilme.rotulo === 'Onde assistir'
+  && fSerie.fatos.includes('Temporadas') && fSerie.fatos.includes('Episódios')
+  && fJogo.fatos.includes('Tempo para zerar') && fJogo.rotulo === 'Onde jogar' && fJogo.links.length > 0
+  && linksOk([...fFilme.links, ...fSerie.links, ...fJogo.links]),
+  `filme: ${fFilme.fatos.join('/')} + ${fFilme.links.length} serviço(s); série: ${fSerie.fatos.join('/')} + ${fSerie.links.length}; jogo: ${fJogo.fatos.join('/')} + ${fJogo.links.length} loja(s)`);
 
 await cdp('Emulation.setDeviceMetricsOverride', { width: 400, height: 860, deviceScaleFactor: 1, mobile: true });
 await cdp('Page.reload');

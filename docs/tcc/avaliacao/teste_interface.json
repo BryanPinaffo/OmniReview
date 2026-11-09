@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-08T08:34:01.290Z",
-  "aprovados": 27,
-  "total": 27,
+  "executado_em": "2026-11-08T23:59:58.117Z",
+  "aprovados": 26,
+  "total": 26,
   "casos": [
     {
       "id": "T00",
@@ -20,37 +20,43 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_jeal4l; menu mostra \"teste_ui_jeal4l\""
+      "detalhe": "usuário teste_ui_kcedur; menu mostra \"teste_ui_kcedur\""
     },
     {
       "id": "T01",
       "descricao": "Catálogo carrega cards do back-end",
       "ok": true,
-      "detalhe": "45 cards"
+      "detalhe": "44 cards"
     },
     {
       "id": "T02",
       "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
       "ok": true,
-      "detalhe": "23 imagens carregadas"
+      "detalhe": "24 imagens carregadas"
     },
     {
       "id": "T16",
       "descricao": "Busca da tela inicial sugere obras do acervo e abre a obra digitada",
       "ok": true,
-      "detalhe": "\"__Obra Teste UI__\""
+      "detalhe": "\"Resident Evil\""
     },
     {
       "id": "T03",
-      "descricao": "Favorito persiste após recarregar a página (RF06)",
+      "descricao": "Favorito fica salvo na conta (servidor): volta após recarregar e sem os dados do navegador (RF06)",
       "ok": true,
-      "detalhe": "\"__Obra Teste UI__\", contador=1"
+      "detalhe": "\"Resident Evil\", servidor=1, contador=1"
+    },
+    {
+      "id": "T29",
+      "descricao": "Favoritos antigos do navegador migram para a conta; desfavoritar remove do servidor",
+      "ok": true,
+      "detalhe": "migrou=true, navegador limpo=true, desfez=true"
     },
     {
       "id": "T04",
       "descricao": "Janela flutuante mostra título, sinopse e tags (RF05)",
       "ok": true,
-      "detalhe": "sinopse com 51 caracteres, 2 tags"
+      "detalhe": "sinopse com 406 caracteres, 4 tags"
     },
     {
       "id": "T05",
@@ -80,7 +86,7 @@
       "id": "T07",
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
-      "detalhe": "Jogo, Filme, Série"
+      "detalhe": "Filme, Série, Jogo"
     },
     {
       "id": "T08",
@@ -125,6 +131,12 @@
       "detalhe": "padrão=Quero assistir, Quero jogar; salvou=true, criou=true, mostrou=true, selo=true, removeu=true, renomeou=true, excluiu=true"
     },
     {
+      "id": "T28",
+      "descricao": "Ficha da obra: duração do filme, temporadas da série, tempo de jogo e onde assistir/jogar com links",
+      "ok": true,
+      "detalhe": "filme: Duração + 3 serviço(s); série: Temporadas/Episódios/Por episódio/Situação + 1; jogo: Tempo para zerar + 1 loja(s)"
+    },
+    {
       "id": "T09",
       "descricao": "Sem rolagem horizontal em 400 px (RNF08)",
       "ok": true,
@@ -147,24 +159,6 @@
       "descricao": "Sair volta ao login e invalida o token no servidor",
       "ok": true,
       "detalhe": "GET /api/obras com o token antigo: 401"
-    },
-    {
-      "id": "T19",
-      "descricao": "Administrador vê os usuários, cria uma conta comum e a exclui",
-      "ok": true,
-      "detalhe": "entrou=true, listou=true, criou=true, excluiu=true, admin protegido=true"
-    },
-    {
-      "id": "T20",
-      "descricao": "Administração sem rolagem horizontal em 400 px",
-      "ok": true,
-      "detalhe": "scrollWidth=400"
-    },
-    {
-      "id": "T27",
-      "descricao": "Administrador exclui uma obra pela janela, com confirmação, e ela some do catálogo",
-      "ok": true,
-      "detalhe": "confirmação: \"undefined\"; obras no servidor: 44"
     }
   ]
 }

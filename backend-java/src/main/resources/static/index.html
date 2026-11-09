@@ -448,6 +448,35 @@
         .sinopse { color: #cfd2de; font-size: 15.5px; line-height: 1.7; margin: 0 0 26px; max-width: 68ch; }
         .sinopse.sem { color: var(--text-3); font-style: italic; }
         .modal-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        /* ---------- FICHA (onde assistir, duração, temporadas, tempo de jogo) ---------- */
+        .ficha { margin: 0 0 26px; max-width: 68ch; }
+        .ficha-carregando, .ficha-vazia { color: var(--text-3); font-size: 14px; margin: 0 0 8px; }
+        .ficha-carregando { animation: pulsar 1.4s ease-in-out infinite; }
+        @keyframes pulsar { 50% { opacity: .45; } }
+        .ficha-fatos { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+        .ficha-fatos div { padding: 8px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+        .ficha-fatos dt { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 0 0 2px; }
+        .ficha-fatos dd { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--text); }
+        .ficha-fatos dd a { display: inline-flex; align-items: center; gap: 4px; color: #c9c1ff; text-decoration: none; }
+        .ficha-fatos dd a:hover { text-decoration: underline; }
+        .ficha-fatos svg, .provedor svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .ficha .rotulo { margin-top: 4px; }
+        .provedores { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+        .provedor {
+            display: inline-flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; border-radius: 12px;
+            background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none;
+            transition: border-color .2s, background .2s; min-width: 0; max-width: 100%;
+        }
+        .provedor:hover, .provedor:focus-visible { border-color: rgba(139,123,255,0.55); background: var(--accent-soft); }
+        .provedor img, .provedor-letra { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; object-fit: cover; }
+        .provedor-letra { display: grid; place-items: center; background: var(--surface-2); font-weight: 700; color: var(--text-2); }
+        .provedor-texto { display: grid; line-height: 1.2; min-width: 0; }
+        .provedor-texto b { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .provedor-texto small { font-size: 11.5px; color: var(--text-3); }
+        .provedor svg { color: var(--text-3); }
+        .ficha-fonte { font-size: 12px; color: var(--text-3); margin: 6px 0 0; }
+        .ficha-fonte a { color: var(--text-2); }
         .btn-fav-grande.ativo { background: rgba(255,107,129,0.14); border-color: rgba(255,107,129,0.5); color: #ffb3bf; }
         .btn-fav-grande.ativo svg { fill: currentColor; }
         .btn-excluir-obra { color: #ffb3bf; border-color: rgba(255,107,129,0.35); background: rgba(255,107,129,0.08); }
@@ -1220,8 +1249,26 @@
                 return JSON.parse(salvas || '[]');
             } catch { return []; }
         }
-        function salvarCurtidas() {
-            try { localStorage.setItem(CHAVE_CURTIDAS, JSON.stringify(curtidas)); } catch {}
+        /**
+         * Favoritos ficam no servidor (valem em qualquer aparelho). Os que ainda estiverem só no navegador
+         * (versões antigas) são enviados uma vez e depois apagados daqui.
+         */
+        async function carregarFavoritos() {
+            try {
+                let r = await api('/api/favoritos');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                let doServidor = await r.json();
+                const locais = carregarCurtidas().filter(t => !doServidor.includes(t));
+                if (locais.length) {
+                    r = await api('/api/favoritos/importar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulos: locais }) });
+                    if (r.ok) doServidor = await r.json();
+                }
+                if (r.ok) { try { localStorage.removeItem(CHAVE_CURTIDAS); } catch {} }
+                curtidas = doServidor;
+                sincronizarBotoesFavorito();
+                atualizarContador();
+                if (!$('aba-paravoce').hidden) gerarRecomendacoes();
+            } catch (e) { console.error('Favoritos:', e); }
         }
         const estaCurtida = titulo => curtidas.includes(titulo);
 
@@ -1579,6 +1626,7 @@
                 const notasProntas = carregarNotas();
                 const resumoPronto = carregarMeuResumo();
                 const listasProntas = carregarListas();
+                const favoritosProntos = carregarFavoritos();
                 const resposta = await api('/api/obras');
                 catalogo = await resposta.json();
                 porTitulo.clear();
@@ -1587,7 +1635,9 @@
                 renderizarChips();
                 renderizarCatalogo();
                 atualizarContador();
-                await Promise.all([notasProntas, resumoPronto, listasProntas]);
+                await Promise.all([notasProntas, resumoPronto, listasProntas, favoritosProntos]);
+                sincronizarBotoesFavorito();
+                atualizarContador();
                 completarDetalhesAutomatico();
             } catch (e) {
                 console.error(e);
@@ -1854,23 +1904,37 @@
         });
 
         // ================= FAVORITOS =================
-        function alternarCurtida(titulo) {
-            if (estaCurtida(titulo)) {
-                curtidas = curtidas.filter(t => t !== titulo);
-            } else {
-                curtidas.push(titulo);
-                toast(`"${titulo}" foi para o seu perfil`);
+        // Atualiza na hora (otimista) e grava no servidor; se a gravação falhar, desfaz na tela
+        async function alternarCurtida(titulo) {
+            const curtir = !estaCurtida(titulo);
+            const aplicar = ativo => {
+                curtidas = ativo ? [...curtidas.filter(t => t !== titulo), titulo] : curtidas.filter(t => t !== titulo);
+                atualizarContador();
+                sincronizarBotoesFavorito(titulo);
+                if (!$('aba-paravoce').hidden) gerarRecomendacoes();
+            };
+            aplicar(curtir);
+            if (curtir) toast(`"${titulo}" foi para o seu perfil`);
+            try {
+                const r = curtir
+                    ? await api('/api/favoritos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo }) })
+                    : await api(`/api/favoritos?titulo=${encodeURIComponent(titulo)}`, { method: 'DELETE' });
+                if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || 'HTTP ' + r.status);
+            } catch (e) {
+                console.error(e);
+                aplicar(!curtir);
+                toast(`Não foi possível salvar o favorito: ${e.message}`);
             }
-            salvarCurtidas();
-            atualizarContador();
+        }
+
+        function sincronizarBotoesFavorito(somente) {
             document.querySelectorAll('[data-fav]').forEach(b => {
-                if (b.dataset.fav !== titulo) return;
-                const ativo = estaCurtida(titulo);
+                if (somente && b.dataset.fav !== somente) return;
+                const ativo = estaCurtida(b.dataset.fav);
                 b.classList.toggle('ativo', ativo);
                 b.setAttribute('aria-label', ativo ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
                 if (b.classList.contains('btn-fav-grande')) b.querySelector('span').textContent = ativo ? 'Nos favoritos' : 'Favoritar';
             });
-            if (!$('aba-paravoce').hidden) gerarRecomendacoes();
         }
 
         function atualizarContador() {
@@ -1978,6 +2042,7 @@
                         </div>
                         <p class="rotulo">Sinopse</p>
                         <p class="sinopse ${sinopse ? '' : 'sem'}">${sinopse ? esc(sinopse) : 'Sinopse ainda não disponível.' + (ehAdmin() ? ' Use "Completar sinopses e capas" na Administração.' : '')}</p>
+                        <div class="ficha" id="modal-ficha" aria-live="polite"><p class="ficha-carregando">Buscando ${tipo === 'jogo' ? 'onde jogar e tempo de jogo' : 'onde assistir'}…</p></div>
                         <div class="modal-acoes">
                             ${botaoConclusaoHTML(obra)}
                             ${botaoSalvarListaHTML(obra)}
@@ -2005,7 +2070,55 @@
 
             document.querySelectorAll('#modal [data-salvar-lista]').forEach(atualizarBotaoSalvar);
             carregarAvaliacoes(obra.titulo);
+            carregarFicha(obra);
             if (tags.length) carregarSemelhantes(obra, tags);
+        }
+
+        // ---------- Ficha: onde assistir/jogar, duração, temporadas, tempo de jogo ----------
+        function duracaoTexto(min) {
+            const h = Math.floor(min / 60), m = min % 60;
+            return h ? `${h}h${m ? ' ' + m + 'min' : ''}` : `${m} min`;
+        }
+        const linkSeguro = u => typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null;
+        const SETA_EXTERNA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>';
+
+        async function carregarFicha(obra) {
+            const titulo = obra.titulo, tipo = tipoDe(obra);
+            let f = null;
+            try {
+                const r = await api(`/api/obras/info?titulo=${encodeURIComponent(titulo)}`);
+                if (r.ok) f = await r.json();
+            } catch (e) { console.error(e); }
+            const caixa = $('modal-ficha');
+            if (!caixa || $('modal-titulo')?.textContent !== titulo) return;   // o modal já mudou de obra
+            if (!f) { caixa.innerHTML = '<p class="ficha-vazia">Não foi possível buscar onde assistir agora.</p>'; return; }
+
+            const fatos = [];
+            if (f.duracaoMinutos) fatos.push(['Duração', duracaoTexto(f.duracaoMinutos)]);
+            if (f.temporadas) fatos.push(['Temporadas', `${f.temporadas} temporada${f.temporadas > 1 ? 's' : ''}`]);
+            if (f.episodios) fatos.push(['Episódios', `${f.episodios} episódio${f.episodios > 1 ? 's' : ''}`]);
+            if (f.duracaoEpisodioMinutos) fatos.push(['Por episódio', '~' + duracaoTexto(f.duracaoEpisodioMinutos)]);
+            if (f.situacao) fatos.push(['Situação', f.situacao]);
+            if (f.tempoMedioHoras) fatos.push(['Tempo médio de jogo', `${f.tempoMedioHoras} h`]);
+            const hltb = linkSeguro(f.linkTempoParaZerar);
+            const cartaoHltb = hltb ? `<div><dt>Tempo para zerar</dt><dd><a href="${esc(hltb)}" target="_blank" rel="noopener noreferrer">Ver no HowLongToBeat ${SETA_EXTERNA}</a></dd></div>` : '';
+
+            const ehJogo = tipo === 'jogo';
+            const lista = (ehJogo ? f.ondeJogar : f.ondeAssistir) || [];
+            const todas = linkSeguro(f.linkOndeAssistir);
+            const provedores = lista.filter(p => linkSeguro(p.link)).map(p => `
+                <a class="provedor" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer" title="Abrir ${esc(titulo)} em ${esc(p.nome)}">
+                    ${p.logo && linkSeguro(p.logo) ? `<img src="${esc(p.logo)}" alt="" loading="lazy">` : `<span class="provedor-letra" aria-hidden="true">${esc((p.nome || '?').charAt(0))}</span>`}
+                    <span class="provedor-texto"><b>${esc(p.nome)}</b><small>${esc(p.modalidade || '')}</small></span>
+                    ${SETA_EXTERNA}
+                </a>`).join('');
+
+            caixa.innerHTML = `
+                ${fatos.length || cartaoHltb ? `<dl class="ficha-fatos">${fatos.map(([r, v]) => `<div><dt>${r}</dt><dd>${esc(v)}</dd></div>`).join('')}${cartaoHltb}</dl>` : ''}
+                <p class="rotulo">${ehJogo ? 'Onde jogar' : 'Onde assistir'}</p>
+                ${provedores ? `<div class="provedores">${provedores}</div>`
+                    : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
+                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
         }
 
         async function carregarSemelhantes(obra, tags) {
@@ -3053,7 +3166,7 @@
             porTitulo.delete(titulo);
             notas.delete(titulo);
             minhasConcluidas.delete(titulo);
-            if (curtidas.includes(titulo)) { curtidas = curtidas.filter(t => t !== titulo); salvarCurtidas(); }
+            curtidas = curtidas.filter(t => t !== titulo);   // no servidor o favorito saiu junto com a obra
             minhasListas.forEach(l => { l.obras = l.obras.filter(o => o.titulo !== titulo); });
             fecharDialogo();
             fecharModal();
