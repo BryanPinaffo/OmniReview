@@ -2,8 +2,8 @@ services:
   neo4j:
     image: neo4j:latest
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:7474:7474"   # só este computador acessa o banco (não a rede Wi-Fi)
+      - "127.0.0.1:7687:7687"
     environment:
       # Defina NEO4J_PASSWORD no arquivo .env (ignorado pelo Git). Modelo: .env.exemplo
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?defina NEO4J_PASSWORD no arquivo .env}

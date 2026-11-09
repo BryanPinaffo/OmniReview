@@ -19,22 +19,27 @@ public class AutenticacaoController {
 
     private final AutenticacaoService auth;
     private final AvaliacaoService avaliacoes;
+    private final HistoricoService historico;
 
-    public AutenticacaoController(AutenticacaoService auth, AvaliacaoService avaliacoes) {
+    public AutenticacaoController(AutenticacaoService auth, AvaliacaoService avaliacoes, HistoricoService historico) {
         this.auth = auth;
         this.avaliacoes = avaliacoes;
+        this.historico = historico;
     }
 
     @PostMapping("/cadastrar")
     public ResponseEntity<Map<String, Object>> cadastrar(@RequestBody(required = false) Credenciais c) {
-        return responder(c == null ? AutenticacaoService.Resultado.falha(400, "Informe usuário e senha.")
-                : auth.cadastrar(c.usuario(), c.senha()), 201);
+        AutenticacaoService.Resultado r = c == null ? AutenticacaoService.Resultado.falha(400, "Informe usuário e senha.")
+                : auth.cadastrar(c.usuario(), c.senha());
+        if (r.ok()) historico.registrar(r.usuario(), "conta", "criou a própria conta", r.usuario(), null, "pela tela de cadastro");
+        return responder(r, 201);
     }
 
     @PostMapping("/entrar")
-    public ResponseEntity<Map<String, Object>> entrar(@RequestBody(required = false) Credenciais c) {
+    public ResponseEntity<Map<String, Object>> entrar(@RequestBody(required = false) Credenciais c, HttpServletRequest req) {
         return responder(c == null ? AutenticacaoService.Resultado.falha(400, "Informe usuário e senha.")
-                : auth.entrar(c.usuario(), c.senha()), 200);
+                : auth.entrar(c.usuario(), c.senha(), ClienteIp.de(req)), 200,
+                c != null && AutenticacaoService.senhaFraca(c.senha()));   // avisa quem ainda usa senha fácil de adivinhar
     }
 
     @GetMapping("/eu")
@@ -55,6 +60,7 @@ public class AutenticacaoController {
         if (t == null) return ResponseEntity.badRequest().body(Map.of("erro", "Informe a senha atual e a nova."));
         String usuario = (String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO);
         AutenticacaoService.Resultado r = auth.alterarSenha(usuario, t.senhaAtual(), t.novaSenha(), AutenticacaoInterceptor.token(req));
+        if (r.ok()) historico.registrar(usuario, "conta", "alterou a própria senha", usuario);
         return r.ok() ? ResponseEntity.noContent().build() : ResponseEntity.status(r.status()).body(Map.of("erro", r.erro()));
     }
 
@@ -64,13 +70,19 @@ public class AutenticacaoController {
         AutenticacaoService.Resultado r = auth.excluirConta(usuario, c == null ? null : c.senha());
         if (!r.ok()) return responder(r, 200);
         avaliacoes.removerTudoDe(usuario);   // notas e comentários saem junto com a conta
+        historico.registrar(usuario, "conta", "excluiu a própria conta", usuario);
         return ResponseEntity.noContent().build();
     }
 
     private static ResponseEntity<Map<String, Object>> responder(AutenticacaoService.Resultado r, int statusSucesso) {
+        return responder(r, statusSucesso, false);
+    }
+
+    private static ResponseEntity<Map<String, Object>> responder(AutenticacaoService.Resultado r, int statusSucesso, boolean senhaFraca) {
         if (!r.ok()) {
             return ResponseEntity.status(r.status()).body(Map.of("erro", r.erro()));
         }
-        return ResponseEntity.status(statusSucesso).body(Map.of("token", r.token(), "usuario", r.usuario(), "papel", r.papel()));
+        return ResponseEntity.status(statusSucesso).body(Map.of("token", r.token(), "usuario", r.usuario(), "papel", r.papel(),
+                "senhaFraca", senhaFraca));
     }
 }

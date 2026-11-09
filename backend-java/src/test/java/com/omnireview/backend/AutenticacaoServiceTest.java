@@ -84,6 +84,40 @@ class AutenticacaoServiceTest {
     }
 
     @Test
+    void atacanteNaoTrancaODonoParaForaMasForcaBrutaDistribuidaTrava() {
+        auth.cadastrar("dono", "senha-forte-123");
+        for (int i = 0; i < AutenticacaoService.MAX_TENTATIVAS; i++) {
+            assertEquals(401, auth.entrar("dono", "chute-" + i, "203.0.113.66").status());
+        }
+        assertEquals(429, auth.entrar("dono", "chute-x", "203.0.113.66").status(), "o endereço do atacante fica bloqueado");
+        assertTrue(auth.entrar("dono", "senha-forte-123", "198.51.100.10").ok(), "o dono, de outro endereço, continua entrando");
+
+        // muitos endereços diferentes tentando a mesma conta: trava geral
+        for (int i = 0; i < AutenticacaoService.MAX_FALHAS_GERAIS; i++) {
+            auth.entrar("dono", "chute-" + i, "10.9." + (i / 250) + "." + (i % 250));
+        }
+        assertEquals(429, auth.entrar("dono", "senha-forte-123", "198.51.100.10").status());
+        relogio.adiantar(AutenticacaoService.BLOQUEIO.plusSeconds(1));
+        assertTrue(auth.entrar("dono", "senha-forte-123", "198.51.100.10").ok());
+    }
+
+    @Test
+    void limitaSessoesAbertasPorUsuario() {
+        String primeira = auth.cadastrar("eva", "senha-forte-123").token();
+        for (int i = 0; i < AutenticacaoService.MAX_SESSOES_POR_USUARIO; i++) {
+            relogio.adiantar(java.time.Duration.ofSeconds(1));
+            auth.entrar("eva", "senha-forte-123");
+        }
+        assertTrue(auth.sessao(primeira).isEmpty(), "a sessão mais antiga sai ao passar do limite");
+    }
+
+    @Test
+    void cadastroRecusaSenhaComum() {
+        assertEquals(400, auth.cadastrar("fred", "senha123").status());
+        assertEquals(400, auth.cadastrar("fred", "12345678").status());
+    }
+
+    @Test
     void sessaoExpiraESairEncerraOToken() {
         String token = auth.cadastrar("caio", "senha-forte-123").token();
         relogio.adiantar(AutenticacaoService.DURACAO_SESSAO.minusMinutes(1));

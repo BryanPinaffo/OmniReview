@@ -8,6 +8,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +34,14 @@ public class AutenticacaoService {
     static final Pattern FORMATO_USUARIO = Pattern.compile("[a-z0-9._-]{3,30}");
     static final int MIN_SENHA = 8;
     static final int MAX_SENHA = 128;
+    // Trava geral por usuário (somando todos os endereços): impede força bruta distribuída sem deixar
+    // um único atacante trancar o dono da conta para fora (a trava de 5 tentativas é por usuário + endereço)
+    static final int MAX_FALHAS_GERAIS = 30;
+    static final int MAX_SESSOES_POR_USUARIO = 10;
+    // Senhas fáceis demais (as mais usadas em vazamentos, em versões brasileiras), recusadas no cadastro e na troca
+    static final Set<String> SENHAS_FRACAS = Set.of("12345678", "123456789", "1234567890", "87654321", "11111111", "00000000",
+            "password", "password1", "senha123", "senha1234", "senhasenha", "qwerty123", "qwertyuiop", "abcd1234", "abc12345",
+            "brasil123", "brasil2026", "mudar123", "admin123", "admin1234", "iloveyou", "omnireview", "omnireview123");
 
     // Hash de uma senha qualquer, usado para gastar o mesmo tempo quando o usuário não existe
     private static final String HASH_FICTICIO = Senhas.gerarHash("senha-ficticia-para-tempo-constante");
@@ -88,6 +98,9 @@ public class AutenticacaoService {
         if (senha.equalsIgnoreCase(usuario)) {
             return Resultado.falha(400, "A senha não pode ser igual ao usuário.");
         }
+        if (senhaFraca(senha)) {
+            return Resultado.falha(400, "Essa senha é muito comum e fácil de adivinhar. Escolha outra.");
+        }
         synchronized (this) {
             if (usuarios.existsById(usuario)) {
                 return Resultado.falha(409, "Este nome de usuário já está em uso.");
@@ -123,21 +136,34 @@ public class AutenticacaoService {
     }
 
     public Resultado entrar(String usuarioInformado, String senha) {
+        return entrar(usuarioInformado, senha, "local");
+    }
+
+    /**
+     * Login. "origem" é o endereço de quem tenta (IP): 5 erros bloqueiam aquele endereço para aquele usuário por
+     * {@link #BLOQUEIO}; {@link #MAX_FALHAS_GERAIS} erros vindos de qualquer lugar bloqueiam o usuário para todos.
+     */
+    public Resultado entrar(String usuarioInformado, String senha, String origem) {
         String usuario = normalizar(usuarioInformado);
         Instant agora = Instant.now(relogio);
-        Tentativas t = tentativas.get(usuario);
-        if (t != null && t.bloqueadoAte() != null && agora.isBefore(t.bloqueadoAte())) {
-            long minutos = Math.max(1, Duration.between(agora, t.bloqueadoAte()).toMinutes());
-            return Resultado.falha(429, "Muitas tentativas. Tente novamente em " + minutos + " min.");
+        String chaveLocal = usuario + "|" + (origem == null ? "?" : origem);
+        String chaveGeral = usuario + "|*";
+        for (String chave : List.of(chaveLocal, chaveGeral)) {
+            Tentativas t = tentativas.get(chave);
+            if (t != null && t.bloqueadoAte() != null && agora.isBefore(t.bloqueadoAte())) {
+                long minutos = Math.max(1, Duration.between(agora, t.bloqueadoAte()).toMinutes());
+                return Resultado.falha(429, "Muitas tentativas. Tente novamente em " + minutos + " min.");
+            }
         }
         Optional<Usuario> encontrado = usuario.isEmpty() ? Optional.empty() : usuarios.findById(usuario);
         boolean senhaCorreta = Senhas.confere(senha, encontrado.map(u -> u.getSenhaHash()).orElse(HASH_FICTICIO))
                 && encontrado.isPresent();
         if (!senhaCorreta) {
-            registrarFalha(usuario, agora);
+            registrarFalha(chaveLocal, agora, MAX_TENTATIVAS);
+            registrarFalha(chaveGeral, agora, MAX_FALHAS_GERAIS);
             return Resultado.falha(401, "Usuário ou senha inválidos.");
         }
-        tentativas.remove(usuario);
+        tentativas.remove(chaveLocal);
         String papel = encontrado.get().getPapel();
         return Resultado.sucesso(abrirSessao(usuario, papel), usuario, papel);
     }
@@ -177,7 +203,7 @@ public class AutenticacaoService {
         }
         Optional<Usuario> u = usuarios.findById(usuario);
         if (u.isEmpty() || !Senhas.confere(senhaAtual, u.get().getSenhaHash())) {
-            registrarFalha(usuario, agora);
+            registrarFalha(usuario, agora, MAX_TENTATIVAS);
             return Resultado.falha(403, "A senha atual está incorreta.");   // 403, e não 401: a sessão continua válida
         }
         tentativas.remove(usuario);
@@ -208,7 +234,13 @@ public class AutenticacaoService {
             return "A senha deve ter de " + MIN_SENHA + " a " + MAX_SENHA + " caracteres.";
         }
         if (senha.equalsIgnoreCase(usuario)) return "A senha não pode ser igual ao usuário.";
+        if (senhaFraca(senha)) return "Essa senha é muito comum e fácil de adivinhar. Escolha outra.";
         return null;
+    }
+
+    static boolean senhaFraca(String senha) {
+        String s = senha == null ? "" : senha.toLowerCase(Locale.ROOT);
+        return SENHAS_FRACAS.contains(s) || s.chars().distinct().count() <= 2;   // ex.: "aaaaaaaa", "abababab"
     }
 
     private void gravarSenha(Usuario u, String senha) {
@@ -252,13 +284,19 @@ public class AutenticacaoService {
         ALEATORIO.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         sessoes.put(token, new Sessao(usuario, papel, Instant.now(relogio).plus(DURACAO_SESSAO)));
+        // No máximo MAX_SESSOES_POR_USUARIO abertas: as mais antigas saem (evita acumular sessões sem fim)
+        List<Map.Entry<String, Sessao>> doUsuario = sessoes.entrySet().stream()
+                .filter(e -> e.getValue().usuario().equals(usuario))
+                .sorted(Map.Entry.comparingByValue(java.util.Comparator.comparing(Sessao::expiraEm))).toList();
+        for (int i = 0; i < doUsuario.size() - MAX_SESSOES_POR_USUARIO; i++) sessoes.remove(doUsuario.get(i).getKey());
         return token;
     }
 
-    private void registrarFalha(String usuario, Instant agora) {
-        tentativas.compute(usuario, (k, atual) -> {
+    private void registrarFalha(String chave, Instant agora, int limite) {
+        if (tentativas.size() > 50_000) tentativas.entrySet().removeIf(e -> e.getValue().bloqueadoAte() == null);   // não cresce sem limite
+        tentativas.compute(chave, (k, atual) -> {
             int falhas = (atual == null || (atual.bloqueadoAte() != null && agora.isAfter(atual.bloqueadoAte()))) ? 1 : atual.falhas() + 1;
-            return new Tentativas(falhas, falhas >= MAX_TENTATIVAS ? agora.plus(BLOQUEIO) : null);
+            return new Tentativas(falhas, falhas >= limite ? agora.plus(BLOQUEIO) : null);
         });
     }
 

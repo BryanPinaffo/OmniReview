@@ -175,10 +175,15 @@ public class AvaliacaoService {
 
     /** Só o autor pode excluir o próprio comentário. */
     public Resultado excluirComentario(String id, String usuario) {
+        return excluirComentario(id, usuario, false);
+    }
+
+    /** O autor exclui o próprio comentário; o administrador pode excluir qualquer um (moderação). */
+    public Resultado excluirComentario(String id, String usuario, boolean admin) {
         Optional<String> autor = neo4j.query("MATCH (c:Comentario {id: $id}) RETURN c.autor AS autor")
                 .bindAll(Map.of("id", id == null ? "" : id)).fetchAs(String.class).one();
         if (autor.isEmpty()) return Resultado.falha(404, "Comentário não encontrado.");
-        if (!autor.get().equals(usuario)) return Resultado.falha(403, "Você só pode excluir os seus comentários.");
+        if (!admin && !autor.get().equals(usuario)) return Resultado.falha(403, "Você só pode excluir os seus comentários.");
         neo4j.query("MATCH (c:Comentario {id: $id}) DETACH DELETE c").bindAll(Map.of("id", id)).run();
         return new Resultado(true, null, null, 204);
     }

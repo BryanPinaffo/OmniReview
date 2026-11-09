@@ -16,9 +16,11 @@ public class AvaliacaoController {
     public record NovoComentario(String titulo, String texto) {}
 
     private final AvaliacaoService avaliacoes;
+    private final HistoricoService historico;
 
-    public AvaliacaoController(AvaliacaoService avaliacoes) {
+    public AvaliacaoController(AvaliacaoService avaliacoes, HistoricoService historico) {
         this.avaliacoes = avaliacoes;
+        this.historico = historico;
     }
 
     /** Média e total de notas de cada obra avaliada. */
@@ -36,23 +38,34 @@ public class AvaliacaoController {
     @PostMapping("/nota")
     public ResponseEntity<Map<String, Object>> avaliar(@RequestBody(required = false) NovaNota n, HttpServletRequest req) {
         if (n == null) return erro(400, "Informe a obra e a nota.");
-        return responder(avaliacoes.avaliar(n.titulo(), n.estrelas(), usuario(req)));
+        AvaliacaoService.Resultado r = avaliacoes.avaliar(n.titulo(), n.estrelas(), usuario(req));
+        if (r.ok()) historico.registrar(usuario(req), "avaliacao", "deu " + n.estrelas() + (n.estrelas() == 1 ? " estrela para" : " estrelas para"),
+                n.titulo(), n.titulo(), null);
+        return responder(r);
     }
 
     @DeleteMapping("/nota")
     public ResponseEntity<Map<String, Object>> removerNota(@RequestParam String titulo, HttpServletRequest req) {
-        return responder(avaliacoes.removerNota(titulo, usuario(req)));
+        AvaliacaoService.Resultado r = avaliacoes.removerNota(titulo, usuario(req));
+        if (r.ok()) historico.registrar(usuario(req), "avaliacao", "removeu a nota de", titulo, titulo, null);
+        return responder(r);
     }
 
     @PostMapping("/comentarios")
     public ResponseEntity<Map<String, Object>> comentar(@RequestBody(required = false) NovoComentario c, HttpServletRequest req) {
         if (c == null) return erro(400, "Informe a obra e o comentário.");
-        return responder(avaliacoes.comentar(c.titulo(), c.texto(), usuario(req)));
+        AvaliacaoService.Resultado r = avaliacoes.comentar(c.titulo(), c.texto(), usuario(req));
+        if (r.ok()) historico.registrar(usuario(req), "avaliacao", "comentou em", c.titulo(), c.titulo(), "“" + c.texto() + "”");
+        return responder(r);
     }
 
     @DeleteMapping("/comentarios/{id}")
     public ResponseEntity<Map<String, Object>> excluirComentario(@PathVariable String id, HttpServletRequest req) {
-        return responder(avaliacoes.excluirComentario(id, usuario(req)));
+        String obra = historico.obraDoComentario(id).orElse(null);
+        boolean admin = Usuario.ADMIN.equals(req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_PAPEL));
+        AvaliacaoService.Resultado r = avaliacoes.excluirComentario(id, usuario(req), admin);
+        if (r.ok()) historico.registrar(usuario(req), "avaliacao", "excluiu um comentário em", obra, obra, admin ? "moderação do administrador" : null);
+        return responder(r);
     }
 
     private static String usuario(HttpServletRequest req) {
