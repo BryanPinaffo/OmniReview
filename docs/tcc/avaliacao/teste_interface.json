@@ -1,6 +1,6 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T19:27:35.970Z",
+  "executado_em": "2026-11-09T19:46:12.583Z",
   "aprovados": 39,
   "total": 39,
   "casos": [
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_khshre; menu mostra \"teste_ui_khshre\""
+      "detalhe": "usuário teste_ui_dpcoic; menu mostra \"teste_ui_dpcoic\""
     },
     {
       "id": "T40",
@@ -188,7 +188,7 @@
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":1}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":2}"
     },
     {
       "id": "T28",
@@ -236,7 +236,7 @@
       "id": "T33",
       "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
       "ok": true,
-      "detalhe": "teste_adm_bv excluiu a conta de teste_adm_go3tbpela Administração | teste_adm_bv criou a conta de teste_adm_go3tbpela Administração; filtro=true, busca=true, autoria na obra=true"
+      "detalhe": "teste_adm_bvp excluiu a conta de teste_adm_1uvkypela Administração | teste_adm_bvp criou a conta de teste_adm_1uvkypela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }

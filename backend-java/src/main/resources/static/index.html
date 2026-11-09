@@ -841,6 +841,31 @@
         .bv-web:hover { border-color: rgba(139,123,255,0.6); }
         .bv-web svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--accent-2); }
         .bv-vazio { grid-column: 1 / -1; color: var(--text-3); font-size: 14px; }
+        .bv-adicionando { grid-column: 1 / -1; display: flex; gap: 16px; align-items: center; padding: 14px; border-radius: 14px;
+            background: linear-gradient(135deg, rgba(139,123,255,0.16), rgba(61,214,245,0.08)); border: 1px solid rgba(139,123,255,0.55);
+            box-shadow: 0 0 0 4px rgba(139,123,255,0.08); }
+        .bv-ad-capa { position: relative; width: 78px; aspect-ratio: 2/3; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+        .bv-ad-capa img, .bv-ad-capa .sem-poster { width: 100%; height: 100%; object-fit: cover; display: grid; place-items: center; color: var(--text-3); font-weight: 700; }
+        .bv-ad-capa img { filter: brightness(.55); }
+        .bv-ad-capa .girando { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-width: 3px; }
+        .bv-ad-texto { display: grid; gap: 6px; min-width: 0; flex: 1; }
+        .bv-ad-rotulo { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #c9c1ff; }
+        .bv-ad-titulo { font-family: var(--font-display); font-size: 18px; line-height: 1.2; }
+        .bv-ad-titulo span { font-weight: 500; color: var(--text-3); font-family: inherit; }
+        .bv-ad-etapas { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-3); }
+        .bv-ad-etapas li::before { content: '○ '; }
+        .bv-ad-etapas li.feito { color: var(--jogo); }
+        .bv-ad-etapas li.feito::before { content: '✓ '; }
+        .bv-ad-etapas li.atual { color: var(--text); font-weight: 600; }
+        .bv-ad-etapas li.atual::before { content: '● '; color: #c9c1ff; animation: pulsar 1.2s ease-in-out infinite; }
+        .bv-ad-barra { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .bv-ad-barra i { display: block; height: 100%; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            animation: bv-carregando 1.4s ease-in-out infinite; }
+        @keyframes bv-carregando { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+        .bv-ad-texto small { color: var(--text-3); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+        .bv-item.recem .bv-capa { animation: bv-brilho 1.2s ease-out 2; }
+        @keyframes bv-brilho { 0% { box-shadow: 0 0 0 0 rgba(139,123,255,0.85); } 100% { box-shadow: 0 0 0 14px rgba(139,123,255,0); } }
+        @media (prefers-reduced-motion: reduce) { .bv-ad-barra i, .bv-item.recem .bv-capa, .bv-ad-etapas li.atual::before { animation: none; } }
         .bv-status:empty { display: none; }
         .bv-status { margin: 0; }
         .bv-rodape { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; flex-wrap: wrap; }
@@ -2069,7 +2094,7 @@
         function statusBusca(html, tipo = '') {
             for (const id of ['busca-hero-status', 'bv-status']) {
                 const el = $(id);
-                if (!el || (id === 'bv-status' && !bv.ativo)) continue;
+                if (!el || (id === 'bv-status' && (!bv.ativo || (bv.adicionando && html.includes('girando'))))) continue;
                 el.className = (id === 'bv-status' ? 'bv-status ' : '') + 'busca-hero-status ' + tipo;
                 el.innerHTML = html;
             }
@@ -2153,7 +2178,7 @@
                 }
                 if (adicionada) {
                     await carregarCatalogo();
-                    toast(`“${obra.titulo}” foi adicionado ao acervo`);
+                    if (!bv.ativo) toast(`“${obra.titulo}” foi adicionado ao acervo`);   // nas boas-vindas o cartão já avisa (e o toast cobriria o "Próximo")
                     statusBusca(`Adicionado ao acervo: <strong>${esc(obra.titulo)}</strong> (${NOME_TIPO[tipoDe(obra)] || esc(obra.tipo)}).`, 'ok');
                 } else {
                     if (!porTitulo.has(obra.titulo)) porTitulo.set(obra.titulo, obra);
@@ -2168,6 +2193,7 @@
             } finally {
                 buscaHero.ocupado = false;
                 $('busca-hero-botao').disabled = false;
+                if (bv.adicionando) terminarAdicaoBv();
             }
         }
 
@@ -2207,6 +2233,7 @@
                 $('busca-hero-texto').value = '';
                 abrirModal(titulo);
             } else {
+                if (bv.ativo) iniciarAdicaoBv(o);
                 buscarOuAdicionar(o.titulo, { tipo: o.tipo, ref: o.ref });
             }
         });
@@ -3714,7 +3741,8 @@
             { tipo: 'livro', nome: 'livros', titulo: 'Por fim, 5 livros' }
         ];
         const META_BV = 5;
-        const bv = { pendente: false, ativo: false, etapa: 0, escolhidos: new Map(), busca: '' };   // escolhidos: título -> mídia
+        const bv = { pendente: false, ativo: false, etapa: 0, escolhidos: new Map(), busca: '',   // escolhidos: título -> mídia
+                     recentes: [], adicionando: null, relogio: null, destaque: null };   // obras trazidas da web nesta sessão
 
         const escolhidosDaEtapa = () => [...bv.escolhidos].filter(([, tipo]) => tipo === ETAPAS_BV[bv.etapa].tipo).map(([t]) => t);
 
@@ -3757,22 +3785,24 @@
             const chave = chaveBusca(bv.busca);
             const escolhidos = escolhidosDaEtapa();
             let lista = catalogo.filter(o => tipoDe(o) === e.tipo && (!chave || chaveBusca(o.titulo).includes(chave)));
-            // ordem estável (as mais avaliadas primeiro, depois por título): escolher não faz a grade "andar"
+            // ordem estável (as mais avaliadas primeiro, depois por título): escolher não faz a grade "andar";
+            // o que acabou de ser trazido da web vem antes de tudo, para a pessoa ver onde entrou
             lista.sort((a, b) => ((notas.get(b.titulo)?.total || 0) - (notas.get(a.titulo)?.total || 0)) || a.titulo.localeCompare(b.titulo, 'pt'));
-            lista = lista.slice(0, 60);
+            const recentes = bv.recentes.filter(t => lista.some(o => o.titulo === t));
+            lista = [...recentes.map(t => lista.find(o => o.titulo === t)), ...lista.filter(o => !recentes.includes(o.titulo))].slice(0, 60);
             const itens = lista.map(o => {
                 const sel = escolhidos.includes(o.titulo);
-                return `<button type="button" class="bv-item ${sel ? 'selecionado' : ''}" data-bv-obra="${esc(o.titulo)}" aria-pressed="${sel}" title="${esc(o.titulo)}">
+                return `<button type="button" class="bv-item ${sel ? 'selecionado' : ''} ${bv.destaque === o.titulo ? 'recem' : ''}" data-bv-obra="${esc(o.titulo)}" aria-pressed="${sel}" title="${esc(o.titulo)}">
                     <span class="bv-capa">${imagemHTML(o, 'imagem', '')}<span class="bv-check">${ICONE_CHECK}</span></span>
                     <span class="bv-nome">${esc(o.titulo)}</span>
                 </button>`;
             }).join('');
-            const web = bv.busca.trim()
+            const web = bv.busca.trim() && !bv.adicionando
                 ? `<button type="button" class="bv-web" data-bv-web>${ICONE_WEB}<span>${lista.length ? 'Não é nenhum desses?' : `Não temos “${esc(bv.busca.trim())}” no acervo.`} Procurar na web</span></button>`
                 : '';
-            $('bv-grade').innerHTML = itens || web
+            $('bv-grade').innerHTML = (bv.adicionando ? cartaoAdicionandoBv() : '') + (itens || web || bv.adicionando
                 ? itens + web
-                : `<p class="bv-vazio">Ainda não há ${e.nome} no acervo. Procure um título acima para adicionar.</p>`;
+                : `<p class="bv-vazio">Ainda não há ${e.nome} no acervo. Procure um título acima para adicionar.</p>`);
             atualizarSelecaoBv();
         }
 
@@ -3797,17 +3827,62 @@
             atualizarSelecaoBv();
         }
 
+        // ---------- Obra sendo trazida da web para o catálogo: cartão em destaque no topo da grade ----------
+        function cartaoAdicionandoBv() {
+            const a = bv.adicionando;
+            const capa = a.imagem && /^https:\/\//.test(a.imagem)
+                ? `<img src="${esc(a.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(a.titulo))}</span>`;
+            return `<div class="bv-adicionando" role="status" aria-live="polite">
+                <div class="bv-ad-capa">${capa}<span class="girando" aria-hidden="true"></span></div>
+                <div class="bv-ad-texto">
+                    <span class="bv-ad-rotulo">Adicionando ao catálogo</span>
+                    <b class="bv-ad-titulo">${esc(a.titulo)}${a.ano ? ` <span>(${esc(a.ano)})</span>` : ''}</b>
+                    <ol class="bv-ad-etapas">
+                        <li class="feito">Encontrado na web</li>
+                        <li class="atual">Gerando o DNA criativo com a IA</li>
+                        <li>Entra escolhido aqui</li>
+                    </ol>
+                    <div class="bv-ad-barra" aria-hidden="true"><i></i></div>
+                    <small id="bv-ad-tempo">0 s · costuma levar até 1 minuto</small>
+                </div>
+            </div>`;
+        }
+
+        function iniciarAdicaoBv(opcao) {
+            bv.adicionando = { titulo: opcao.titulo, imagem: opcao.imagem, ano: opcao.ano, inicio: Date.now() };
+            clearInterval(bv.relogio);
+            bv.relogio = setInterval(() => {
+                const el = $('bv-ad-tempo');
+                if (el && bv.adicionando) el.textContent = `${Math.round((Date.now() - bv.adicionando.inicio) / 1000)} s · costuma levar até 1 minuto`;
+            }, 1000);
+            statusBusca('');
+            renderizarGradeBv();
+            $('bv-grade').scrollTop = 0;
+        }
+
+        function terminarAdicaoBv() {
+            clearInterval(bv.relogio);
+            bv.adicionando = null;
+            if (bv.ativo) renderizarGradeBv();
+        }
+
         // Obra encontrada na web (ou que já estava no acervo) durante as boas-vindas: já entra escolhida
         function bvAdicionada(obra) {
             const e = ETAPAS_BV[bv.etapa];
+            clearInterval(bv.relogio);
+            bv.adicionando = null;
+            bv.recentes = [obra.titulo, ...bv.recentes.filter(t => t !== obra.titulo)];
+            bv.destaque = obra.titulo;
+            setTimeout(() => { if (bv.destaque === obra.titulo) { bv.destaque = null; document.querySelector('#bv-grade .bv-item.recem')?.classList.remove('recem'); } }, 2600);
             bv.busca = '';
             if ($('bv-busca')) $('bv-busca').value = '';
             $('busca-hero-texto').value = '';
             if (tipoDe(obra) === e.tipo && !bv.escolhidos.has(obra.titulo) && escolhidosDaEtapa().length < META_BV) {
                 bv.escolhidos.set(obra.titulo, e.tipo);
-                statusBusca(`<strong>${esc(obra.titulo)}</strong> foi escolhido.`, 'ok');
+                statusBusca(`<span>✓ <strong>${esc(obra.titulo)}</strong> entrou no catálogo e já está escolhido.</span>`, 'ok');
             }
             renderizarGradeBv();
+            $('bv-grade').scrollTop = 0;
         }
 
         async function avancarBoasVindas(pular) {
