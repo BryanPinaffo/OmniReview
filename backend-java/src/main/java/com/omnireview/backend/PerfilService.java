@@ -65,6 +65,7 @@ public class PerfilService {
 
     /** Perfil completo de um usuário, do ponto de vista de quem está vendo (eu). */
     public Resultado perfil(String usuario, String eu) {
+        if (ocultoPara(normalizar(usuario), eu)) return Resultado.falha(404, "Usuário não encontrado.");
         Optional<Map<String, Object>> base = neo4j.query(
                 "MATCH (u:Usuario {usuario: $usuario}) " +
                 "OPTIONAL MATCH (u)-[:CONCLUIU]->(o:Obra) WITH u, collect(o.tipo) AS tipos " +
@@ -169,6 +170,8 @@ public class PerfilService {
                 .bindAll(Map.of("eu", eu)).fetchAs(String.class).one().orElse(null));
         corpo.put("concluidas", neo4j.query("MATCH (:Usuario {usuario: $eu})-[:CONCLUIU]->(o:Obra) RETURN o.titulo AS titulo")
                 .bindAll(Map.of("eu", eu)).fetchAs(String.class).all());
+        corpo.put("boasVindasPendente", neo4j.query("MATCH (u:Usuario {usuario: $eu}) RETURN coalesce(u.boasVindasPendente, false) AS b")
+                .bindAll(Map.of("eu", eu)).fetchAs(Boolean.class).one().orElse(false));
         return corpo;
     }
 
@@ -221,6 +224,7 @@ public class PerfilService {
     public Resultado seguir(String eu, String alvo) {
         String a = normalizar(alvo);
         if (a.equals(eu)) return Resultado.falha(400, "Você não pode seguir a si mesmo.");
+        if (ocultoPara(a, eu)) return Resultado.falha(404, "Usuário não encontrado.");
         Optional<Long> n = neo4j.query(
                 "MATCH (eu:Usuario {usuario: $eu}), (alvo:Usuario {usuario: $alvo}) " +
                 "MERGE (eu)-[s:SEGUE]->(alvo) ON CREATE SET s.em = $agora RETURN count(s) AS n")
@@ -248,7 +252,7 @@ public class PerfilService {
         String u = normalizar(usuario);
         boolean existe = neo4j.query("MATCH (u:Usuario {usuario: $u}) RETURN count(u) AS n")
                 .bindAll(Map.of("u", u)).fetchAs(Long.class).one().orElse(0L) > 0;
-        if (!existe) return Resultado.falha(404, "Usuário não encontrado.");
+        if (!existe || ocultoPara(u, eu)) return Resultado.falha(404, "Usuário não encontrado.");
         String padrao = seguidores ? "(p:Usuario)-[r:SEGUE]->(:Usuario {usuario: $u})" : "(:Usuario {usuario: $u})-[r:SEGUE]->(p:Usuario)";
         return Resultado.sucesso(pessoas("MATCH " + padrao + " WITH p, r ORDER BY r.em DESC", Map.of("u", u), eu));
     }
@@ -263,11 +267,37 @@ public class PerfilService {
     private List<Map<String, Object>> pessoas(String inicio, Map<String, Object> params, String eu) {
         Map<String, Object> todos = new HashMap<>(params);
         todos.put("eu", eu);
+        todos.put("euAdmin", ehAdmin(eu));
         return new ArrayList<>(neo4j.query(inicio + " " +
+                // contas de administrador não aparecem para usuários comuns (busca, seguidores, seguindo)
+                "WITH p WHERE $euAdmin OR p.usuario = $eu OR coalesce(p.papel, 'USUARIO') <> 'ADMIN' " +
                 "OPTIONAL MATCH (p)-[:CONCLUIU]->(o:Obra) WITH p, count(o) AS concluidas " +
                 "RETURN p.usuario AS usuario, coalesce(p.papel, 'USUARIO') AS papel, p.foto AS foto, concluidas, " +
                 "       EXISTS { MATCH (:Usuario {usuario: $eu})-[:SEGUE]->(p) } AS euSigo, p.usuario = $eu AS ehEu")
                 .bindAll(todos).fetch().all());
+    }
+
+    // ---------------- Conta do administrador oculta ----------------
+
+    /** A conta é de administrador e quem pede não é administrador nem a própria conta: para essa pessoa, ela não existe. */
+    boolean ocultoPara(String alvo, String eu) {
+        if (alvo == null || alvo.equals(eu)) return false;
+        boolean alvoAdmin = neo4j.query("MATCH (u:Usuario {usuario: $u}) RETURN coalesce(u.papel, 'USUARIO') = 'ADMIN' AS a")
+                .bindAll(Map.of("u", alvo)).fetchAs(Boolean.class).one().orElse(false);
+        return alvoAdmin && !ehAdmin(eu);
+    }
+
+    private boolean ehAdmin(String eu) {
+        if (eu == null) return false;
+        return neo4j.query("MATCH (u:Usuario {usuario: $u}) RETURN coalesce(u.papel, 'USUARIO') = 'ADMIN' AS a")
+                .bindAll(Map.of("u", eu)).fetchAs(Boolean.class).one().orElse(false);
+    }
+
+    // ---------------- Boas-vindas (contas novas) ----------------
+
+    /** Marca que a pessoa terminou (ou pulou) as boas-vindas: elas não aparecem mais. */
+    public void concluirBoasVindas(String eu) {
+        neo4j.query("MATCH (u:Usuario {usuario: $eu}) SET u.boasVindasPendente = false").bindAll(Map.of("eu", eu)).run();
     }
 
     // ---------------- Auxiliares ----------------

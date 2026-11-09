@@ -116,7 +116,7 @@ public class AvaliacaoService {
                 "MATCH (c:Comentario)-[:SOBRE]->(o:Obra {titulo: $titulo}) " +
                 "OPTIONAL MATCH (autor:Usuario {usuario: c.autor}) OPTIONAL MATCH (autor)-[a:AVALIOU]->(o) " +
                 "RETURN c.id AS id, c.autor AS autor, c.texto AS texto, c.criadoEm AS criadoEm, a.estrelas AS estrelas, autor.foto AS foto, " +
-                "       coalesce(c.spoiler, false) AS spoiler " +
+                "       coalesce(c.spoiler, false) AS spoiler, coalesce(autor.papel, 'USUARIO') = 'ADMIN' AS perfilOculto " +
                 "ORDER BY c.criadoEm DESC LIMIT " + LIMITE_COMENTARIOS)
                 .bindAll(Map.of("titulo", titulo)).fetch().all();
         List<Map<String, Object>> comentarios = new ArrayList<>();
@@ -129,7 +129,7 @@ public class AvaliacaoService {
         for (Map<String, Object> l : neo4j.query(
                 "MATCH (u:Usuario)-[a:AVALIOU]->(o:Obra {titulo: $titulo}) " +
                 "WHERE NOT EXISTS { MATCH (:Comentario {autor: u.usuario})-[:SOBRE]->(o) } " +
-                "RETURN u.usuario AS autor, u.foto AS foto, a.estrelas AS estrelas, a.em AS em " +
+                "RETURN u.usuario AS autor, u.foto AS foto, a.estrelas AS estrelas, a.em AS em, coalesce(u.papel, 'USUARIO') = 'ADMIN' AS perfilOculto " +
                 "ORDER BY a.em DESC LIMIT " + LIMITE_COMENTARIOS)
                 .bindAll(Map.of("titulo", titulo)).fetch().all()) {
             Map<String, Object> n = new LinkedHashMap<>();
@@ -138,6 +138,7 @@ public class AvaliacaoService {
             n.put("estrelas", inteiro(l.get("estrelas")));
             n.put("em", l.get("em"));
             n.put("meu", usuario != null && usuario.equals(l.get("autor")));
+            n.put("perfilOculto", Boolean.TRUE.equals(l.get("perfilOculto")));
             soNotas.add(n);
         }
 
@@ -242,6 +243,7 @@ public class AvaliacaoService {
         c.put("meu", usuario != null && usuario.equals(l.get("autor")));
         c.put("foto", l.get("foto"));
         c.put("spoiler", Boolean.TRUE.equals(l.get("spoiler")));
+        c.put("perfilOculto", Boolean.TRUE.equals(l.get("perfilOculto")));
         return c;
     }
 

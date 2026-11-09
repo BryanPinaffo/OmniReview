@@ -107,6 +107,7 @@ public class AutenticacaoService {
             }
             Usuario novo = new Usuario(usuario, Senhas.gerarHash(senha), Instant.now(relogio).toString(), Usuario.COMUM);
             novo.setCriadoPor(criadoPor);
+            novo.setBoasVindasPendente(true);   // contas novas escolhem filmes, séries, jogos e livros ao entrar
             usuarios.save(novo);
         }
         return Resultado.sucesso(null, usuario, Usuario.COMUM);

@@ -107,6 +107,26 @@ caso('T12', 'Cadastro pela tela valida a confirmação e entra no catálogo', na
   `usuário ${usuarioTeste}; menu mostra "${await avaliar("document.getElementById('usuario-nome')?.textContent")}"`);
 const tokenTeste = await avaliar("JSON.parse(localStorage.getItem('omnireview:sessao')).token");
 
+// Conta nova: boas-vindas pedem 5 filmes, 5 séries, 5 jogos e 5 livros (aqui escolhe e desfaz, depois pula tudo)
+{
+  const apareceu = await aguardar("!document.getElementById('boas-vindas').hidden && !!document.querySelector('#bv-grade .bv-item')", 15000);
+  const passos = await avaliar("[...document.querySelectorAll('.bv-passos li')].map(l => l.textContent).join(', ')");
+  await avaliar("[...document.querySelectorAll('#bv-grade .bv-item')].slice(0, 2).forEach(b => b.click())");
+  const contou = await avaliar("document.getElementById('bv-contador').textContent");
+  const soFilmes = await avaliar("[...document.querySelectorAll('#bv-grade .bv-item.selecionado')].every(b => tipoDe(porTitulo.get(b.dataset.bvObra)) === 'filme')");
+  await capturar('boas_vindas');
+  await preencher('bv-busca', 'zzzz titulo que nao existe');
+  const ofereceWeb = await aguardar("!!document.querySelector('#bv-grade [data-bv-web]')", 3000);
+  await preencher('bv-busca', '');
+  await avaliar("[...document.querySelectorAll('#bv-grade .bv-item.selecionado')].forEach(b => b.click())");   // desfaz (os casos seguintes contam favoritos)
+  for (let i = 0; i < 4; i++) await avaliar("document.getElementById('bv-pular').click()");
+  const fechou = await aguardar("document.getElementById('boas-vindas').hidden", 8000);
+  const servidor = await avaliar("api('/api/perfil/eu/resumo').then(r => r.json()).then(d => d.boasVindasPendente === false)");
+  caso('T40', 'Conta nova: boas-vindas para escolher 5 filmes, séries, jogos e livros, com busca na web e opção de pular',
+    apareceu && passos === 'filmes, séries, jogos, livros' && contou === '2 de 5' && soFilmes && ofereceWeb && fechou && servidor,
+    `etapas: ${passos}; contador="${contou}"; busca na web=${ofereceWeb}; concluída no servidor=${servidor}`);
+}
+
 caso('T01', 'Catálogo carrega cards do back-end', await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0"),
   `${await avaliar("document.querySelectorAll('#grid-catalogo .card').length")} cards`);
 

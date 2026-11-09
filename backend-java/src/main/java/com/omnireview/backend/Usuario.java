@@ -22,6 +22,7 @@ public class Usuario {
     private String capaFundo;
     private String bio;
     private Boolean listasIniciadas; // listas padrão ("Quero assistir"/"Quero jogar") já criadas
+    private Boolean boasVindasPendente; // conta nova que ainda não passou pelas boas-vindas (escolher filmes, séries...)
 
     public Usuario() {}
 
@@ -58,4 +59,6 @@ public class Usuario {
     public void setBio(String bio) { this.bio = bio; }
     public Boolean getListasIniciadas() { return listasIniciadas; }
     public void setListasIniciadas(Boolean listasIniciadas) { this.listasIniciadas = listasIniciadas; }
+    public Boolean getBoasVindasPendente() { return boasVindasPendente; }
+    public void setBoasVindasPendente(Boolean boasVindasPendente) { this.boasVindasPendente = boasVindasPendente; }
 }

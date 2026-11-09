@@ -809,6 +809,43 @@
         .aviso-senha { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px;
             padding: 10px 16px; background: #3a1620; border-bottom: 1px solid rgba(255,107,129,0.5); color: #ffd6dd; font-size: 14px; text-align: center; }
         .aviso-senha .btn { padding: 7px 14px; font-size: 13px; }
+        /* Boas-vindas (contas novas) */
+        .boas-vindas { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: clamp(0px, 3vw, 30px);
+            background: rgba(4,5,8,0.86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .bv-caixa { width: min(1040px, 100%); height: min(860px, calc(100vh - 2 * clamp(0px, 3vw, 30px))); height: min(860px, calc(100dvh - 2 * clamp(0px, 3vw, 30px))); display: flex; flex-direction: column; gap: 14px; background: var(--bg-soft);
+            border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: clamp(16px, 3vw, 28px); box-shadow: 0 40px 120px -20px rgba(0,0,0,0.9); }
+        @media (max-width: 640px) { .bv-caixa { border-radius: 0; height: 100vh; height: 100dvh; } }
+        .bv-passos { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; }
+        .bv-passos li { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
+            border: 1px solid var(--line); color: var(--text-3); }
+        .bv-passos li.atual { color: #fff; border-color: rgba(139,123,255,0.6); background: var(--accent-soft); }
+        .bv-passos li.feito { color: var(--jogo); border-color: rgba(79,227,161,0.4); }
+        .bv-ola { margin: 0; color: var(--text-2); font-size: 14px; }
+        .bv-topo h2 { font-family: var(--font-display); font-size: clamp(22px, 3.4vw, 30px); margin: 2px 0 4px; letter-spacing: -0.02em; }
+        .bv-sub { margin: 0; color: var(--text-3); font-size: 14px; max-width: 70ch; }
+        .bv-busca { max-width: 520px; width: 100%; flex: none; height: 50px; }
+        .bv-grade { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px;
+            align-content: start; padding: 2px 4px 2px 2px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+        .bv-item { display: grid; gap: 6px; background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; min-width: 0; }
+        .bv-capa { position: relative; aspect-ratio: 2/3; border-radius: 12px; overflow: hidden; background: var(--surface-2); border: 2px solid transparent; transition: border-color .15s, transform .15s; }
+        .bv-capa img, .bv-capa .placeholder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .bv-item:hover .bv-capa, .bv-item:focus-visible .bv-capa { transform: translateY(-2px); border-color: rgba(139,123,255,0.5); }
+        .bv-item.selecionado .bv-capa { border-color: var(--accent); }
+        .bv-check { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+            background: var(--accent); color: #fff; opacity: 0; transform: scale(.7); transition: opacity .15s, transform .15s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .bv-check svg { width: 16px; height: 16px; }
+        .bv-item.selecionado .bv-check { opacity: 1; transform: none; }
+        .bv-nome { font-size: 13px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+        .bv-web { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--line-strong);
+            background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
+        .bv-web:hover { border-color: rgba(139,123,255,0.6); }
+        .bv-web svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--accent-2); }
+        .bv-vazio { grid-column: 1 / -1; color: var(--text-3); font-size: 14px; }
+        .bv-status:empty { display: none; }
+        .bv-status { margin: 0; }
+        .bv-rodape { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; flex-wrap: wrap; }
+        .bv-rodape #bv-pular { margin-right: auto; }
+        .bv-contador { color: var(--text-2); font-size: 14px; font-variant-numeric: tabular-nums; }
         /* Spoiler e "avaliou sem comentar" */
         .spoiler { position: relative; border-radius: 10px; margin: 6px 0 6px; padding: 8px 12px; min-height: 40px; }
         .spoiler > p { filter: blur(7px); user-select: none; transition: filter .25s; margin: 0; }
@@ -1275,6 +1312,8 @@
     <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB, RAWG, Steam e Open Library</div></footer>
 
     <!-- ===== MODAL DE DETALHES ===== -->
+    <div class="boas-vindas" id="boas-vindas" role="dialog" aria-modal="true" aria-labelledby="bv-titulo" hidden></div>
+
     <div class="modal-fundo" id="modal-fundo" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo" id="modal"></div>
     </div>
@@ -1563,13 +1602,23 @@
                 : '<span>Toque nas estrelas para avaliar</span>';
         }
 
+        // Avatar e nome do autor; o perfil do administrador é oculto para os demais, então ali não há link
+        function autorHTML(autor, foto, oculto) {
+            const link = !oculto || ehAdmin();
+            return {
+                avatar: link ? `<button type="button" class="autor-link" data-perfil="${esc(autor)}" aria-label="Ver perfil de ${esc(autor)}">${avatarHTML(autor, foto)}</button>` : avatarHTML(autor, foto),
+                nome: link ? `<button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>` : `<strong>${esc(autor)}</strong>`
+            };
+        }
+
         function comentarioHTML(c) {
             const autor = String(c.autor || '?');
+            const a = autorHTML(autor, c.foto, c.perfilOculto && !c.meu);
             return `<li class="comentario" data-id="${esc(c.id)}">
-                <button type="button" class="autor-link" data-perfil="${esc(autor)}" aria-label="Ver perfil de ${esc(autor)}">${avatarHTML(autor, c.foto)}</button>
+                ${a.avatar}
                 <div>
                     <div class="comentario-topo">
-                        <button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>${c.meu ? '<span class="voce">você</span>' : ''}
+                        ${a.nome}${c.meu ? '<span class="voce">você</span>' : ''}
                         ${c.estrelas ? `<span title="Nota de ${esc(autor)}: ${c.estrelas} de 5" aria-label="Nota ${c.estrelas} de 5">${estrelasHTML(c.estrelas)}</span>` : ''}
                         <time datetime="${esc(c.criadoEm)}" title="${esc(new Date(c.criadoEm).toLocaleString('pt-BR'))}">${esc(tempoRelativo(c.criadoEm))}</time>
                         ${c.spoiler ? '<span class="selo-spoiler">spoiler</span>' : ''}
@@ -1592,11 +1641,12 @@
         // Quem avaliou com estrelas e não escreveu nada também aparece na lista
         function soNotaHTML(n) {
             const autor = String(n.autor || '?');
+            const a = autorHTML(autor, n.foto, n.perfilOculto && !n.meu);
             return `<li class="comentario so-nota">
-                <button type="button" class="autor-link" data-perfil="${esc(autor)}" aria-label="Ver perfil de ${esc(autor)}">${avatarHTML(autor, n.foto)}</button>
+                ${a.avatar}
                 <div>
                     <div class="comentario-topo">
-                        <button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>${n.meu ? '<span class="voce">você</span>' : ''}
+                        ${a.nome}${n.meu ? '<span class="voce">você</span>' : ''}
                         <span title="Nota de ${esc(autor)}: ${n.estrelas} de 5" aria-label="Nota ${n.estrelas} de 5">${estrelasHTML(n.estrelas)}</span>
                         ${n.em ? `<time datetime="${esc(n.em)}" title="${esc(new Date(n.em).toLocaleString('pt-BR'))}">${esc(tempoRelativo(n.em))}</time>` : ''}
                     </div>
@@ -2017,9 +2067,12 @@
         }
 
         function statusBusca(html, tipo = '') {
-            const el = $('busca-hero-status');
-            el.className = 'busca-hero-status ' + tipo;
-            el.innerHTML = html;
+            for (const id of ['busca-hero-status', 'bv-status']) {
+                const el = $(id);
+                if (!el || (id === 'bv-status' && !bv.ativo)) continue;
+                el.className = (id === 'bv-status' ? 'bv-status ' : '') + 'busca-hero-status ' + tipo;
+                el.innerHTML = html;
+            }
         }
 
         function executarOpcao(opcao) {
@@ -2046,13 +2099,14 @@
             statusBusca(`<span class="girando" aria-hidden="true"></span><span>Procurando “${esc(texto)}” na web…</span>`);
             try {
                 const params = new URLSearchParams({ nome: texto });
-                if (buscaHero.tipo) params.set('tipo', buscaHero.tipo);
+                const tipoPedido = extra.tipo ?? buscaHero.tipo;
+                if (tipoPedido) params.set('tipo', tipoPedido);
                 const resposta = await api(`/api/buscar-opcoes?${params}`);
                 const dados = await resposta.json().catch(() => ({}));
                 if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
                 const opcoes = dados.opcoes || [];
                 if (!opcoes.length) {
-                    statusBusca(`Não encontramos “${esc(texto)}” na web. Confira o nome${buscaHero.tipo ? ' ou troque o tipo de mídia' : ''}.`, 'erro');
+                    statusBusca(`Não encontramos “${esc(texto)}” na web. Confira o nome${tipoPedido ? ' ou troque o tipo de mídia' : ''}.`, 'erro');
                     return;
                 }
                 statusBusca(opcoes.length === 1 ? 'Confira se é esta a obra.' : `Encontramos ${opcoes.length} opções para “${esc(texto)}”. Escolha a certa.`);
@@ -2105,6 +2159,7 @@
                     if (!porTitulo.has(obra.titulo)) porTitulo.set(obra.titulo, obra);
                     statusBusca(`<strong>${esc(obra.titulo)}</strong> já estava no acervo.`, 'ok');
                 }
+                if (bv.ativo) { bvAdicionada(obra); return; }
                 $('busca-hero-texto').value = '';
                 abrirModal(obra.titulo);
             } catch (e) {
@@ -2143,7 +2198,10 @@
             if (!o) return;
             fecharDialogo();
             const titulo = o.tituloNoAcervo || o.titulo;
-            if (o.jaNoAcervo) {
+            if (o.jaNoAcervo && bv.ativo) {
+                if (!porTitulo.has(titulo)) await carregarCatalogo();
+                bvAdicionada(porTitulo.get(titulo) || { titulo, tipo: o.tipo });
+            } else if (o.jaNoAcervo) {
                 if (!porTitulo.has(titulo)) await carregarCatalogo();
                 statusBusca(`<strong>${esc(titulo)}</strong> já estava no acervo.`, 'ok');
                 $('busca-hero-texto').value = '';
@@ -2758,6 +2816,7 @@
                 minhasConcluidas.clear();
                 (dados.concluidas || []).forEach(t => minhasConcluidas.add(t));
                 atualizarConclusoesNaTela();
+                bv.pendente = !!dados.boasVindasPendente;
             } catch (e) { console.warn('Não foi possível carregar o resumo do perfil', e); }
         }
 
@@ -3646,6 +3705,152 @@
 
         // ================= EXCLUIR OBRA (administrador) =================
         // O botão só aparece para o administrador; o servidor também recusa (403) para os demais.
+        // ================= BOAS-VINDAS (contas novas) =================
+        // Escolhe até 5 obras de cada mídia; elas viram favoritos e montam o "Para você" desde o primeiro acesso
+        const ETAPAS_BV = [
+            { tipo: 'filme', nome: 'filmes', titulo: 'Escolha 5 filmes que você curte' },
+            { tipo: 'serie', nome: 'séries', titulo: 'Agora, 5 séries' },
+            { tipo: 'jogo', nome: 'jogos', titulo: 'E 5 jogos' },
+            { tipo: 'livro', nome: 'livros', titulo: 'Por fim, 5 livros' }
+        ];
+        const META_BV = 5;
+        const bv = { pendente: false, ativo: false, etapa: 0, escolhidos: new Map(), busca: '' };   // escolhidos: título -> mídia
+
+        const escolhidosDaEtapa = () => [...bv.escolhidos].filter(([, tipo]) => tipo === ETAPAS_BV[bv.etapa].tipo).map(([t]) => t);
+
+        function abrirBoasVindas() {
+            Object.assign(bv, { ativo: true, etapa: 0, busca: '' });
+            bv.escolhidos.clear();
+            $('boas-vindas').hidden = false;
+            document.body.classList.add('travado');
+            montarBoasVindas();
+        }
+
+        function montarBoasVindas() {
+            const e = ETAPAS_BV[bv.etapa];
+            $('boas-vindas').innerHTML = `
+                <div class="bv-caixa">
+                    <header class="bv-topo">
+                        <ol class="bv-passos" aria-label="Etapas">${ETAPAS_BV.map((x, i) =>
+                            `<li class="${i < bv.etapa ? 'feito' : i === bv.etapa ? 'atual' : ''}"${i === bv.etapa ? ' aria-current="step"' : ''}>${x.nome}</li>`).join('')}</ol>
+                        <p class="bv-ola">Bem-vindo(a), ${esc(sessao?.usuario || '')}!</p>
+                        <h2 id="bv-titulo">${e.titulo}</h2>
+                        <p class="bv-sub">Elas viram seus favoritos e montam o seu “Para você”. Não achou? Procure pelo nome: se não estiver no acervo, buscamos na web.</p>
+                    </header>
+                    <label class="search bv-busca">${ICONES.busca}<input id="bv-busca" type="search" placeholder="Procurar ${e.nome}..." autocomplete="off" aria-label="Procurar ${e.nome}"></label>
+                    <div class="bv-grade" id="bv-grade"></div>
+                    <p class="bv-status busca-hero-status" id="bv-status" role="status"></p>
+                    <footer class="bv-rodape">
+                        <button type="button" class="link-btn" id="bv-pular">${bv.etapa === ETAPAS_BV.length - 1 ? 'Pular e terminar' : 'Pular esta etapa'}</button>
+                        <span class="bv-contador" id="bv-contador" aria-live="polite"></span>
+                        <button type="button" class="btn btn-primary" id="bv-proximo"></button>
+                    </footer>
+                </div>`;
+            $('bv-busca').value = bv.busca;
+            $('bv-busca').addEventListener('input', ev => { bv.busca = ev.target.value; renderizarGradeBv(); });
+            renderizarGradeBv();
+            setTimeout(() => $('bv-busca')?.focus({ preventScroll: true }), 50);
+        }
+
+        function renderizarGradeBv() {
+            const e = ETAPAS_BV[bv.etapa];
+            const chave = chaveBusca(bv.busca);
+            const escolhidos = escolhidosDaEtapa();
+            let lista = catalogo.filter(o => tipoDe(o) === e.tipo && (!chave || chaveBusca(o.titulo).includes(chave)));
+            // ordem estável (as mais avaliadas primeiro, depois por título): escolher não faz a grade "andar"
+            lista.sort((a, b) => ((notas.get(b.titulo)?.total || 0) - (notas.get(a.titulo)?.total || 0)) || a.titulo.localeCompare(b.titulo, 'pt'));
+            lista = lista.slice(0, 60);
+            const itens = lista.map(o => {
+                const sel = escolhidos.includes(o.titulo);
+                return `<button type="button" class="bv-item ${sel ? 'selecionado' : ''}" data-bv-obra="${esc(o.titulo)}" aria-pressed="${sel}" title="${esc(o.titulo)}">
+                    <span class="bv-capa">${imagemHTML(o, 'imagem', '')}<span class="bv-check">${ICONE_CHECK}</span></span>
+                    <span class="bv-nome">${esc(o.titulo)}</span>
+                </button>`;
+            }).join('');
+            const web = bv.busca.trim()
+                ? `<button type="button" class="bv-web" data-bv-web>${ICONE_WEB}<span>${lista.length ? 'Não é nenhum desses?' : `Não temos “${esc(bv.busca.trim())}” no acervo.`} Procurar na web</span></button>`
+                : '';
+            $('bv-grade').innerHTML = itens || web
+                ? itens + web
+                : `<p class="bv-vazio">Ainda não há ${e.nome} no acervo. Procure um título acima para adicionar.</p>`;
+            atualizarSelecaoBv();
+        }
+
+        // Marca/desmarca no lugar (sem redesenhar a grade) e atualiza o contador e o botão
+        function atualizarSelecaoBv() {
+            const escolhidos = escolhidosDaEtapa();
+            document.querySelectorAll('#bv-grade [data-bv-obra]').forEach(b => {
+                const sel = escolhidos.includes(b.dataset.bvObra);
+                b.classList.toggle('selecionado', sel);
+                b.setAttribute('aria-pressed', String(sel));
+            });
+            $('bv-contador').textContent = `${escolhidos.length} de ${META_BV}`;
+            $('bv-proximo').textContent = bv.etapa === ETAPAS_BV.length - 1 ? 'Concluir' : 'Próximo';
+            $('bv-proximo').disabled = escolhidos.length === 0;
+        }
+
+        function alternarEscolhaBv(titulo) {
+            const e = ETAPAS_BV[bv.etapa];
+            if (bv.escolhidos.has(titulo)) bv.escolhidos.delete(titulo);
+            else if (escolhidosDaEtapa().length >= META_BV) { toast(`Você já escolheu ${META_BV} ${e.nome}. Tire um para trocar.`); return; }
+            else bv.escolhidos.set(titulo, e.tipo);
+            atualizarSelecaoBv();
+        }
+
+        // Obra encontrada na web (ou que já estava no acervo) durante as boas-vindas: já entra escolhida
+        function bvAdicionada(obra) {
+            const e = ETAPAS_BV[bv.etapa];
+            bv.busca = '';
+            if ($('bv-busca')) $('bv-busca').value = '';
+            $('busca-hero-texto').value = '';
+            if (tipoDe(obra) === e.tipo && !bv.escolhidos.has(obra.titulo) && escolhidosDaEtapa().length < META_BV) {
+                bv.escolhidos.set(obra.titulo, e.tipo);
+                statusBusca(`<strong>${esc(obra.titulo)}</strong> foi escolhido.`, 'ok');
+            }
+            renderizarGradeBv();
+        }
+
+        async function avancarBoasVindas(pular) {
+            if (pular) ETAPAS_BV.slice(bv.etapa, bv.etapa + 1).forEach(e => [...bv.escolhidos].forEach(([t, tipo]) => { if (tipo === e.tipo) bv.escolhidos.delete(t); }));
+            if (bv.etapa < ETAPAS_BV.length - 1) { bv.etapa++; bv.busca = ''; montarBoasVindas(); return; }
+            await concluirBoasVindas();
+        }
+
+        async function concluirBoasVindas() {
+            const titulos = [...bv.escolhidos.keys()];
+            const botao = $('bv-proximo');
+            if (botao) { botao.disabled = true; botao.textContent = 'Salvando…'; }
+            try {
+                if (titulos.length) {
+                    const r = await api('/api/favoritos/importar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulos }) });
+                    if (r.ok) { curtidas = await r.json(); sincronizarBotoesFavorito(); atualizarContador(); }
+                }
+                await api('/api/perfil/eu/boas-vindas', { method: 'POST' });
+            } catch (e) { console.error(e); }
+            Object.assign(bv, { ativo: false, pendente: false });
+            $('boas-vindas').hidden = true;
+            $('boas-vindas').innerHTML = '';
+            document.body.classList.remove('travado');
+            if (titulos.length) {
+                irPara('paravoce');
+                toast(`${plural(titulos.length, 'favorito salvo', 'favoritos salvos')}. Aqui está o seu “Para você”!`);
+            }
+        }
+
+        $('boas-vindas').addEventListener('click', e => {
+            const item = e.target.closest('[data-bv-obra]');
+            if (item) { alternarEscolhaBv(item.dataset.bvObra); return; }
+            if (e.target.closest('[data-bv-web]')) { procurarNaWeb(bv.busca.trim(), { tipo: ETAPAS_BV[bv.etapa].tipo }); return; }
+            if (e.target.closest('#bv-pular')) { avancarBoasVindas(true); return; }
+            if (e.target.closest('#bv-proximo')) avancarBoasVindas(false);
+        });
+        $('boas-vindas').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && e.target.id === 'bv-busca' && bv.busca.trim()) {
+                const exata = catalogo.find(o => tipoDe(o) === ETAPAS_BV[bv.etapa].tipo && chaveBusca(o.titulo) === chaveBusca(bv.busca));
+                if (exata) alternarEscolhaBv(exata.titulo); else procurarNaWeb(bv.busca.trim(), { tipo: ETAPAS_BV[bv.etapa].tipo });
+            }
+        });
+
         // ================= HISTÓRICO (administrador) =================
         const historico = { categoria: '', texto: '', proximo: null, carregando: false };
         const ICONES_EVENTO = {
@@ -3873,7 +4078,9 @@
                 try { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao)); } catch {}
                 aplicarPapel();
             }).catch(() => {});
-            carregarCatalogo().then(() => { abrirObraDoLink(); abrirListaDoLink(); });
+            // Quem chega por um link compartilhado vê primeiro o que recebeu; as boas-vindas ficam para a próxima visita
+            const veioPorLink = /[?&](obra|lista)=/.test(location.search);
+            carregarCatalogo().then(() => { if (bv.pendente && !veioPorLink) abrirBoasVindas(); else { abrirObraDoLink(); abrirListaDoLink(); } });
             if (sessao?.senhaFraca) {
                 document.body.insertAdjacentHTML('afterbegin', `<div class="aviso-senha" id="aviso-senha" role="alert">
                     <span><b>Sua senha é fácil de adivinhar.</b> Troque agora para proteger sua conta${ehAdmin() ? ' (e o site inteiro: você é o administrador)' : ''}.</span>

@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T04:20:44.398Z",
-  "aprovados": 35,
-  "total": 35,
+  "executado_em": "2026-11-09T19:27:35.970Z",
+  "aprovados": 39,
+  "total": 39,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,13 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_y99dti; menu mostra \"teste_ui_y99dti\""
+      "detalhe": "usuário teste_ui_khshre; menu mostra \"teste_ui_khshre\""
+    },
+    {
+      "id": "T40",
+      "descricao": "Conta nova: boas-vindas para escolher 5 filmes, séries, jogos e livros, com busca na web e opção de pular",
+      "ok": true,
+      "detalhe": "etapas: filmes, séries, jogos, livros; contador=\"2 de 5\"; busca na web=true; concluída no servidor=true"
     },
     {
       "id": "T01",
@@ -182,7 +188,7 @@
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":2}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":1}"
     },
     {
       "id": "T28",
@@ -213,6 +219,24 @@
       "descricao": "Sair volta ao login e invalida o token no servidor",
       "ok": true,
       "detalhe": "GET /api/obras com o token antigo: 401"
+    },
+    {
+      "id": "T19",
+      "descricao": "Administrador vê os usuários, cria uma conta comum e a exclui",
+      "ok": true,
+      "detalhe": "entrou=true, listou=true, criou=true, excluiu=true, admin protegido=true"
+    },
+    {
+      "id": "T20",
+      "descricao": "Administração sem rolagem horizontal em 400 px",
+      "ok": true,
+      "detalhe": "scrollWidth=400"
+    },
+    {
+      "id": "T33",
+      "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
+      "ok": true,
+      "detalhe": "teste_adm_bv excluiu a conta de teste_adm_go3tbpela Administração | teste_adm_bv criou a conta de teste_adm_go3tbpela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }

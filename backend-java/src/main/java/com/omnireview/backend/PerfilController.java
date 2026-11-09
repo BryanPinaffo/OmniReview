@@ -26,6 +26,13 @@ public class PerfilController {
         return perfis.resumoDoUsuario(eu(req));
     }
 
+    /** A conta nova terminou (ou pulou) as boas-vindas. */
+    @PostMapping("/eu/boas-vindas")
+    public ResponseEntity<Object> concluirBoasVindas(HttpServletRequest req) {
+        perfis.concluirBoasVindas(eu(req));
+        return ResponseEntity.noContent().build();
+    }
+
     /** Atualiza foto, capa de fundo e/ou bio do usuário logado. */
     @PostMapping("/eu")
     public ResponseEntity<Object> atualizar(@RequestBody(required = false) Map<String, Object> campos, HttpServletRequest req) {

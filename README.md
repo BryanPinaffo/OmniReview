@@ -98,6 +98,17 @@ completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não 
 - O cadastro público e o painel só criam usuários comuns. Contas de administrador não podem ser excluídas pelo site.
 - A interface esconde as opções, mas quem barra é o servidor: as rotas de administração respondem 403 para usuários comuns.
 
+A conta de administrador fica oculta para os usuários comuns: não aparece em "Encontrar pessoas", nos seguidores
+nem nas sugestões de participantes, e o perfil dela responde como inexistente (404). Comentários do administrador
+mostram o nome, mas sem link para o perfil.
+
+## Boas-vindas (contas novas)
+
+Depois do cadastro, a pessoa escolhe até 5 filmes, 5 séries, 5 jogos e 5 livros (cada etapa pode ser pulada). A grade
+mostra o acervo daquela mídia; o que não estiver lá pode ser procurado na web pela barra de busca, com a mesma
+confirmação da tela inicial, e já entra escolhido. As escolhas viram favoritos e a pessoa cai no "Para você". Quem
+chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a próxima visita.
+
 ## Minhas listas
 
 - Listas pessoais do que a pessoa quer ver ou jogar. Toda conta começa com **Quero assistir** e **Quero jogar**
