@@ -591,6 +591,42 @@ await avaliar("irPara('catalogo')");
     `${opcoes.length} opções: ${opcoes.slice(0, 4).map(o => o.titulo).join(' | ')}; obras antes/depois: ${antes}/${depois}`);
 }
 
+// ---------- Comentários: quem só deu estrelas aparece; spoiler fica borrado até tocar ----------
+{
+  await avaliar("irPara('catalogo')");
+  const alvo = await avaliar("catalogo.find(o => tipoDe(o) === 'serie')?.titulo");
+  await avaliar(`abrirModal(${JSON.stringify(alvo)})`);
+  await aguardar("!!document.getElementById('seletor-estrelas')", 10000);
+  const minhaSoNota = "[...document.querySelectorAll('#aval-lista .so-nota')].some(li => li.querySelector('.voce'))";
+  await avaliar("document.querySelector('#seletor-estrelas [data-estrela=\"3\"]').click()");
+  const apareceuSoNota = await aguardar(minhaSoNota, 6000);
+  // comenta com spoiler
+  await preencher('comentario-texto', 'O vilão é o pai dela!');
+  await avaliar("document.getElementById('comentario-spoiler').checked = true; document.getElementById('comentario-form').requestSubmit()");
+  const publicou = await aguardar("!!document.querySelector('#aval-lista .comentario .spoiler')", 6000);
+  const borrado = await avaliar("getComputedStyle(document.querySelector('#aval-lista .spoiler > p')).filter.includes('blur')");
+  const soNotaSumiu = await avaliar(`!(${minhaSoNota})`);
+  await avaliar("document.querySelector('#aval-lista .spoiler').scrollIntoView({ block: 'center' })");
+  await esperar(300);
+  await capturar('comentario_spoiler');
+  await avaliar("document.querySelector('#aval-lista [data-revelar-spoiler]').click()");
+  const revelado = await aguardar("getComputedStyle(document.querySelector('#aval-lista .spoiler > p')).filter === 'none'", 3000);
+  // exclui o comentário: volta a aparecer só com a nota
+  const btnExcluir = "[...document.querySelectorAll('#aval-lista [data-excluir-comentario]')].find(b => b.closest('.comentario').querySelector('.voce'))";
+  await avaliar(`${btnExcluir}.click()`);
+  await avaliar(`${btnExcluir}.click()`);
+  const voltouSoNota = await aguardar(`!document.querySelector('#aval-lista .spoiler') && ${minhaSoNota}`, 6000);
+  // no servidor também: outra pessoa vê a nota sem comentário
+  const servidor = await avaliar(`api('/api/avaliacoes?titulo=' + encodeURIComponent(${JSON.stringify(alvo)})).then(r => r.json())
+    .then(d => d.soNotas.some(n => n.meu && n.estrelas === 3) && !d.comentarios.some(c => c.meu))`);
+  await avaliar("document.querySelector('[data-remover-nota]')?.click()");   // limpeza: tira a nota
+  await aguardar(`!(${minhaSoNota})`, 6000);
+  await avaliar('fecharModal()');
+  caso('T38', 'Comentários: quem só deu estrelas aparece na lista; comentário com spoiler fica borrado até tocar',
+    apareceuSoNota && publicou && borrado && soNotaSumiu && revelado && voltouSoNota && servidor,
+    `só nota=${apareceuSoNota}, spoiler borrado=${publicou}/${borrado}, só nota some ao comentar=${soNotaSumiu}, revelou=${revelado}, volta ao excluir=${voltouSoNota}, servidor=${servidor}`);
+}
+
 // ---------- Encontrar pessoas: cartões um embaixo do outro, com o nome legível (regressão de CSS) ----------
 {
   await avaliar("abrirPerfil(sessao.usuario)");

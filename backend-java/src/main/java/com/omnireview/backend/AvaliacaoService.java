@@ -115,12 +115,30 @@ public class AvaliacaoService {
         Collection<Map<String, Object>> linhas = neo4j.query(
                 "MATCH (c:Comentario)-[:SOBRE]->(o:Obra {titulo: $titulo}) " +
                 "OPTIONAL MATCH (autor:Usuario {usuario: c.autor}) OPTIONAL MATCH (autor)-[a:AVALIOU]->(o) " +
-                "RETURN c.id AS id, c.autor AS autor, c.texto AS texto, c.criadoEm AS criadoEm, a.estrelas AS estrelas, autor.foto AS foto " +
+                "RETURN c.id AS id, c.autor AS autor, c.texto AS texto, c.criadoEm AS criadoEm, a.estrelas AS estrelas, autor.foto AS foto, " +
+                "       coalesce(c.spoiler, false) AS spoiler " +
                 "ORDER BY c.criadoEm DESC LIMIT " + LIMITE_COMENTARIOS)
                 .bindAll(Map.of("titulo", titulo)).fetch().all();
         List<Map<String, Object>> comentarios = new ArrayList<>();
         for (Map<String, Object> l : linhas) {
             comentarios.add(comentario(l, usuario));
+        }
+
+        // Quem deu estrelas mas não escreveu nada também aparece na lista ("avaliou sem comentar")
+        List<Map<String, Object>> soNotas = new ArrayList<>();
+        for (Map<String, Object> l : neo4j.query(
+                "MATCH (u:Usuario)-[a:AVALIOU]->(o:Obra {titulo: $titulo}) " +
+                "WHERE NOT EXISTS { MATCH (:Comentario {autor: u.usuario})-[:SOBRE]->(o) } " +
+                "RETURN u.usuario AS autor, u.foto AS foto, a.estrelas AS estrelas, a.em AS em " +
+                "ORDER BY a.em DESC LIMIT " + LIMITE_COMENTARIOS)
+                .bindAll(Map.of("titulo", titulo)).fetch().all()) {
+            Map<String, Object> n = new LinkedHashMap<>();
+            n.put("autor", l.get("autor"));
+            n.put("foto", l.get("foto"));
+            n.put("estrelas", inteiro(l.get("estrelas")));
+            n.put("em", l.get("em"));
+            n.put("meu", usuario != null && usuario.equals(l.get("autor")));
+            soNotas.add(n);
         }
 
         Map<String, Object> n = notas.get();
@@ -131,6 +149,7 @@ public class AvaliacaoService {
         corpo.put("minhaNota", n.get("minha") == null ? null : inteiro(n.get("minha")));
         corpo.put("distribuicao", n.get("distribuicao"));
         corpo.put("comentarios", comentarios);
+        corpo.put("soNotas", soNotas);
         return Resultado.sucesso(corpo);
     }
 
@@ -156,17 +175,22 @@ public class AvaliacaoService {
     }
 
     public Resultado comentar(String titulo, String texto, String usuario) {
+        return comentar(titulo, texto, usuario, false);
+    }
+
+    /** Publica um comentário; com spoiler=true ele aparece borrado até quem lê tocar para revelar. */
+    public Resultado comentar(String titulo, String texto, String usuario, boolean spoiler) {
         String limpo = limparTexto(texto);
         Optional<String> erro = validarComentario(limpo);
         if (erro.isPresent()) return Resultado.falha(400, erro.get());
         String id = UUID.randomUUID().toString();
         Optional<Map<String, Object>> criado = neo4j.query(
                 "MATCH (u:Usuario {usuario: $usuario}), (o:Obra {titulo: $titulo}) " +
-                "CREATE (u)-[:ESCREVEU]->(c:Comentario {id: $id, autor: $usuario, texto: $texto, criadoEm: $agora})-[:SOBRE]->(o) " +
+                "CREATE (u)-[:ESCREVEU]->(c:Comentario {id: $id, autor: $usuario, texto: $texto, criadoEm: $agora, spoiler: $spoiler})-[:SOBRE]->(o) " +
                 "WITH c, u, o OPTIONAL MATCH (u)-[a:AVALIOU]->(o) " +
-                "RETURN c.id AS id, c.autor AS autor, c.texto AS texto, c.criadoEm AS criadoEm, a.estrelas AS estrelas, u.foto AS foto")
+                "RETURN c.id AS id, c.autor AS autor, c.texto AS texto, c.criadoEm AS criadoEm, a.estrelas AS estrelas, u.foto AS foto, c.spoiler AS spoiler")
                 .bindAll(Map.of("usuario", usuario, "titulo", titulo == null ? "" : titulo, "id", id,
-                        "texto", limpo, "agora", Instant.now(relogio).toString()))
+                        "texto", limpo, "agora", Instant.now(relogio).toString(), "spoiler", spoiler))
                 .fetch().one();
         if (criado.isEmpty()) return Resultado.falha(404, "Obra não encontrada.");
         Resultado r = Resultado.sucesso(comentario(criado.get(), usuario));
@@ -217,6 +241,7 @@ public class AvaliacaoService {
         c.put("estrelas", l.get("estrelas") == null ? null : inteiro(l.get("estrelas")));
         c.put("meu", usuario != null && usuario.equals(l.get("autor")));
         c.put("foto", l.get("foto"));
+        c.put("spoiler", Boolean.TRUE.equals(l.get("spoiler")));
         return c;
     }
 

@@ -128,11 +128,15 @@ public class PerfilService {
         }
         for (Map<String, Object> l : neo4j.query(
                 "MATCH (c:Comentario {autor: $usuario})-[:SOBRE]->(o:Obra) " +
-                "RETURN o.titulo AS titulo, o.tipo AS tipo, o.imagem AS imagem, o.capa AS capa, c.texto AS texto, c.criadoEm AS em " +
+                "RETURN o.titulo AS titulo, o.tipo AS tipo, o.imagem AS imagem, o.capa AS capa, c.texto AS texto, c.criadoEm AS em, " +
+                "       coalesce(c.spoiler, false) AS spoiler " +
                 "ORDER BY c.criadoEm DESC")
                 .bindAll(Map.of("usuario", usuario)).fetch().all()) {
             Map<String, Object> r = review(porObra, l);
-            if (r.get("texto") == null) r.put("texto", l.get("texto"));   // o mais recente (consulta em ordem decrescente)
+            if (r.get("texto") == null) {   // o mais recente (consulta em ordem decrescente)
+                r.put("texto", l.get("texto"));
+                r.put("spoiler", Boolean.TRUE.equals(l.get("spoiler")));
+            }
             r.put("comentarios", (int) r.get("comentarios") + 1);
         }
         List<Map<String, Object>> lista = new ArrayList<>(porObra.values());

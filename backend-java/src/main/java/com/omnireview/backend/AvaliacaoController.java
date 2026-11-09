@@ -13,7 +13,7 @@ import java.util.Map;
 public class AvaliacaoController {
 
     public record NovaNota(String titulo, Integer estrelas) {}
-    public record NovoComentario(String titulo, String texto) {}
+    public record NovoComentario(String titulo, String texto, Boolean spoiler) {}
 
     private final AvaliacaoService avaliacoes;
     private final HistoricoService historico;
@@ -54,7 +54,7 @@ public class AvaliacaoController {
     @PostMapping("/comentarios")
     public ResponseEntity<Map<String, Object>> comentar(@RequestBody(required = false) NovoComentario c, HttpServletRequest req) {
         if (c == null) return erro(400, "Informe a obra e o comentário.");
-        AvaliacaoService.Resultado r = avaliacoes.comentar(c.titulo(), c.texto(), usuario(req));
+        AvaliacaoService.Resultado r = avaliacoes.comentar(c.titulo(), c.texto(), usuario(req), Boolean.TRUE.equals(c.spoiler()));
         if (r.ok()) historico.registrar(usuario(req), "avaliacao", "comentou em", c.titulo(), c.titulo(), "“" + c.texto() + "”");
         return responder(r);
     }

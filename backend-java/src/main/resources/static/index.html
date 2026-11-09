@@ -809,6 +809,18 @@
         .aviso-senha { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px;
             padding: 10px 16px; background: #3a1620; border-bottom: 1px solid rgba(255,107,129,0.5); color: #ffd6dd; font-size: 14px; text-align: center; }
         .aviso-senha .btn { padding: 7px 14px; font-size: 13px; }
+        /* Spoiler e "avaliou sem comentar" */
+        .spoiler { position: relative; border-radius: 10px; margin: 6px 0 6px; padding: 8px 12px; min-height: 40px; }
+        .spoiler > p { filter: blur(7px); user-select: none; transition: filter .25s; margin: 0; }
+        .spoiler.revelado > p { filter: none; user-select: auto; }
+        .spoiler-aviso { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+            background: rgba(8,9,13,0.35); border: 1px dashed rgba(255,207,92,0.55); border-radius: 10px; color: #ffcf5c; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0 12px; }
+        .spoiler-aviso:hover, .spoiler-aviso:focus-visible { background: rgba(8,9,13,0.55); }
+        .spoiler.revelado .spoiler-aviso { display: none; }
+        .selo-spoiler { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #ffcf5c; border: 1px solid rgba(255,207,92,0.45); border-radius: 6px; padding: 1px 6px; }
+        .marca-spoiler { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; margin-right: auto; user-select: none; }
+        .marca-spoiler input { accent-color: #ffcf5c; width: 15px; height: 15px; }
+        .so-nota-texto { color: var(--text-3); font-style: italic; font-size: 13.5px; margin: 2px 0 0; }
         /* Escolha entre mídias com o mesmo nome */
         .escolha-midia { display: grid; gap: 10px; }
         .opcao-midia { display: flex; gap: 14px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font: inherit; cursor: pointer; transition: border-color .2s, background .2s; }
@@ -1507,6 +1519,8 @@
                         <textarea id="comentario-texto" maxlength="${MAX_COMENTARIO}" rows="3" aria-label="Seu comentário"
                             placeholder="O que você achou de ${esc(avaliacao.titulo)}? Escreva seu comentário…"></textarea>
                         <div class="caixa-rodape">
+                            <label class="marca-spoiler" title="O comentário aparece borrado até quem lê tocar para ver">
+                                <input type="checkbox" id="comentario-spoiler"> Contém spoiler</label>
                             <small id="comentario-contador">0 / ${MAX_COMENTARIO}</small>
                             <button class="btn btn-primary" id="comentario-enviar" type="submit" disabled>Publicar</button>
                         </div>
@@ -1558,19 +1572,62 @@
                         <button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>${c.meu ? '<span class="voce">você</span>' : ''}
                         ${c.estrelas ? `<span title="Nota de ${esc(autor)}: ${c.estrelas} de 5" aria-label="Nota ${c.estrelas} de 5">${estrelasHTML(c.estrelas)}</span>` : ''}
                         <time datetime="${esc(c.criadoEm)}" title="${esc(new Date(c.criadoEm).toLocaleString('pt-BR'))}">${esc(tempoRelativo(c.criadoEm))}</time>
+                        ${c.spoiler ? '<span class="selo-spoiler">spoiler</span>' : ''}
                     </div>
-                    <p>${esc(c.texto)}</p>
+                    ${textoComSpoiler(c.texto, c.spoiler)}
                     ${c.meu || ehAdmin() ? `<div class="comentario-acoes"><button type="button" class="link-btn" data-excluir-comentario="${esc(c.id)}"${c.meu ? '' : ' title="Moderação: só o administrador vê esta opção"'}>${c.meu ? 'Excluir' : 'Excluir (moderação)'}</button></div>` : ''}
                 </div>
             </li>`;
         }
 
+        // Texto de comentário; com spoiler, fica borrado até a pessoa tocar em "Spoiler: toque para ver"
+        function textoComSpoiler(texto, spoiler) {
+            if (!spoiler) return `<p>${esc(texto)}</p>`;
+            return `<div class="spoiler">
+                <p aria-hidden="true">${esc(texto)}</p>
+                <button type="button" class="spoiler-aviso" data-revelar-spoiler>⚠ Spoiler: toque para ver</button>
+            </div>`;
+        }
+
+        // Quem avaliou com estrelas e não escreveu nada também aparece na lista
+        function soNotaHTML(n) {
+            const autor = String(n.autor || '?');
+            return `<li class="comentario so-nota">
+                <button type="button" class="autor-link" data-perfil="${esc(autor)}" aria-label="Ver perfil de ${esc(autor)}">${avatarHTML(autor, n.foto)}</button>
+                <div>
+                    <div class="comentario-topo">
+                        <button type="button" class="autor-link" data-perfil="${esc(autor)}"><strong>${esc(autor)}</strong></button>${n.meu ? '<span class="voce">você</span>' : ''}
+                        <span title="Nota de ${esc(autor)}: ${n.estrelas} de 5" aria-label="Nota ${n.estrelas} de 5">${estrelasHTML(n.estrelas)}</span>
+                        ${n.em ? `<time datetime="${esc(n.em)}" title="${esc(new Date(n.em).toLocaleString('pt-BR'))}">${esc(tempoRelativo(n.em))}</time>` : ''}
+                    </div>
+                    <p class="so-nota-texto">Avaliou sem comentar</p>
+                </div>
+            </li>`;
+        }
+
         function renderizarComentarios() {
-            const lista = avaliacao.dados.comentarios;
-            $('aval-contagem').textContent = lista.length ? `(${lista.length})` : '';
-            $('aval-lista').innerHTML = lista.length
-                ? lista.map(comentarioHTML).join('')
-                : '<li class="comentarios-vazio">Ainda não há comentários. Seja o primeiro a comentar!</li>';
+            const comentarios = avaliacao.dados.comentarios;
+            const soNotas = avaliacao.dados.soNotas || [];
+            const itens = [
+                ...comentarios.map(c => ({ quando: c.criadoEm || '', html: comentarioHTML(c) })),
+                ...soNotas.map(n => ({ quando: n.em || '', html: soNotaHTML(n) }))
+            ].sort((a, b) => b.quando.localeCompare(a.quando));
+            const partes = [];
+            if (comentarios.length) partes.push(plural(comentarios.length, 'comentário', 'comentários'));
+            if (soNotas.length) partes.push(`${soNotas.length} só com nota`);
+            $('aval-contagem').textContent = partes.length ? `(${partes.join(' · ')})` : '';
+            $('aval-lista').innerHTML = itens.length
+                ? itens.map(i => i.html).join('')
+                : '<li class="comentarios-vazio">Ainda não há avaliações nem comentários. Seja o primeiro!</li>';
+        }
+
+        // Mantém "avaliou sem comentar" coerente depois de mudar a nota, comentar ou excluir comentário
+        function atualizarMinhaSoNota() {
+            const d = avaliacao.dados;
+            d.soNotas = (d.soNotas || []).filter(n => !n.meu);
+            if (d.minhaNota && !d.comentarios.some(c => c.meu)) {
+                d.soNotas.unshift({ autor: sessao.usuario, foto: minhaFoto, estrelas: d.minhaNota, em: new Date().toISOString(), meu: true });
+            }
         }
 
         // Prévia das estrelas ao passar o mouse
@@ -1603,6 +1660,7 @@
                 if (avaliacao?.titulo !== titulo) return;
                 Object.assign(avaliacao.dados, dados);
                 avaliacao.dados.comentarios.forEach(c => { if (c.meu) c.estrelas = dados.minhaNota; });
+                atualizarMinhaSoNota();
                 sincronizarNota(avaliacao.dados);
                 renderizarPainel();
                 renderizarComentarios();
@@ -1620,16 +1678,19 @@
             const texto = campo.value.trim();
             if (!texto || !avaliacao) return;
             const titulo = avaliacao.titulo;
+            const spoiler = !!$('comentario-spoiler')?.checked;
             $('comentario-enviar').disabled = true;
             $('comentario-erro').hidden = true;
             try {
                 const resposta = await api('/api/avaliacoes/comentarios', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo, texto }) });
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titulo, texto, spoiler }) });
                 const dados = await resposta.json();
                 if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível publicar.');
                 if (avaliacao?.titulo !== titulo) return;
                 avaliacao.dados.comentarios.unshift(dados);
+                atualizarMinhaSoNota();
                 campo.value = '';
+                if ($('comentario-spoiler')) $('comentario-spoiler').checked = false;
                 atualizarContadorComentario();
                 renderizarComentarios();
             } catch (e) {
@@ -1652,7 +1713,12 @@
             try {
                 const resposta = await api(`/api/avaliacoes/comentarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
                 if (!resposta.ok && resposta.status !== 404) throw new Error('HTTP ' + resposta.status);
+                const removido = avaliacao.dados.comentarios.find(c => c.id === id);
                 avaliacao.dados.comentarios = avaliacao.dados.comentarios.filter(c => c.id !== id);
+                if (removido?.meu) atualizarMinhaSoNota();
+                else if (removido?.estrelas && !avaliacao.dados.comentarios.some(c => c.autor === removido.autor)) {
+                    (avaliacao.dados.soNotas ||= []).push({ autor: removido.autor, foto: removido.foto, estrelas: removido.estrelas, em: removido.criadoEm, meu: false });
+                }
                 renderizarComentarios();
             } catch (e) {
                 console.error(e);
@@ -1676,6 +1742,14 @@
             const excluir = e.target.closest('[data-excluir-comentario]');
             if (excluir) excluirComentario(excluir);
         });
+        document.addEventListener('click', e => {
+            const revelar = e.target.closest('[data-revelar-spoiler]');
+            if (!revelar) return;
+            const caixa = revelar.closest('.spoiler');
+            caixa.classList.add('revelado');
+            caixa.querySelector('p')?.removeAttribute('aria-hidden');
+        });
+
         $('modal').addEventListener('submit', e => {
             if (e.target.id !== 'comentario-form') return;
             e.preventDefault();
@@ -2832,7 +2906,7 @@
                                 ${r.estrelas ? `<span aria-label="Nota ${r.estrelas} de 5">${estrelasHTML(r.estrelas)}</span>` : ''}
                                 <time datetime="${esc(r.em)}">${esc(tempoRelativo(r.em))}</time>
                             </div>
-                            ${r.texto ? `<p>${esc(r.texto)}</p>` : ''}
+                            ${r.texto ? textoComSpoiler(r.texto, r.spoiler) : ''}
                         </div>
                     </li>`;
                 }).join('')}</ul>`

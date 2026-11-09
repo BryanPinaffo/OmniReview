@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T03:59:24.333Z",
-  "aprovados": 33,
-  "total": 33,
+  "executado_em": "2026-11-09T04:11:56.482Z",
+  "aprovados": 34,
+  "total": 34,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_p6ymu8; menu mostra \"teste_ui_p6ymu8\""
+      "detalhe": "usuário teste_ui_b59iyp; menu mostra \"teste_ui_b59iyp\""
     },
     {
       "id": "T01",
@@ -32,7 +32,7 @@
       "id": "T02",
       "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
       "ok": true,
-      "detalhe": "24 imagens carregadas"
+      "detalhe": "23 imagens carregadas"
     },
     {
       "id": "T16",
@@ -167,10 +167,16 @@
       "detalhe": "6 opções: Duna (2015) | Duna: Casa Atreides (2025) | MESSIAS DE DUNA (1985) | Geografía de las dunas costeras de Chile (2015); obras antes/depois: 59/59"
     },
     {
+      "id": "T38",
+      "descricao": "Comentários: quem só deu estrelas aparece na lista; comentário com spoiler fica borrado até tocar",
+      "ok": true,
+      "detalhe": "só nota=true, spoiler borrado=true/true, só nota some ao comentar=true, revelou=true, volta ao excluir=true, servidor=true"
+    },
+    {
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":4}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":2}"
     },
     {
       "id": "T28",
