@@ -35,6 +35,33 @@ class RecomendacaoControllerTest {
     }
 
     @Test
+    void perguntaQuandoMaisDeUmaMidiaTemOTituloIgual() {
+        // filme, série, jogo, livro
+        assertEquals(List.of(0, 3), RecomendacaoController.empatados("duna", Arrays.asList("Duna", "Duna: A Profecia", "Dune: Awakening", "Duna")));
+        assertEquals(List.of(1, 2, 3), RecomendacaoController.empatados("the witcher",
+                Arrays.asList(null, "The Witcher", "The Witcher", "The Witcher")));
+        // títulos que começam com o que foi digitado também empatam (força 2)
+        assertEquals(List.of(0, 3), RecomendacaoController.empatados("harry potter",
+                Arrays.asList("Harry Potter e a Pedra Filosofal", null, "Hogwarts Legacy", "Harry Potter e a Pedra Filosofal")));
+    }
+
+    @Test
+    void sufixoDeMidiaSoSeparaTitulosIguais() {
+        assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (Filme)"));
+        assertEquals("Duna", RecomendacaoController.semSufixoDeMidia("Duna (Livro)"));
+        assertEquals("Duna (2021)", RecomendacaoController.semSufixoDeMidia("Duna (2021)"));
+        assertEquals("O Livro (Filme) da Vida", RecomendacaoController.semSufixoDeMidia("O Livro (Filme) da Vida"));
+    }
+
+    @Test
+    void naoPerguntaQuandoUmaMidiaEClaramenteMelhor() {
+        assertEquals(List.of(0), RecomendacaoController.empatados("duna", Arrays.asList("Duna", "Duna: A Profecia", "Dune: Awakening", null)));
+        assertEquals(List.of(), RecomendacaoController.empatados("xyz", Arrays.asList("Abc", null, "Def", "Ghi")));
+        // empate fraco (só "contém") não vira pergunta
+        assertEquals(List.of(), RecomendacaoController.empatados("anel", Arrays.asList("O Senhor dos Anéis: O Anel", null, null, "O Anel Perdido")));
+    }
+
+    @Test
     void escolheOTituloMaisParecidoEntreAsMidias() {
         // filme, série, jogo
         assertEquals(0, RecomendacaoController.escolherMaisParecido("duna", Arrays.asList("Duna", "Duna: A Profecia", "Dune: Awakening")));

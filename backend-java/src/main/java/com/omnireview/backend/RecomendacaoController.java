@@ -1,5 +1,6 @@
 package com.omnireview.backend;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +19,13 @@ public class RecomendacaoController {
     private final TmdbService tmdbService;
     private final RawgService rawgService;
     private final IaService iaService;
+    private final HistoricoService historico;
+    private final LivroService livroService;
 
-    public RecomendacaoController(ObraRepository repository, TmdbService tmdbService, RawgService rawgService, IaService iaService) {
+    public RecomendacaoController(ObraRepository repository, TmdbService tmdbService, RawgService rawgService, IaService iaService,
+                                  HistoricoService historico, LivroService livroService) {
+        this.historico = historico;
+        this.livroService = livroService;
         this.repository = repository;
         this.tmdbService = tmdbService;
         this.rawgService = rawgService;
@@ -29,21 +35,46 @@ public class RecomendacaoController {
     // ------------------------------------------------------------------ cadastro
 
     @PostMapping("/adicionar/filme")
-    public ResponseEntity<Obra> adicionarFilme(@RequestParam String nome) {
-        return adicionar(nome, "Filme");
+    public ResponseEntity<Obra> adicionarFilme(@RequestParam String nome, HttpServletRequest req) {
+        return adicionar(nome, "Filme", usuario(req));
     }
 
     @PostMapping("/adicionar/serie")
-    public ResponseEntity<Obra> adicionarSerie(@RequestParam String nome) {
-        return adicionar(nome, "Serie");
+    public ResponseEntity<Obra> adicionarSerie(@RequestParam String nome, HttpServletRequest req) {
+        return adicionar(nome, "Serie", usuario(req));
     }
 
     @PostMapping("/adicionar/jogo")
-    public ResponseEntity<Obra> adicionarJogo(@RequestParam String nome) {
-        return adicionar(nome, "Jogo");
+    public ResponseEntity<Obra> adicionarJogo(@RequestParam String nome, HttpServletRequest req) {
+        return adicionar(nome, "Jogo", usuario(req));
     }
 
-    private ResponseEntity<Obra> adicionar(String nome, String tipo) {
+    @PostMapping("/adicionar/livro")
+    public ResponseEntity<Obra> adicionarLivro(@RequestParam String nome, HttpServletRequest req) {
+        return adicionar(nome, "Livro", usuario(req));
+    }
+
+    /**
+     * Importa até {@code limite} livros em alta (Open Library) que ainda não estão no acervo. Usado na primeira
+     * inicialização com livros (ver {@link LivrosIniciais}); devolve quantos livros entraram.
+     */
+    public int importarLivrosEmAlta(String usuario, String origem, int limite) {
+        int novos = 0;
+        for (String nome : livroService.buscarTendencias()) {
+            if (novos >= limite) break;
+            try {
+                String[] dados = buscarDados(nome, "Livro");
+                if (dados == null || campo(dados, 0) == null || mesmaObraNoAcervo(dados[0], "Livro").isPresent()) continue;
+                classificarESalvar(dados, "Livro", usuario, origem);
+                novos++;
+            } catch (Exception e) {
+                System.out.println("Livros em alta: falha em '" + nome + "': " + e.getMessage());
+            }
+        }
+        return novos;
+    }
+
+    private ResponseEntity<Obra> adicionar(String nome, String tipo, String usuario) {
         if (nome == null || nome.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
@@ -51,49 +82,76 @@ public class RecomendacaoController {
         if (dados == null || campo(dados, 0) == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(classificarESalvar(dados, tipo));
+        return ResponseEntity.ok(classificarESalvar(dados, tipo, usuario, "pela Administração"));
     }
 
-    private Obra classificarESalvar(String[] dados, String tipo) {
-        Obra obra = repository.findById(dados[0]).orElseGet(() -> new Obra(dados[0], tipo, null));
+    private Obra classificarESalvar(String[] dadosDaWeb, String tipo, String usuario, String origem) {
+        String[] dados = "Livro".equals(tipo) ? livroService.emPortugues(dadosDaWeb) : dadosDaWeb;
+        dados[0] = tituloNoAcervo(dados[0], tipo);   // "Duna" livro e "Duna" filme não podem ocupar o mesmo título
+        Optional<Obra> existente = repository.findById(dados[0]);
+        Obra obra = existente.orElseGet(() -> new Obra(dados[0], tipo, null));
+        boolean nova = existente.isEmpty();
+        if (nova) {
+            obra.setAdicionadaPor(usuario);
+            obra.setAdicionadaEm(java.time.Instant.now().toString());
+        }
         obra.setTipo(tipo);
         obra.setDnaCriativo(iaService.extrairDnaCriativo(dados[0], campo(dados, 1), tipo, campo(dados, 2)));
         aplicarDetalhes(obra, dados);
-        return salvar(obra);
+        Obra salva = salvar(obra);
+        historico.registrar(usuario, "obra", (nova ? "adicionou " : "atualizou ") + HistoricoService.nomeDoTipo(tipo),
+                salva.getTitulo(), salva.getTitulo(), origem);
+        return salva;
     }
 
     /** Resposta da busca da tela inicial: a obra e se ela acabou de entrar no acervo. */
-    public record ResultadoBusca(Obra obra, boolean adicionada) {}
+    /**
+     * Resposta da busca da tela inicial: a obra e se ela acabou de entrar no acervo; ou, quando o nome existe com a
+     * mesma força em mais de uma mídia (ex.: "Duna" filme e livro), só as opções, para a pessoa escolher (nada é salvo).
+     */
+    public record ResultadoBusca(Obra obra, boolean adicionada, List<Map<String, Object>> opcoes) {
+        static ResultadoBusca obra(Obra obra, boolean adicionada) { return new ResultadoBusca(obra, adicionada, null); }
+        static ResultadoBusca escolher(List<Map<String, Object>> opcoes) { return new ResultadoBusca(null, false, opcoes); }
+    }
 
-    private static final Map<String, String> TIPOS = Map.of("filme", "Filme", "serie", "Serie", "jogo", "Jogo");
+    private static final Map<String, String> TIPOS = Map.of("filme", "Filme", "serie", "Serie", "jogo", "Jogo", "livro", "Livro");
 
     /**
      * "O que você quer assistir hoje?": devolve a obra se já estiver no acervo; senão, busca na web
-     * (filmes e séries no TMDB, jogos na RAWG/Steam, em paralelo), escolhe o título mais parecido com o
-     * que foi digitado, gera o DNA com a IA e salva. Com tipo (filme|serie|jogo), busca só naquela mídia.
+     * (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), escolhe o título mais parecido com o
+     * que foi digitado, gera o DNA com a IA e salva. Com tipo (filme|serie|jogo|livro), busca só naquela mídia.
+     * Sem tipo, se mais de uma mídia tiver um título igualmente parecido, devolve as opções para a pessoa escolher.
+     * Com ignorarAcervo=true, não para no acervo (para procurar o mesmo nome em outra mídia).
      */
     @PostMapping("/buscar-ou-adicionar")
-    public ResponseEntity<ResultadoBusca> buscarOuAdicionar(@RequestParam String nome, @RequestParam(required = false) String tipo) {
+    public ResponseEntity<ResultadoBusca> buscarOuAdicionar(@RequestParam String nome, @RequestParam(required = false) String tipo,
+                                                            @RequestParam(defaultValue = "false") boolean ignorarAcervo,
+                                                            HttpServletRequest req) {
         String consulta = nome == null ? "" : nome.trim();
         if (consulta.isEmpty() || consulta.length() > 120) {
             return ResponseEntity.badRequest().build();
         }
         List<String> tipos;
         if (tipo == null || tipo.isBlank()) {
-            tipos = List.of("Filme", "Serie", "Jogo");
+            tipos = List.of("Filme", "Serie", "Jogo", "Livro");
         } else if (TIPOS.containsKey(tipo.toLowerCase())) {
             tipos = List.of(TIPOS.get(tipo.toLowerCase()));
         } else {
             return ResponseEntity.badRequest().build();
         }
 
-        // 1) Já está no acervo?
+        // 1) Já está no acervo? (com o mesmo nome em mais de uma mídia, pergunta qual)
         String chave = chaveDeBusca(consulta);
-        Optional<Obra> local = repository.findAll().stream()
-                .filter(o -> tipos.contains(o.getTipo()) && chaveDeBusca(o.getTitulo()).equals(chave))
-                .findFirst();
-        if (local.isPresent()) {
-            return ResponseEntity.ok(new ResultadoBusca(local.get(), false));
+        List<Obra> locais = ignorarAcervo ? List.of() : repository.findAll().stream()
+                .filter(o -> tipos.contains(o.getTipo()) && chaveDeBusca(semSufixoDeMidia(o.getTitulo())).equals(chave))
+                .toList();
+        if (locais.size() == 1) {
+            return ResponseEntity.ok(ResultadoBusca.obra(locais.get(0), false));
+        }
+        if (locais.size() > 1) {
+            return ResponseEntity.ok(ResultadoBusca.escolher(locais.stream()
+                    .map(o -> opcao(o.getTipo(), o.getTitulo(), o.getImagem() != null ? o.getImagem() : o.getCapa(), o.getSinopse(), true))
+                    .toList()));
         }
 
         // 2) Busca na web, nas mídias pedidas, em paralelo
@@ -108,15 +166,75 @@ public class RecomendacaoController {
         if (escolhido < 0) {
             return ResponseEntity.notFound().build();
         }
+        // Mais de uma mídia com título igualmente parecido: a pessoa escolhe (nada é salvo agora)
+        List<Integer> empatados = empatados(consulta, titulos);
+        if (empatados.size() > 1) {
+            return ResponseEntity.ok(ResultadoBusca.escolher(empatados.stream().map(i -> {
+                String[] d = buscas.get(i).join();
+                return opcao(tipos.get(i), d[0], campo(d, 3) != null ? campo(d, 3) : campo(d, 4), campo(d, 1),
+                        mesmaObraNoAcervo(d[0], tipos.get(i)).isPresent());
+            }).toList()));
+        }
         String[] dados = buscas.get(escolhido).join();
         String tipoEscolhido = tipos.get(escolhido);
 
         // 3) O título encontrado na web pode já estar no acervo (ex.: digitou "duna parte 2")
-        Optional<Obra> existente = repository.findById(dados[0]);
+        Optional<Obra> existente = mesmaObraNoAcervo(dados[0], tipoEscolhido);
         if (existente.isPresent()) {
-            return ResponseEntity.ok(new ResultadoBusca(existente.get(), false));
+            return ResponseEntity.ok(ResultadoBusca.obra(existente.get(), false));
         }
-        return ResponseEntity.ok(new ResultadoBusca(classificarESalvar(dados, tipoEscolhido), true));
+        return ResponseEntity.ok(ResultadoBusca.obra(classificarESalvar(dados, tipoEscolhido, usuario(req),
+                "pela busca “O que você quer assistir hoje?” (digitou “" + consulta + "”)"), true));
+    }
+
+    /**
+     * Índices das mídias empatadas no melhor resultado, quando o empate é forte (título igual ou um começando
+     * com o outro). Ex.: "Duna" acha o filme "Duna" e o livro "Duna" (ambos iguais): pergunta. Já "Duna" com filme
+     * "Duna" (igual) e jogo "Dune: Awakening" (diferente) não pergunta.
+     */
+    static List<Integer> empatados(String consulta, List<String> titulos) {
+        int melhor = 0;
+        for (String t : titulos) if (t != null) melhor = Math.max(melhor, semelhanca(consulta, t));
+        if (melhor < 2) return List.of();
+        List<Integer> saida = new ArrayList<>();
+        for (int i = 0; i < titulos.size(); i++) {
+            if (titulos.get(i) != null && semelhanca(consulta, titulos.get(i)) == melhor) saida.add(i);
+        }
+        return saida;
+    }
+
+    private static Map<String, Object> opcao(String tipo, String titulo, String imagem, String sinopse, boolean jaNoAcervo) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("tipo", tipo == null ? "" : tipo.toLowerCase(Locale.ROOT));
+        m.put("titulo", titulo);
+        m.put("imagem", imagem);
+        String s = sinopse == null || sinopse.startsWith("Sem sinopse") ? null : sinopse.replaceAll("\\s+", " ").strip();
+        m.put("sinopse", s == null ? null : s.length() <= 180 ? s : s.substring(0, s.lastIndexOf(' ', 180) > 80 ? s.lastIndexOf(' ', 180) : 180) + "…");
+        m.put("jaNoAcervo", jaNoAcervo);
+        return m;
+    }
+
+    private static final Map<String, String> NOME_MIDIA = Map.of("Filme", "Filme", "Serie", "Série", "Jogo", "Jogo", "Livro", "Livro");
+    private static final java.util.regex.Pattern SUFIXO_MIDIA = java.util.regex.Pattern.compile("\\s+\\((Filme|Série|Jogo|Livro)\\)$");
+
+    /** "Duna (Filme)" -> "Duna": o sufixo só existe para separar obras de mídias diferentes com o mesmo nome. */
+    static String semSufixoDeMidia(String titulo) {
+        return titulo == null ? null : SUFIXO_MIDIA.matcher(titulo).replaceFirst("");
+    }
+
+    /** A obra deste título nesta mídia, esteja ela com o título puro ou com o sufixo da mídia. */
+    private Optional<Obra> mesmaObraNoAcervo(String titulo, String tipo) {
+        Optional<Obra> puro = repository.findById(titulo);
+        if (puro.isPresent() && tipo.equals(puro.get().getTipo())) return puro;
+        return repository.findById(titulo + " (" + NOME_MIDIA.getOrDefault(tipo, tipo) + ")")
+                .filter(o -> tipo.equals(o.getTipo()));
+    }
+
+    /** Título com que a obra fica no acervo: o próprio, ou "Título (Mídia)" se outra mídia já usa esse título. */
+    private String tituloNoAcervo(String titulo, String tipo) {
+        Optional<Obra> mesma = mesmaObraNoAcervo(titulo, tipo);
+        if (mesma.isPresent()) return mesma.get().getTitulo();
+        return repository.existsById(titulo) ? titulo + " (" + NOME_MIDIA.getOrDefault(tipo, tipo) + ")" : titulo;
     }
 
     /** Título em forma comparável: sem acentos, minúsculo, só letras e números. */
@@ -157,7 +275,7 @@ public class RecomendacaoController {
      * com todas=true, de todo o acervo (usado ao trocar o classificador).
      */
     @PostMapping("/reprocessar-dna")
-    public List<Obra> reprocessarDna(@RequestParam(defaultValue = "false") boolean todas) {
+    public List<Obra> reprocessarDna(@RequestParam(defaultValue = "false") boolean todas, HttpServletRequest req) {
         List<Obra> atualizadas = new ArrayList<>();
         for (Obra obra : repository.findAll()) {
             String dna = obra.getDnaCriativo();
@@ -165,28 +283,34 @@ public class RecomendacaoController {
             if (!todas && !falhou) {
                 continue;
             }
-            String[] dados = buscarDados(obra.getTitulo(), obra.getTipo());
+            String[] dados = dadosParaSalvar(obra.getTitulo(), obra.getTipo());
             obra.setDnaCriativo(iaService.extrairDnaCriativo(obra.getTitulo(), campo(dados, 1), obra.getTipo(), campo(dados, 2)));
             aplicarDetalhes(obra, dados);
             atualizadas.add(salvar(obra));
             System.out.println("DNA refeito: " + obra.getTitulo() + " -> " + obra.getDnaCriativo());
         }
+        historico.registrar(usuario(req), "obra", "refez as tags com a IA de", atualizadas.size() + (atualizadas.size() == 1 ? " obra" : " obras"),
+                null, todas ? "todo o acervo" : "só as que tinham falhado");
         return atualizadas;
     }
 
     /** Preenche sinopse e imagens que estiverem faltando, sem chamar a IA. */
     @PostMapping("/completar-detalhes")
-    public List<Obra> completarDetalhes() {
+    public List<Obra> completarDetalhes(HttpServletRequest req) {
         List<Obra> atualizadas = new ArrayList<>();
         for (Obra obra : repository.findAll()) {
             if (temSinopse(obra.getSinopse()) && obra.getImagem() != null) {
                 continue;
             }
-            String[] dados = buscarDados(obra.getTitulo(), obra.getTipo());
+            String[] dados = dadosParaSalvar(obra.getTitulo(), obra.getTipo());
             if (dados != null) {
                 aplicarDetalhes(obra, dados);
                 atualizadas.add(repository.save(obra));
             }
+        }
+        if (!atualizadas.isEmpty()) {
+            historico.registrar(usuario(req), "obra", "completou sinopses e capas de",
+                    atualizadas.size() + (atualizadas.size() == 1 ? " obra" : " obras"), null, null);
         }
         return atualizadas;
     }
@@ -254,6 +378,11 @@ public class RecomendacaoController {
         return tmdbService.buscarTendenciasSeries();
     }
 
+    @GetMapping("/tendencias/livros")
+    public List<String> tendenciasLivros() {
+        return livroService.buscarTendencias();
+    }
+
     @GetMapping("/tendencias/jogos")
     public List<String> tendenciasJogos() {
         return rawgService.buscarTendencias();
@@ -267,8 +396,19 @@ public class RecomendacaoController {
             case "filme" -> tmdbService.buscarFilmeNaInternet(nome);
             case "serie" -> tmdbService.buscarSerieNaInternet(nome);
             case "jogo" -> rawgService.buscarJogoNaInternet(nome);
+            case "livro" -> livroService.buscarLivroNaInternet(nome);
             default -> null;
         };
+    }
+
+    private static String usuario(HttpServletRequest req) {
+        return req == null ? null : (String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO);
+    }
+
+    /** Como {@link #buscarDados}, mas com a sinopse de livro já traduzida (para gravar no acervo). */
+    private String[] dadosParaSalvar(String nome, String tipo) {
+        String[] dados = buscarDados(nome, tipo);
+        return "Livro".equals(tipo) ? livroService.emPortugues(dados) : dados;
     }
 
     private Obra salvar(Obra obra) {
