@@ -111,6 +111,12 @@ public class ListaService {
                 .bindAll(Map.of("token", token)).fetch().one();
     }
 
+    /** Nome atual da lista (para o histórico). */
+    public Optional<String> nomeDaLista(String id) {
+        return neo4j.query("MATCH (l:Lista {id: $id}) RETURN l.nome AS n").bindAll(Map.of("id", id == null ? "" : id))
+                .fetchAs(String.class).one();
+    }
+
     // ---------------- Compartilhar e participantes ----------------
 
     /** Cria (ou devolve o já existente) link de visualização da lista. Só o dono. */

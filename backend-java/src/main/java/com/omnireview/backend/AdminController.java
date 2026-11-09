@@ -19,7 +19,10 @@ public class AdminController {
     private final AvaliacaoService avaliacoes;
     private final Neo4jClient neo4j;
 
-    public AdminController(AutenticacaoService auth, AvaliacaoService avaliacoes, Neo4jClient neo4j) {
+    private final HistoricoService historico;
+
+    public AdminController(AutenticacaoService auth, AvaliacaoService avaliacoes, Neo4jClient neo4j, HistoricoService historico) {
+        this.historico = historico;
         this.auth = auth;
         this.avaliacoes = avaliacoes;
         this.neo4j = neo4j;
@@ -51,24 +54,32 @@ public class AdminController {
         String admin = (String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO);
         AutenticacaoService.Resultado r = auth.criarUsuarioComum(c.usuario(), c.senha(), admin);
         if (!r.ok()) return ResponseEntity.status(r.status()).body(Map.of("erro", r.erro()));
+        historico.registrar(admin, "conta", "criou a conta de", r.usuario(), null, "pela Administração");
         return ResponseEntity.status(201).body(Map.of("usuario", r.usuario(), "papel", r.papel()));
     }
 
     /** Redefine a senha de um usuário comum (o administrador passa a nova senha para a pessoa). */
     @PostMapping("/{usuario}/senha")
     public ResponseEntity<Map<String, Object>> redefinirSenha(@PathVariable String usuario,
-                                                              @RequestBody(required = false) Map<String, String> corpo) {
+                                                              @RequestBody(required = false) Map<String, String> corpo,
+                                                              HttpServletRequest req) {
         AutenticacaoService.Resultado r = auth.redefinirSenhaDeComum(usuario, corpo == null ? null : corpo.get("novaSenha"));
         if (!r.ok()) return ResponseEntity.status(r.status()).body(Map.of("erro", r.erro()));
+        historico.registrar(admin(req), "conta", "redefiniu a senha de", AutenticacaoService.normalizar(usuario));
         return ResponseEntity.noContent().build();
+    }
+
+    private static String admin(HttpServletRequest req) {
+        return (String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO);
     }
 
     /** Exclui um usuário comum, com as notas e comentários dele. */
     @DeleteMapping("/{usuario}")
-    public ResponseEntity<Map<String, Object>> excluir(@PathVariable String usuario) {
+    public ResponseEntity<Map<String, Object>> excluir(@PathVariable String usuario, HttpServletRequest req) {
         AutenticacaoService.Resultado r = auth.excluirUsuarioComum(usuario);
         if (!r.ok()) return ResponseEntity.status(r.status()).body(Map.of("erro", r.erro()));
         avaliacoes.removerTudoDe(r.usuario());
+        historico.registrar(admin(req), "conta", "excluiu a conta de", r.usuario(), null, "pela Administração");
         return ResponseEntity.noContent().build();
     }
 }

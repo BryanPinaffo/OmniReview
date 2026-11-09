@@ -19,9 +19,21 @@ public class ListaController {
     public record Titulo(String titulo) {}
 
     private final ListaService listas;
+    private final HistoricoService historico;
 
-    public ListaController(ListaService listas) {
+    public ListaController(ListaService listas, HistoricoService historico) {
         this.listas = listas;
+        this.historico = historico;
+    }
+
+    /** Registra no histórico só quando a ação deu certo. */
+    private ListaService.Resultado anotar(ListaService.Resultado r, HttpServletRequest req, String acao, String alvo, String obra, String detalhe) {
+        if (r.ok()) historico.registrar(eu(req), "lista", acao, alvo, obra, detalhe);
+        return r;
+    }
+
+    private String nome(String id) {
+        return listas.nomeDaLista(id).orElse("(lista)");
     }
 
     @GetMapping
@@ -31,41 +43,45 @@ public class ListaController {
 
     @PostMapping
     public ResponseEntity<Object> criar(@RequestBody(required = false) Nome n, HttpServletRequest req) {
-        return responder(listas.criar(eu(req), n == null ? null : n.nome()));
+        ListaService.Resultado r = listas.criar(eu(req), n == null ? null : n.nome());
+        return responder(anotar(r, req, "criou a lista", r.ok() ? ListaService.limparNome(n.nome()) : null, null, null));
     }
 
     /** Renomeia (POST em vez de PUT/PATCH, que não estão liberados no CORS). */
     @PostMapping("/{id}")
     public ResponseEntity<Object> renomear(@PathVariable String id, @RequestBody(required = false) Nome n, HttpServletRequest req) {
-        return responder(listas.renomear(eu(req), id, n == null ? null : n.nome()));
+        String antes = nome(id);
+        ListaService.Resultado r = listas.renomear(eu(req), id, n == null ? null : n.nome());
+        return responder(anotar(r, req, "renomeou a lista", antes, null, r.ok() ? "para “" + ListaService.limparNome(n.nome()) + "”" : null));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> excluir(@PathVariable String id, HttpServletRequest req) {
-        return responder(listas.excluir(eu(req), id));
+        String antes = nome(id);
+        return responder(anotar(listas.excluir(eu(req), id), req, "excluiu a lista", antes, null, null));
     }
 
     @PostMapping("/{id}/obras")
     public ResponseEntity<Object> adicionar(@PathVariable String id, @RequestBody(required = false) Titulo t, HttpServletRequest req) {
         if (t == null) return ResponseEntity.badRequest().body(Map.of("erro", "Informe a obra."));
-        return responder(listas.adicionarObra(eu(req), id, t.titulo()));
+        return responder(anotar(listas.adicionarObra(eu(req), id, t.titulo()), req, "adicionou à lista", nome(id), t.titulo(), "a obra “" + t.titulo() + "”"));
     }
 
     @DeleteMapping("/{id}/obras")
     public ResponseEntity<Object> remover(@PathVariable String id, @RequestParam String titulo, HttpServletRequest req) {
-        return responder(listas.removerObra(eu(req), id, titulo));
+        return responder(anotar(listas.removerObra(eu(req), id, titulo), req, "removeu da lista", nome(id), titulo, "a obra “" + titulo + "”"));
     }
 
     // ---------- Compartilhar (link só para ver) ----------
 
     @PostMapping("/{id}/link")
     public ResponseEntity<Object> ativarLink(@PathVariable String id, HttpServletRequest req) {
-        return responder(listas.ativarLink(eu(req), id));
+        return responder(anotar(listas.ativarLink(eu(req), id), req, "ativou o link de compartilhamento da lista", nome(id), null, null));
     }
 
     @DeleteMapping("/{id}/link")
     public ResponseEntity<Object> desativarLink(@PathVariable String id, HttpServletRequest req) {
-        return responder(listas.desativarLink(eu(req), id));
+        return responder(anotar(listas.desativarLink(eu(req), id), req, "desativou o link de compartilhamento da lista", nome(id), null, null));
     }
 
     /** Lista aberta pelo link compartilhado (qualquer usuário logado com o código). */
@@ -80,13 +96,17 @@ public class ListaController {
 
     @PostMapping("/{id}/membros")
     public ResponseEntity<Object> adicionarMembro(@PathVariable String id, @RequestBody(required = false) Membro m, HttpServletRequest req) {
-        return responder(listas.adicionarMembro(eu(req), id, m == null ? null : m.usuario()));
+        String quem = m == null || m.usuario() == null ? "" : AutenticacaoService.normalizar(m.usuario().replaceFirst("^@", ""));
+        return responder(anotar(listas.adicionarMembro(eu(req), id, m == null ? null : m.usuario()), req,
+                "adicionou " + quem + " como participante da lista", nome(id), null, null));
     }
 
     /** O dono remove alguém; com o próprio nome, o participante sai da lista. */
     @DeleteMapping("/{id}/membros")
     public ResponseEntity<Object> removerMembro(@PathVariable String id, @RequestParam String usuario, HttpServletRequest req) {
-        return responder(listas.removerMembro(eu(req), id, usuario));
+        String quem = AutenticacaoService.normalizar(usuario);
+        String acao = quem.equals(eu(req)) ? "saiu da lista" : "removeu " + quem + " da lista";
+        return responder(anotar(listas.removerMembro(eu(req), id, usuario), req, acao, nome(id), null, null));
     }
 
     private static String eu(HttpServletRequest req) {

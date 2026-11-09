@@ -27,9 +27,11 @@ public class AdminObraController {
             "RETURN o.titulo AS titulo, o.tipo AS tipo, notas, comentarios, listas, count(k) AS concluidas";
 
     private final Neo4jClient neo4j;
+    private final HistoricoService historico;
 
-    public AdminObraController(Neo4jClient neo4j) {
+    public AdminObraController(Neo4jClient neo4j, HistoricoService historico) {
         this.neo4j = neo4j;
+        this.historico = historico;
     }
 
     /** O que será apagado junto com a obra (para a confirmação na interface). */
@@ -56,6 +58,10 @@ public class AdminObraController {
 
         System.out.println("Obra excluída por " + req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO)
                 + ": " + titulo + " " + antes.get());
+        Map<String, Object> c = antes.get();
+        historico.registrar((String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO), "obra",
+                "excluiu " + HistoricoService.nomeDoTipo((String) c.get("tipo")), titulo, null,
+                "junto com " + c.get("notas") + " nota(s), " + c.get("comentarios") + " comentário(s) e " + c.get("listas") + " presença(s) em listas");
         Map<String, Object> corpo = new LinkedHashMap<>(antes.get());
         corpo.put("excluida", true);
         return ResponseEntity.ok(corpo);

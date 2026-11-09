@@ -13,6 +13,8 @@ public class Obra {
     private String sinopse;
     private String imagem; // pôster (vertical)
     private String capa;   // imagem de fundo (horizontal)
+    private String adicionadaPor; // usuário que trouxe a obra para o acervo (nulo nas obras anteriores ao histórico)
+    private String adicionadaEm;  // data/hora ISO-8601
 
     // Construtor
     public Obra() {}
@@ -38,4 +40,8 @@ public class Obra {
     public void setImagem(String imagem) { this.imagem = imagem; }
     public String getCapa() { return capa; }
     public void setCapa(String capa) { this.capa = capa; }
+    public String getAdicionadaPor() { return adicionadaPor; }
+    public void setAdicionadaPor(String adicionadaPor) { this.adicionadaPor = adicionadaPor; }
+    public String getAdicionadaEm() { return adicionadaEm; }
+    public void setAdicionadaEm(String adicionadaEm) { this.adicionadaEm = adicionadaEm; }
 }
