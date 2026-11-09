@@ -38,6 +38,8 @@ public class InicializacaoGrafo implements ApplicationRunner {
             neo4j.query("CREATE CONSTRAINT lista_id IF NOT EXISTS FOR (l:Lista) REQUIRE l.id IS UNIQUE").run();
             neo4j.query("CREATE INDEX lista_dono IF NOT EXISTS FOR (l:Lista) ON (l.dono)").run();
             neo4j.query("CREATE INDEX lista_link IF NOT EXISTS FOR (l:Lista) ON (l.linkToken)").run();
+            neo4j.query("CREATE INDEX evento_ms IF NOT EXISTS FOR (e:Evento) ON (e.ms)").run();
+            neo4j.query("MATCH (e:Evento) WITH e ORDER BY e.ms DESC SKIP " + HistoricoService.MAX_EVENTOS + " DETACH DELETE e").run();
             neo4j.query("MATCH (o:Obra) " +
                         "OPTIONAL MATCH (o)-[r:TEM_TAG]->() DELETE r " +
                         "WITH DISTINCT o " +

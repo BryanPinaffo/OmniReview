@@ -51,6 +51,10 @@ ws.addEventListener('message', (ev) => {
   if (msg.id && pendentes.has(msg.id)) { pendentes.get(msg.id)(msg); pendentes.delete(msg.id); }
   if (msg.method === 'Runtime.exceptionThrown') errosConsole.push(msg.params.exceptionDetails.text);
   if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') errosConsole.push(msg.params.args.map((a) => a.value).join(' '));
+  // Bloqueios da Content-Security-Policy chegam por aqui (origem "security"), não como exceção de JavaScript
+  if (msg.method === 'Log.entryAdded' && (msg.params.entry.source === 'security' || /Content Security Policy/i.test(msg.params.entry.text))) {
+    errosConsole.push('CSP: ' + msg.params.entry.text);
+  }
 });
 const cdp = (method, params = {}) => new Promise((r) => { const id = ++seq; pendentes.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
 const avaliar = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
@@ -60,6 +64,7 @@ const aguardar = async (expr, ms = 15000) => {
 };
 
 await cdp('Runtime.enable');
+await cdp('Log.enable');
 await cdp('Page.enable');
 const casos = [];
 const caso = (id, descricao, ok, detalhe = '') => { casos.push({ id, descricao, ok, detalhe }); console.log(`${ok ? 'OK  ' : 'FALHA'} ${id} ${descricao} ${detalhe}`); };
@@ -252,8 +257,10 @@ caso('T21', 'Botão "assisti / terminei o jogo" marca a obra e mostra o selo no 
 await avaliar("abrirPerfil(sessao.usuario)");
 await aguardar("!!document.querySelector('.perfil-stats')", 8000);
 const numeros = await avaliar("[...document.querySelectorAll('.perfil-stat')].map(e => e.querySelector('b').textContent + ' ' + e.querySelector('span').textContent.trim())");
-caso('T22', 'Perfil mostra jogos jogados, filmes e séries assistidos e reviews', numeros[0] === '1 jogos jogados' && numeros[1] === '1 filmes assistidos'
-  && numeros[2].startsWith('0 séries') && /^1 review/.test(numeros[3]), numeros.join(' | '));
+const numero = rotulo => numeros.find(n => n.includes(rotulo)) || '';
+caso('T22', 'Perfil mostra jogos jogados, filmes, séries e livros concluídos e reviews', numero('jogos jogados') === '1 jogos jogados'
+  && numero('filmes assistidos') === '1 filmes assistidos' && numero('séries').startsWith('0 séries') && numero('livros lidos') === '0 livros lidos'
+  && /^1 review/.test(numero('review')), numeros.join(' | '));
 
 // Editar perfil: foto e capa de fundo geradas no próprio navegador + bio
 await avaliar('abrirEditorPerfil()');
@@ -488,6 +495,57 @@ await avaliar("irPara('catalogo')");
     `convidou=${convidou}, ícone=${chipGrupo}, visitante vê=${visitaOk}/${visitanteSemLista}/${abriuObraDaVisita}, participante=${membroNaLista} [${botoesMembro.join(', ')}], popover=${mostraDono}, adicionou=${membroAdicionou}, dono vê "por"=${donoVePor}, link desativado=${desativou}/${linkMorto}`);
 }
 
+// ---------- Livros: filtro, ficha (autor, páginas, onde ler), "marcar como lido" e busca da tela inicial ----------
+{
+  await avaliar("irPara('catalogo')");
+  await avaliar("document.querySelector('#filtro-tipo [data-tipo=livro]').click()");
+  await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0", 5000);
+  const livros = await avaliar("[...document.querySelectorAll('#grid-catalogo .card')].map(c => c.querySelector('.tipo')?.classList.contains('livro'))");
+  const contador = await avaliar("Number(document.getElementById('stat-livro').textContent)");
+  const umLivro = await avaliar("catalogo.find(o => tipoDe(o) === 'livro' && o.imagem)?.titulo");
+  await avaliar(`abrirModal(${JSON.stringify(umLivro)})`);
+  await aguardar("!document.querySelector('#modal-ficha .ficha-carregando')", 20000);
+  await esperar(300);
+  const ficha = await avaliar(`({
+    fatos: [...document.querySelectorAll('#modal-ficha .ficha-fatos dt')].map(d => d.textContent),
+    rotulo: document.querySelector('#modal-ficha .rotulo')?.textContent,
+    lojas: [...document.querySelectorAll('#modal-ficha a.provedor b')].map(b => b.textContent),
+    concluir: document.querySelector('#modal [data-concluir]')?.textContent.trim(),
+    tipo: document.querySelector('#modal .tipo')?.textContent.trim() })`);
+  await avaliar("document.getElementById('modal-ficha').scrollIntoView({ block: 'center' })");
+  await esperar(300);
+  await capturar('livro_modal');
+  await avaliar('fecharModal()');
+  await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()");
+  await capturar('catalogo_livros');
+  caso('T34', 'Livros: filtro "Livros", ficha com autor, páginas e onde ler/comprar, e botão "Marcar como lido"',
+    livros.length > 0 && livros.every(Boolean) && contador === livros.length && ficha.tipo === 'Livro'
+    && ficha.fatos.includes('Páginas') && ficha.fatos.some(f => f.startsWith('Autor')) && ficha.rotulo === 'Onde ler ou comprar'
+    && ficha.lojas.includes('Amazon') && ficha.concluir === 'Marcar como lido',
+    `${livros.length} livros (contador ${contador}); "${umLivro}": ${ficha.fatos.join('/')} · ${ficha.lojas.join(', ')} · botão "${ficha.concluir}"`);
+}
+
+// ---------- Mesmo nome em mais de uma mídia: a busca pergunta qual (sem salvar nada até a escolha) ----------
+{
+  await avaliar("irPara('catalogo')");
+  const antes = await avaliar("api('/api/obras').then(r => r.json()).then(l => l.length)");
+  const jaTemDuna = await avaliar("catalogo.some(o => chaveBusca(o.titulo) === 'duna')");
+  if (!jaTemDuna) {
+    await avaliar("document.querySelector('#busca-hero-tipos [data-tipo=\"\"]').click()");
+    await preencher('busca-hero-texto', 'Duna');
+    await avaliar("document.getElementById('busca-hero').requestSubmit()");
+    const perguntou = await aguardar("document.querySelectorAll('#dialogo [data-escolher-midia]').length >= 2", 60000);
+    const opcoes = await avaliar("[...document.querySelectorAll('#dialogo [data-escolher-midia] .tipo')].map(e => e.textContent.trim())");
+    await capturar('escolher_midia');
+    await avaliar("[...document.querySelectorAll('#dialogo .dialogo-acoes .btn')].find(b => b.textContent.includes('Nenhum')).click()");
+    const fechou = await aguardar("document.getElementById('dialogo-fundo').hidden", 3000);
+    const depois = await avaliar("api('/api/obras').then(r => r.json()).then(l => l.length)");
+    caso('T35', 'Busca "Qualquer": nome em mais de uma mídia abre a escolha (filme ou livro) e nada é salvo sem escolher',
+      perguntou && opcoes.includes('Filme') && opcoes.includes('Livro') && fechou && depois === antes,
+      `opções: ${opcoes.join(', ')}; obras antes/depois: ${antes}/${depois}`);
+  }
+}
+
 // ---------- Encontrar pessoas: cartões um embaixo do outro, com o nome legível (regressão de CSS) ----------
 {
   await avaliar("abrirPerfil(sessao.usuario)");
@@ -573,7 +631,7 @@ await avaliar("fecharModal()");
 caso('T18', 'Usuário comum não vê a Administração nem "Excluir obra" e o servidor recusa as rotas de admin (403)',
   semAdminNaTela && semBotaoExcluir && statusAdmin.every((x) => x === 403), `status: ${statusAdmin.join(', ')}; botão excluir oculto: ${semBotaoExcluir}`);
 
-caso('T10', 'Nenhum erro de JavaScript no console', errosConsole.length === 0, errosConsole.slice(0, 3).join(' | '));
+caso('T10', 'Nenhum erro de JavaScript no console nem bloqueio da Content-Security-Policy', errosConsole.length === 0, errosConsole.slice(0, 3).join(' | '));
 
 // ---------- Sair e limpeza ----------
 await cdp('Emulation.clearDeviceMetricsOverride');
@@ -620,6 +678,29 @@ if (process.env.OMNI_ADMIN_SENHA) {
   await capturar('admin_mobile');
   await cdp('Emulation.clearDeviceMetricsOverride');
   caso('T20', 'Administração sem rolagem horizontal em 400 px', larguraAdmin.scroll <= larguraAdmin.tela, `scrollWidth=${larguraAdmin.scroll}`);
+
+  // Histórico: a conta criada e excluída no T19 aparece, com filtro por categoria e busca
+  await avaliar("irPara('admin')");
+  const eventosConta = `[...document.querySelectorAll('#historico-lista .evento')].filter(li => li.textContent.includes('${novo}')).map(li => li.querySelector('.evento-texto').textContent.replace(/\\s+/g, ' ').trim())`;
+  const historicoInicial = await aguardar(`${eventosConta}.length >= 2`, 10000);
+  await avaliar("document.querySelector('#historico-filtro [data-categoria=\"conta\"]').click()");
+  const soContas = await aguardar("[...document.querySelectorAll('#historico-lista .evento')].length > 0 && [...document.querySelectorAll('#historico-lista .evento')].every(li => li.dataset.categoria === 'conta')", 8000);
+  await preencher('historico-busca', novo);
+  const buscou = await aguardar(`${eventosConta}.length === 2 && document.querySelectorAll('#historico-lista .evento').length === 2`, 8000);
+  const frasesConta = await avaliar(eventosConta);
+  await avaliar("document.getElementById('historico-lista').scrollIntoView({ block: 'center' })");
+  await capturar('admin_historico');
+  const autoria = await (async () => {
+    await avaliar("abrirModal(catalogo[0].titulo)");
+    const t = await aguardar("!!document.querySelector('#modal .obra-autoria')", 3000);
+    const texto = await avaliar("document.querySelector('#modal .obra-autoria')?.textContent || ''");
+    await avaliar('fecharModal()');
+    return t && /Adicionada (ao acervo por|antes do histórico)/.test(texto);
+  })();
+  caso('T33', 'Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra',
+    historicoInicial && soContas && buscou && autoria
+    && frasesConta.some(f => f.includes('criou a conta de ' + novo)) && frasesConta.some(f => f.includes('excluiu a conta de ' + novo)),
+    `${frasesConta.join(' | ')}; filtro=${soContas}, busca=${buscou}, autoria na obra=${autoria}`);
 
   // Excluir obra pela janela (opcional, APAGA a obra): OMNI_OBRA_EXCLUIR="<título de uma obra de teste>"
   if (process.env.OMNI_OBRA_EXCLUIR) {

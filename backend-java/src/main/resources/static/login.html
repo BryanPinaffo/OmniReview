@@ -163,7 +163,7 @@
         </div>
         <div class="titulo-marca">
             <h1>Seu próximo título, em <em>qualquer mídia.</em></h1>
-            <p>Entre para explorar o catálogo, favoritar o que você ama e receber recomendações que cruzam filmes, séries e jogos pelo mesmo DNA criativo.</p>
+            <p>Entre para explorar o catálogo, favoritar o que você ama e receber recomendações que cruzam filmes, séries, jogos e livros pelo mesmo DNA criativo.</p>
             <div class="midias">
                 <span class="midia" style="--cor: var(--filme)"><i></i>Filmes</span>
                 <span class="midia" style="--cor: var(--serie)"><i></i>Séries</span>
@@ -373,7 +373,7 @@
                     if (resposta.status === 401) { $('senha').value = ''; $('senha').focus(); }
                     return;
                 }
-                localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, usuario: dados.usuario, papel: dados.papel }));
+                localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, usuario: dados.usuario, papel: dados.papel, senhaFraca: !!dados.senhaFraca }));
                 location.replace(destino());
             } catch {
                 mostrarAlerta('Sem conexão com o servidor. Verifique se o back-end está rodando.');

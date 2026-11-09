@@ -1,9 +1,9 @@
 # OmniReview
 
-Plataforma de recomendação **transmídia** de filmes, séries e jogos. Cada obra recebe um *DNA criativo*
-(1 a 4 tags de uma taxonomia de 179 tags), gerado por um classificador híbrido (gêneros oficiais das APIs +
+Plataforma de recomendação **transmídia** de filmes, séries, jogos e livros. Cada obra recebe um *DNA criativo*
+(1 a 4 tags de uma taxonomia de 187 tags), gerado por um classificador híbrido (gêneros oficiais das APIs +
 LLM local via Ollama). Obras e tags ficam no Neo4j como `(:Obra)-[:TEM_TAG]->(:Tag)`, e a recomendação é feita
-por travessia no grafo com peso IDF, intercalando filmes, séries e jogos.
+por travessia no grafo com peso IDF, intercalando filmes, séries, jogos e livros.
 
 ## Estrutura
 
@@ -52,9 +52,28 @@ O site é publicado com o **Tailscale Funnel** (HTTPS, sem abrir portas no rotea
 ## "O que você quer assistir hoje?"
 
 Campo de busca na tela inicial. Enquanto a pessoa digita, aparecem as obras do acervo que combinam. Se o título não
-estiver no acervo, ele é buscado na web (filmes e séries no TMDB, jogos na RAWG/Steam, em paralelo), o resultado mais
+estiver no acervo, ele é buscado na web (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), o resultado mais
 parecido com o que foi digitado é classificado pela IA e adicionado automaticamente, e a janela da obra abre em seguida.
-Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mesmo nome existe em mais de uma).
+Os botões Filme/Série/Jogo/Livro restringem a busca a uma mídia (útil quando o mesmo nome existe em mais de uma).
+
+Em "Qualquer", se o nome aparecer com a mesma força em mais de uma mídia (ex.: *Duna* é filme e livro), a busca não
+escolhe sozinha: mostra as opções (capa, tipo e começo da sinopse) e só a escolhida é classificada e salva. Se o nome já
+está no acervo, a sugestão "Queria … em outra mídia?" procura as outras. Como o título identifica a obra no grafo,
+uma segunda mídia com o mesmo nome entra como `Título (Mídia)` (ex.: `Duna (Filme)`); a busca ignora esse sufixo.
+
+## Livros
+
+Os livros vêm do [Open Library](https://openlibrary.org/developers/api) (não precisa de chave). A busca pede a edição
+em português: quando ela existe, o título e a capa são os da edição brasileira (ex.: *Hábitos Atômicos*). A sinopse do
+Open Library costuma estar em inglês; antes de salvar, o Ollama a traduz para o português (se falhar, fica a original).
+Os assuntos do Open Library viram tags da taxonomia, que ganhou 8 categorias só de livros (Não Ficção, Autoajuda,
+Negócios, Filosofia, Poesia, Clássico, Literatura Brasileira, Young Adult). A ficha mostra autor, páginas, tempo de
+leitura estimado (40 páginas por hora) e onde ler ou comprar (Amazon, Estante Virtual, Google Livros e Open Library).
+
+Na primeira inicialização, o servidor importa sozinho os 15 livros em alta da semana, em segundo plano (cerca de
+1 minuto por livro, por causa da tradução e das tags). Se for interrompido, continua na próxima inicialização até
+completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não repete. Para desligar:
+`omnireview.livros.importar-iniciais=false`.
 
 ## Administrador e usuários comuns
 
@@ -101,6 +120,20 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 - No grafo: `(:Usuario)-[:AVALIOU {estrelas}]->(:Obra)` e `(:Usuario)-[:ESCREVEU]->(:Comentario)-[:SOBRE]->(:Obra)`.
   Excluir a conta apaga as notas e os comentários do usuário.
 
+## Segurança
+
+| Camada | Proteção |
+|---|---|
+| Senhas | PBKDF2-HMAC-SHA256 (310 mil iterações, sal aleatório), comparação em tempo constante; mínimo de 8 caracteres e recusa das senhas mais comuns. Quem entra com uma senha fraca vê um aviso para trocá-la |
+| Login | 5 erros bloqueiam aquele **endereço** para aquela conta por 15 min (um atacante não tranca o dono para fora); 30 erros vindos de qualquer lugar bloqueiam a conta para todos (força bruta distribuída); mesma resposta e mesmo tempo para usuário inexistente |
+| Sessões | Token aleatório de 256 bits, 12 h de validade, no máximo 10 sessões por conta; trocar a senha encerra as outras |
+| Permissões | Rotas de administrador barradas no servidor (403), testadas contra variações de caminho (`/API/...`, `/api//admin`, `%61dmin`, `;x=1`, `..`); listas, comentários e perfil checam o dono; o administrador pode excluir comentários (moderação) |
+| Abuso e robôs | Limites por endereço e por usuário (429 com `Retry-After`): 600 requisições/min, 30 logins/15 min, 5 cadastros/hora, 20 buscas na web/hora por usuário (cada uma chama APIs externas e a IA), 20 comentários/10 min. O IP real vem do `X-Forwarded-For` só quando a conexão chega de um proxy da rede interna (Tailscale Funnel/Docker) |
+| Navegador | Content-Security-Policy (só scripts do próprio site, `frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; respostas da API com `no-store`. Todo dado de usuário ou de API externa passa por `esc()` antes de ir para o HTML |
+| Entrada de dados | Consultas Cypher sempre parametrizadas; corpo das requisições limitado a 3 MB (413); fotos só como `data:image` validado; textos com limite de tamanho |
+| CORS | Só o próprio site e o protótipo React em `localhost` |
+| Infraestrutura | Neo4j sem porta publicada no servidor (no computador de desenvolvimento, só em `127.0.0.1`); container roda como usuário sem privilégios; segredos só em variáveis de ambiente / `config/segredos.properties` (fora do Git) |
+
 ## API
 
 | Método | Rota | Descrição |
@@ -119,6 +152,8 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | GET | `/api/admin/usuarios` | (admin) Lista os usuários com papel e atividade |
 | POST | `/api/admin/usuarios` | (admin) Cria um usuário comum (`{"usuario", "senha"}`) |
 | DELETE | `/api/admin/usuarios/{usuario}` | (admin) Exclui um usuário comum, com notas e comentários |
+| GET | `/api/admin/historico?categoria=&q=&antes=&limite=` | (admin) Histórico: quem adicionou/excluiu obras, criou contas, avaliou, comentou e mexeu em listas (mais recentes primeiro, paginado) |
+| GET | `/api/admin/historico/autores` | (admin) Quem mais adicionou obras ao acervo |
 | GET | `/api/admin/obras/impacto?titulo=...` | (admin) Quantas notas, comentários, listas e marcas a obra tem |
 | DELETE | `/api/admin/obras?titulo=...` | (admin) Exclui a obra com notas, comentários, presença em listas e marcas |
 | POST | `/api/auth/senha` | Redefine a própria senha (`{"senhaAtual", "novaSenha"}`) |
@@ -144,11 +179,11 @@ Os botões Filme/Série/Jogo restringem a busca a uma mídia (útil quando o mes
 | POST / DELETE | `/api/listas/{id}/obras` | Adiciona (`{"titulo"}`) / remove (`?titulo=`) uma obra |
 | GET | `/api/obras` | Catálogo completo |
 | GET | `/obra?t=...` | Link de compartilhamento (público, sem login): prévia com título, sinopse e pôster (Open Graph) e redireciona para a obra no site |
-| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo (TMDB/JustWatch, RAWG, Steam; cache de 12 h) |
+| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo, autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
-| POST | `/api/adicionar/{filme\|serie\|jogo}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
+| POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | POST | `/api/buscar-ou-adicionar?nome=...[&tipo=filme\|serie\|jogo]` | Busca da tela inicial: devolve a obra do acervo ou a busca na web, gera o DNA e adiciona (`{"obra", "adicionada"}`) |
-| GET | `/api/tendencias/{filmes\|series\|jogos}` | (admin) Títulos em alta |
+| GET | `/api/tendencias/{filmes\|series\|jogos\|livros}` | (admin) Títulos em alta |
 | POST | `/api/completar-detalhes` | (admin) Preenche sinopses e imagens faltantes |
 | POST | `/api/reprocessar-dna[?todas=true]` | (admin) Refaz as tags que falharam (ou todas) |
 

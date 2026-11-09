@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OmniReview | Filmes, Séries e Jogos com o mesmo DNA</title>
+    <title>OmniReview | Filmes, Séries, Jogos e Livros com o mesmo DNA</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -36,6 +36,7 @@
             --filme: #f6b94f;
             --serie: #b39dff;
             --jogo: #4fe3a1;
+            --livro: #ff8fab;
             --danger: #ff6b81;
             --estrela: #ffc857;
             --radius: 14px;
@@ -330,7 +331,7 @@
             letter-spacing: .08em; text-transform: uppercase; color: var(--cor, var(--text-2));
         }
         .tipo::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--cor, var(--text-2)); }
-        .tipo.filme { --cor: var(--filme); } .tipo.serie { --cor: var(--serie); } .tipo.jogo { --cor: var(--jogo); }
+        .tipo.filme { --cor: var(--filme); } .tipo.serie { --cor: var(--serie); } .tipo.jogo { --cor: var(--jogo); } .tipo.livro { --cor: var(--livro); }
 
         .tags { display: flex; flex-wrap: wrap; gap: 5px; }
         .tag {
@@ -621,7 +622,7 @@
             color: var(--text); padding: 0 12px; font: inherit; font-size: 14px; outline: none; width: 100%;
         }
         .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-        .tipo-escolha { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+        .tipo-escolha { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
         .tipo-escolha button {
             background: var(--bg); border: 1px solid var(--line-strong); color: var(--text-2); border-radius: 10px;
             padding: 10px 0; font-weight: 600; font-size: 13px; cursor: pointer;
@@ -668,6 +669,32 @@
         .admin-usuario .btn { padding: 8px 12px; font-size: 13px; }
         .admin-usuario .btn.confirmar { background: rgba(255,107,129,0.14); border-color: rgba(255,107,129,0.5); color: #ffb3bf; }
         .admin-usuario .protegido { color: var(--text-3); font-size: 12px; }
+        /* Histórico (administrador) */
+        .admin-sub { color: var(--text-2); font-size: 14px; margin: 6px 0 14px; max-width: 70ch; }
+        .historico-autores { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+        .historico-autores .titulo-autores { width: 100%; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+        .autor-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13.5px; color: var(--text); cursor: pointer; font: inherit; }
+        .autor-chip:hover { border-color: rgba(139,123,255,0.55); }
+        .autor-chip b { font-weight: 600; }
+        .autor-chip small { color: var(--text-3); font-size: 12.5px; }
+        .historico { list-style: none; margin: 4px 0 10px; padding: 0; }
+        .evento { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 11px 6px; border-bottom: 1px solid var(--line); }
+        .evento:last-child { border-bottom: 0; }
+        .evento-icone { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--bg-soft); border: 1px solid var(--line); }
+        .evento-icone svg { width: 15px; height: 15px; }
+        .evento[data-categoria="obra"] .evento-icone { color: var(--filme); }
+        .evento[data-categoria="conta"] .evento-icone { color: var(--accent-2); }
+        .evento[data-categoria="avaliacao"] .evento-icone { color: #ffcf5c; }
+        .evento[data-categoria="lista"] .evento-icone { color: var(--jogo); }
+        .evento-texto { font-size: 14.5px; line-height: 1.45; color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+        .evento-texto .autor-link { font-weight: 600; color: var(--text); }
+        .evento-texto b { color: var(--text); font-weight: 600; }
+        .evento-texto .link-btn { font-size: inherit; }
+        .evento-detalhe { display: block; font-size: 13px; color: var(--text-3); margin-top: 2px; }
+        .evento time { font-size: 12.5px; color: var(--text-3); white-space: nowrap; padding-top: 2px; }
+        @media (max-width: 560px) { .evento { grid-template-columns: 30px minmax(0, 1fr); } .evento time { grid-column: 2; padding-top: 0; } }
+        .obra-autoria { font-size: 13px; color: var(--text-3); margin: -8px 0 16px; }
+        .obra-autoria b { color: var(--text-2); font-weight: 600; }
         .admin-vazio { padding: 26px 10px; text-align: center; color: var(--text-2); font-size: 14px; }
 
         .admin-acervo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 20px; align-items: start; }
@@ -709,7 +736,7 @@
         .perfil-acoes { display: flex; gap: 10px; flex-wrap: wrap; padding-bottom: 8px; }
         .btn-seguir.seguindo { background: var(--surface-2); color: var(--text); box-shadow: none; border-color: var(--line-strong); }
 
-        .perfil-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 26px 0 8px; }
+        .perfil-stats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; margin: 26px 0 8px; }
         @media (max-width: 900px) { .perfil-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 480px) { .perfil-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         .perfil-stat {
@@ -774,6 +801,19 @@
         .compartilhar-link { display: flex; gap: 8px; }
         .compartilhar-link input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 13.5px; }
         .compartilhar-redes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .aviso-senha { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px;
+            padding: 10px 16px; background: #3a1620; border-bottom: 1px solid rgba(255,107,129,0.5); color: #ffd6dd; font-size: 14px; text-align: center; }
+        .aviso-senha .btn { padding: 7px 14px; font-size: 13px; }
+        /* Escolha entre mídias com o mesmo nome */
+        .escolha-midia { display: grid; gap: 10px; }
+        .opcao-midia { display: flex; gap: 14px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--text); font: inherit; cursor: pointer; transition: border-color .2s, background .2s; }
+        .opcao-midia:hover, .opcao-midia:focus-visible { border-color: rgba(139,123,255,0.6); background: var(--accent-soft); }
+        .opcao-midia img, .opcao-midia .sem-poster { width: 64px; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: var(--surface-2); display: grid; place-items: center; color: var(--text-3); font-weight: 700; }
+        .opcao-midia-texto { display: grid; gap: 4px; min-width: 0; }
+        .opcao-midia-texto .tipo { justify-self: start; }
+        .opcao-midia-texto b { font-size: 15.5px; }
+        .opcao-midia-texto small { color: var(--text-2); font-size: 13px; line-height: 1.45; }
+        .opcao-midia-texto em { font-style: normal; font-size: 12px; color: var(--text-3); }
         .compartilhar-redes .btn { flex: 1 1 140px; justify-content: center; text-decoration: none; }
         /* Listas em conjunto e compartilhadas */
         .lista-participantes { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: var(--text-2); }
@@ -975,14 +1015,14 @@
     <main id="aba-catalogo">
         <section class="wrap hero">
             <span class="eyebrow"><i></i> IA local classificando o acervo</span>
-            <h1>Filmes, séries e jogos com o <em>mesmo DNA criativo.</em></h1>
+            <h1>Filmes, séries, jogos e livros com o <em>mesmo DNA criativo.</em></h1>
             <p class="lead">Procure qualquer título: se ele ainda não estiver no acervo, a OmniReview busca na web, gera o DNA criativo com a IA e adiciona na hora. Depois, cruzamos as tags entre mídias para achar o próximo título para você.</p>
             <form class="busca-hero" id="busca-hero" role="search" autocomplete="off" onsubmit="event.preventDefault()" novalidate>
                 <label class="busca-hero-pergunta" for="busca-hero-texto">O que você quer ver hoje?</label>
                 <div class="busca-hero-campo">
                     <div class="busca-hero-caixa">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                        <input id="busca-hero-texto" type="text" maxlength="120" placeholder="Digite um filme, série ou jogo…"
+                        <input id="busca-hero-texto" type="text" maxlength="120" placeholder="Digite um filme, série, jogo ou livro…"
                             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="busca-hero-lista">
                         <button class="btn btn-primary" id="busca-hero-botao" type="submit" aria-label="Buscar">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span>Buscar</span>
@@ -995,6 +1035,7 @@
                     <button type="button" data-tipo="filme" aria-pressed="false">Filme</button>
                     <button type="button" data-tipo="serie" aria-pressed="false">Série</button>
                     <button type="button" data-tipo="jogo" aria-pressed="false">Jogo</button>
+                    <button type="button" data-tipo="livro" aria-pressed="false">Livro</button>
                 </div>
                 <div class="busca-hero-status" id="busca-hero-status" role="status" aria-live="polite"></div>
             </form>
@@ -1002,6 +1043,7 @@
                 <div class="stat"><span class="dot" style="background: var(--filme)"></span><b id="stat-filme">0</b><small>filmes</small></div>
                 <div class="stat"><span class="dot" style="background: var(--serie)"></span><b id="stat-serie">0</b><small>séries</small></div>
                 <div class="stat"><span class="dot" style="background: var(--jogo)"></span><b id="stat-jogo">0</b><small>jogos</small></div>
+                <div class="stat"><span class="dot" style="background: var(--livro)"></span><b id="stat-livro">0</b><small>livros</small></div>
             </div>
         </section>
 
@@ -1018,6 +1060,7 @@
                         <button data-tipo="filme">Filmes</button>
                         <button data-tipo="serie">Séries</button>
                         <button data-tipo="jogo">Jogos</button>
+                        <button data-tipo="livro">Livros</button>
                     </div>
                     <select class="select" id="filtro-ordem" aria-label="Ordenar">
                         <option value="padrao">Mais relevantes</option>
@@ -1151,10 +1194,11 @@
                     <button class="ativo" data-tipo="filme">Filme</button>
                     <button data-tipo="serie">Série</button>
                     <button data-tipo="jogo">Jogo</button>
+                    <button data-tipo="livro">Livro</button>
                 </div>
                 <div class="campo">
                     <label for="input-manual-nome">Nome</label>
-                    <input class="input" id="input-manual-nome" placeholder="Ex: Inception, Elden Ring, Breaking Bad">
+                    <input class="input" id="input-manual-nome" placeholder="Ex: Inception, Elden Ring, Breaking Bad, Dom Casmurro">
                 </div>
                 <button class="btn btn-primary btn-block" id="btn-manual" onclick="adicionarObraManual()">Processar e salvar</button>
                 <div class="status" id="status-manual"></div>
@@ -1162,7 +1206,7 @@
 
             <div class="bloco">
                 <h3>Importar tendências</h3>
-                <p>Traz os 15 filmes, 15 séries e os jogos em alta e classifica todos com a IA.</p>
+                <p>Traz os 15 filmes, 15 séries, os jogos e os 15 livros em alta e classifica todos com a IA.</p>
                 <button class="btn btn-block" id="btn-popular" onclick="popularBanco()">Importar tendências</button>
                 <div class="barra" id="barra-importacao" hidden><i></i></div>
                 <div class="status" id="status-importacao"></div>
@@ -1170,7 +1214,7 @@
 
             <div class="bloco">
                 <h3>Manutenção</h3>
-                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam. Para excluir um filme, série ou jogo, abra a obra e use “Excluir obra”.</p>
+                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam. Para excluir um filme, série, jogo ou livro, abra a obra e use “Excluir obra”.</p>
                 <div style="display: grid; gap: 8px;">
                     <button class="btn btn-block" id="btn-detalhes" onclick="manutencao('completar-detalhes', 'btn-detalhes')">Completar sinopses e capas</button>
                     <button class="btn btn-block" id="btn-reprocessar" onclick="manutencao('reprocessar-dna', 'btn-reprocessar')">Refazer tags com erro</button>
@@ -1178,10 +1222,31 @@
                 <div class="status" id="status-manutencao"></div>
             </div>
             </div>
+
+            <h2 class="admin-secao">Histórico</h2>
+            <p class="admin-sub">Tudo o que as pessoas fazem no site: quem adicionou ou excluiu cada obra, contas criadas, notas, comentários e listas. Só o administrador vê.</p>
+            <div class="historico-autores" id="historico-autores" aria-live="polite"></div>
+            <div class="admin-lista">
+                <div class="admin-lista-topo">
+                    <div class="segment" id="historico-filtro" role="group" aria-label="Mostrar no histórico">
+                        <button type="button" class="ativo" data-categoria="">Tudo</button>
+                        <button type="button" data-categoria="obra">Obras</button>
+                        <button type="button" data-categoria="conta">Contas</button>
+                        <button type="button" data-categoria="avaliacao">Notas e comentários</button>
+                        <button type="button" data-categoria="lista">Listas</button>
+                    </div>
+                    <label class="search admin-busca">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input id="historico-busca" type="search" placeholder="Buscar por usuário, obra ou lista..." aria-label="Buscar no histórico">
+                    </label>
+                </div>
+                <ol class="historico" id="historico-lista" aria-live="polite"></ol>
+                <button type="button" class="btn btn-block" id="historico-mais" hidden>Carregar mais</button>
+            </div>
         </section>
     </main>
 
-    <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB e Steam</div></footer>
+    <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB, RAWG, Steam e Open Library</div></footer>
 
     <!-- ===== MODAL DE DETALHES ===== -->
     <div class="modal-fundo" id="modal-fundo" aria-hidden="true">
@@ -1223,7 +1288,7 @@
             compartilhar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>'
         };
         const TAGS_INVALIDAS = ['deu erro', 'sem classificação', 'processando dna...'];
-        const NOME_TIPO = { filme: 'Filme', serie: 'Série', jogo: 'Jogo' };
+        const NOME_TIPO = { filme: 'Filme', serie: 'Série', jogo: 'Jogo', livro: 'Livro' };
 
         // ================= SESSÃO =================
         const CHAVE_SESSAO = 'omnireview:sessao';
@@ -1267,7 +1332,7 @@
         const normalizar = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
         const tipoDe = obra => {
             const t = normalizar(obra.tipo);
-            return t.startsWith('film') ? 'filme' : t.startsWith('ser') ? 'serie' : t.startsWith('jog') ? 'jogo' : 'outro';
+            return t.startsWith('film') ? 'filme' : t.startsWith('ser') ? 'serie' : t.startsWith('jog') ? 'jogo' : t.startsWith('liv') ? 'livro' : 'outro';
         };
         const tagsDe = obra => String(obra.dnaCriativo || '').split(',').map(t => t.trim())
             .filter(t => t && !TAGS_INVALIDAS.includes(t.toLowerCase()));
@@ -1481,7 +1546,7 @@
                         <time datetime="${esc(c.criadoEm)}" title="${esc(new Date(c.criadoEm).toLocaleString('pt-BR'))}">${esc(tempoRelativo(c.criadoEm))}</time>
                     </div>
                     <p>${esc(c.texto)}</p>
-                    ${c.meu ? `<div class="comentario-acoes"><button type="button" class="link-btn" data-excluir-comentario="${esc(c.id)}">Excluir</button></div>` : ''}
+                    ${c.meu || ehAdmin() ? `<div class="comentario-acoes"><button type="button" class="link-btn" data-excluir-comentario="${esc(c.id)}"${c.meu ? '' : ' title="Moderação: só o administrador vê esta opção"'}>${c.meu ? 'Excluir' : 'Excluir (moderação)'}</button></div>` : ''}
                 </div>
             </li>`;
         }
@@ -1703,7 +1768,7 @@
         }
 
         function atualizarStats() {
-            const cont = { filme: 0, serie: 0, jogo: 0 };
+            const cont = { filme: 0, serie: 0, jogo: 0, livro: 0 };
             catalogo.forEach(o => { const t = tipoDe(o); if (t in cont) cont[t]++; });
             Object.entries(cont).forEach(([t, n]) => $('stat-' + t).textContent = n);
         }
@@ -1756,7 +1821,7 @@
 
         function renderizarCatalogo() {
             const lista = filtrarCatalogo();
-            const titulos = { TODOS: 'Todo o acervo', filme: 'Filmes', serie: 'Séries', jogo: 'Jogos' };
+            const titulos = { TODOS: 'Todo o acervo', filme: 'Filmes', serie: 'Séries', jogo: 'Jogos', livro: 'Livros' };
             $('titulo-resultado').textContent = filtro.tags.size ? [...filtro.tags].join(' + ') : titulos[filtro.tipo];
             $('contagem-resultado').textContent = `${lista.length} ${lista.length === 1 ? 'obra' : 'obras'}`;
 
@@ -1793,7 +1858,8 @@
         // ================= "O QUE VOCÊ QUER VER HOJE?" =================
         // Digita -> sugere obras do acervo; se não houver, busca na web e adiciona automaticamente.
         const buscaHero = { tipo: '', opcoes: [], ativa: -1, ocupado: false };
-        const chaveBusca = t => normalizar(t).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        // "Duna (Filme)" e "Duna (Livro)" contam como "Duna": o sufixo só separa mídias com o mesmo nome no acervo
+        const chaveBusca = t => normalizar(String(t ?? '').replace(/\s+\((Filme|Série|Jogo|Livro)\)$/, '')).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         const ICONE_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>';
 
         function sugestoesDoAcervo(texto) {
@@ -1819,9 +1885,9 @@
             const achadas = sugestoesDoAcervo(texto);
             const exata = achadas.some(o => chaveBusca(o.titulo) === chaveBusca(texto));
             buscaHero.opcoes = achadas.map(o => ({ acao: 'abrir', titulo: o.titulo }));
-            if (!exata) buscaHero.opcoes.push({ acao: 'web' });
+            buscaHero.opcoes.push({ acao: exata ? 'outra' : 'web' });
             buscaHero.ativa = -1;
-            const midia = { filme: 'filmes', serie: 'séries', jogo: 'jogos' }[buscaHero.tipo] || 'filmes, séries e jogos';
+            const midia = { filme: 'filmes', serie: 'séries', jogo: 'jogos', livro: 'livros' }[buscaHero.tipo] || 'filmes, séries, jogos e livros';
             lista.innerHTML = achadas.map((o, i) => {
                 const n = notas.get(o.titulo);
                 const tipo = tipoDe(o);
@@ -1830,11 +1896,16 @@
                     <span class="busca-opcao-texto"><strong>${esc(o.titulo)}</strong>
                         <small><span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(o.tipo || 'Obra')}</span>${n?.total ? `<span>${ICONES.estrela} ${fmtNota(n.media)}</span>` : ''}<span>No acervo</span></small></span>
                 </li>`;
-            }).join('') + (exata ? '' : `
+            }).join('') + (exata ? `
+                <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
+                    <span class="icone-web">${ICONE_WEB}</span>
+                    <span class="busca-opcao-texto"><strong>Queria “${esc(texto)}” em outra mídia?</strong>
+                        <small>Procura o mesmo nome em ${midia} na web e pergunta qual você quer</small></span>
+                </li>` : `
                 <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
                     <span class="icone-web">${ICONE_WEB}</span>
                     <span class="busca-opcao-texto"><strong>${achadas.length ? 'Não é nenhum desses? ' : ''}Buscar “${esc(texto)}” na web</strong>
-                        <small>Procura em ${midia} e adiciona ao acervo com o DNA criativo</small></span>
+                        <small>Procura em ${midia} e adiciona ao acervo com o DNA criativo${buscaHero.tipo ? '' : ' (se o nome existir em mais de uma mídia, você escolhe)'}</small></span>
                 </li>`);
             lista.hidden = false;
             $('busca-hero-texto').setAttribute('aria-expanded', 'true');
@@ -1866,7 +1937,7 @@
         function executarOpcao(opcao) {
             fecharSugestoes();
             if (opcao.acao === 'abrir') { statusBusca(''); abrirModal(opcao.titulo); }
-            else buscarOuAdicionar($('busca-hero-texto').value.trim());
+            else buscarOuAdicionar($('busca-hero-texto').value.trim(), { ignorarAcervo: opcao.acao === 'outra' });
         }
 
         function enviarBuscaHero() {
@@ -1879,17 +1950,19 @@
             executarOpcao(exata ? { acao: 'abrir', titulo: exata.titulo } : { acao: 'web' });
         }
 
-        async function buscarOuAdicionar(texto) {
+        async function buscarOuAdicionar(texto, extra = {}) {
             if (!texto || buscaHero.ocupado) return;
+            const tipoBusca = extra.tipo ?? buscaHero.tipo;
             buscaHero.ocupado = true;
             $('busca-hero-botao').disabled = true;
             const inicio = Date.now();
-            const mensagem = () => `<span class="girando" aria-hidden="true"></span><span>“${esc(texto)}” não está no acervo. Buscando na web e gerando o DNA criativo com a IA… <small>${Math.round((Date.now() - inicio) / 1000)} s</small></span>`;
+            const mensagem = () => `<span class="girando" aria-hidden="true"></span><span>${extra.ignorarAcervo ? `Procurando “${esc(texto)}” em outras mídias na web…` : extra.tipo ? `Adicionando “${esc(texto)}” (${NOME_TIPO[extra.tipo] || ''}) e gerando o DNA criativo com a IA…` : `“${esc(texto)}” não está no acervo. Buscando na web e gerando o DNA criativo com a IA…`} <small>${Math.round((Date.now() - inicio) / 1000)} s</small></span>`;
             statusBusca(mensagem());
             const relogio = setInterval(() => statusBusca(mensagem()), 1000);
             try {
                 const params = new URLSearchParams({ nome: texto });
-                if (buscaHero.tipo) params.set('tipo', buscaHero.tipo);
+                if (tipoBusca) params.set('tipo', tipoBusca);
+                if (extra.ignorarAcervo) params.set('ignorarAcervo', 'true');
                 const resposta = await api(`/api/buscar-ou-adicionar?${params}`, { method: 'POST' });
                 clearInterval(relogio);
                 if (resposta.status === 404) {
@@ -1897,7 +1970,12 @@
                     return;
                 }
                 if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
-                const { obra, adicionada } = await resposta.json();
+                const { obra, adicionada, opcoes } = await resposta.json();
+                if (opcoes?.length) {
+                    statusBusca(`Encontramos “${esc(texto)}” em mais de uma mídia. Escolha qual você quer.`);
+                    escolherMidia(texto, opcoes);
+                    return;
+                }
                 if (adicionada) {
                     await carregarCatalogo();
                     toast(`“${obra.titulo}” foi adicionado ao acervo`);
@@ -1916,6 +1994,41 @@
                 $('busca-hero-botao').disabled = false;
             }
         }
+
+        // Mesmo nome em mais de uma mídia: mostra as opções e só adiciona a escolhida
+        function escolherMidia(texto, opcoes) {
+            buscaHero.opcoesMidia = opcoes;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">Qual “${esc(texto)}” você quer?</h2>
+                <p>Encontramos esse nome em mais de uma mídia. Escolha uma: só ela entra no acervo.</p>
+                <div class="escolha-midia">${opcoes.map((o, i) => `
+                    <button type="button" class="opcao-midia" data-escolher-midia="${i}">
+                        ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(o.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
+                        <span class="opcao-midia-texto">
+                            <span class="tipo ${esc(o.tipo)}">${NOME_TIPO[o.tipo] || esc(o.tipo)}</span>
+                            <b>${esc(o.titulo)}</b>
+                            ${o.sinopse ? `<small>${esc(o.sinopse)}</small>` : ''}
+                            <em>${o.jaNoAcervo ? 'Já está no acervo' : 'Será adicionado ao acervo'}</em>
+                        </span>
+                    </button>`).join('')}</div>
+                <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo(); statusBusca('')">Nenhum desses</button></div>`);
+        }
+
+        $('dialogo').addEventListener('click', async e => {
+            const botao = e.target.closest('[data-escolher-midia]');
+            if (!botao) return;
+            const o = buscaHero.opcoesMidia?.[Number(botao.dataset.escolherMidia)];
+            if (!o) return;
+            fecharDialogo();
+            if (o.jaNoAcervo) {
+                if (!porTitulo.has(o.titulo)) await carregarCatalogo();
+                statusBusca(`<strong>${esc(o.titulo)}</strong> já estava no acervo.`, 'ok');
+                $('busca-hero-texto').value = '';
+                abrirModal(o.titulo);
+            } else {
+                buscarOuAdicionar(o.titulo, { tipo: o.tipo });
+            }
+        });
 
         $('busca-hero').addEventListener('submit', e => { e.preventDefault(); enviarBuscaHero(); });
         $('busca-hero-texto').addEventListener('input', () => { if (!buscaHero.ocupado) statusBusca(''); renderizarSugestoes(); });
@@ -1989,7 +2102,7 @@
             $('aba-perfil').hidden = aba !== 'perfil';
             $('aba-listas').hidden = aba !== 'listas';
             if (aba === 'listas') { renderizarListas(); carregarListas(); }
-            if (aba === 'admin') carregarUsuarios();
+            if (aba === 'admin') { carregarUsuarios(); carregarHistorico(true); }
             if (aba === 'perfil') carregarPerfil(perfilUsuario || sessao.usuario);
             document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('ativo', b.dataset.aba === aba));
             const ativo = document.querySelector('.nav-link.ativo');   // em telas estreitas a barra rola: mostra a aba atual
@@ -2074,12 +2187,15 @@
                     <div class="modal-texto">
                         <span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(obra.tipo || 'Obra')}</span>
                         <div class="modal-titulo-linha"><h2 id="modal-titulo">${esc(obra.titulo)}</h2>${notaModalHTML(obra.titulo)}</div>
+                        ${ehAdmin() ? `<p class="obra-autoria">${obra.adicionadaPor
+                            ? `Adicionada ao acervo por <b>${esc(obra.adicionadaPor)}</b> · <time datetime="${esc(obra.adicionadaEm || '')}" title="${esc(dataHora(obra.adicionadaEm))}">${esc(tempoRelativo(obra.adicionadaEm))}</time>`
+                            : 'Adicionada antes do histórico (autor desconhecido)'}</p>` : ''}
                         <div class="tags">
                             ${tags.length ? tags.map(t => `<button class="tag" data-filtrar-tag="${esc(t)}" title="Ver todas com esta tag">${esc(t)}</button>`).join('') : '<span class="tag vazia">Ainda sem tags</span>'}
                         </div>
                         <p class="rotulo">Sinopse</p>
                         <p class="sinopse ${sinopse ? '' : 'sem'}">${sinopse ? esc(sinopse) : 'Sinopse ainda não disponível.' + (ehAdmin() ? ' Use "Completar sinopses e capas" na Administração.' : '')}</p>
-                        <div class="ficha" id="modal-ficha" aria-live="polite"><p class="ficha-carregando">Buscando ${tipo === 'jogo' ? 'onde jogar e tempo de jogo' : 'onde assistir'}…</p></div>
+                        <div class="ficha" id="modal-ficha" aria-live="polite"><p class="ficha-carregando">Buscando ${tipo === 'jogo' ? 'onde jogar e tempo de jogo' : tipo === 'livro' ? 'onde ler e número de páginas' : 'onde assistir'}…</p></div>
                         <div class="modal-acoes">
                             ${botaoConclusaoHTML(obra)}
                             ${botaoSalvarListaHTML(obra)}
@@ -2096,7 +2212,7 @@
                 </section>
                 <div class="semelhantes" id="modal-semelhantes" ${tags.length ? '' : 'hidden'}>
                     <h3>Com o mesmo DNA</h3>
-                    <p>Filmes, séries e jogos que compartilham tags com ${esc(obra.titulo)}.</p>
+                    <p>Filmes, séries, jogos e livros que compartilham tags com ${esc(obra.titulo)}.</p>
                     <div class="trilho" id="modal-trilho">${Array(5).fill('<div class="skeleton"></div>').join('')}</div>
                 </div>`;
 
@@ -2138,11 +2254,15 @@
             if (f.duracaoEpisodioMinutos) fatos.push(['Por episódio', '~' + duracaoTexto(f.duracaoEpisodioMinutos)]);
             if (f.situacao) fatos.push(['Situação', f.situacao]);
             if (f.tempoMedioHoras) fatos.push(['Tempo médio de jogo', `${f.tempoMedioHoras} h`]);
+            if (f.autores) fatos.push([f.autores.includes(',') ? 'Autores' : 'Autor', f.autores]);
+            if (f.paginas) fatos.push(['Páginas', `${f.paginas} páginas`]);
+            if (f.tempoLeituraHoras) fatos.push(['Tempo de leitura', `~${f.tempoLeituraHoras} h`]);
+            if (f.ano) fatos.push(['Publicado em', String(f.ano)]);
             const hltb = linkSeguro(f.linkTempoParaZerar);
             const cartaoHltb = hltb ? `<div><dt>Tempo para zerar</dt><dd><a href="${esc(hltb)}" target="_blank" rel="noopener noreferrer">Ver no HowLongToBeat ${SETA_EXTERNA}</a></dd></div>` : '';
 
-            const ehJogo = tipo === 'jogo';
-            const lista = (ehJogo ? f.ondeJogar : f.ondeAssistir) || [];
+            const ehJogo = tipo === 'jogo', ehLivro = tipo === 'livro';
+            const lista = (ehJogo ? f.ondeJogar : ehLivro ? f.ondeLer : f.ondeAssistir) || [];
             const todas = linkSeguro(f.linkOndeAssistir);
             const provedores = lista.filter(p => linkSeguro(p.link)).map(p => `
                 <a class="provedor" href="${esc(p.link)}" target="_blank" rel="noopener noreferrer" title="Abrir ${esc(titulo)} em ${esc(p.nome)}">
@@ -2153,10 +2273,10 @@
 
             caixa.innerHTML = `
                 ${fatos.length || cartaoHltb ? `<dl class="ficha-fatos">${fatos.map(([r, v]) => `<div><dt>${r}</dt><dd>${esc(v)}</dd></div>`).join('')}${cartaoHltb}</dl>` : ''}
-                <p class="rotulo">${ehJogo ? 'Onde jogar' : 'Onde assistir'}</p>
+                <p class="rotulo">${ehJogo ? 'Onde jogar' : ehLivro ? 'Onde ler ou comprar' : 'Onde assistir'}</p>
                 ${provedores ? `<div class="provedores">${provedores}</div>`
-                    : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
-                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
+                    : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : ehLivro ? 'Não encontramos este livro nas livrarias.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
+                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : ehLivro ? 'Dados do livro: Open Library · tempo de leitura estimado a 40 páginas por hora' : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
         }
 
         async function carregarSemelhantes(obra, tags) {
@@ -2235,12 +2355,13 @@
             barra.hidden = false; barra.firstElementChild.style.width = '0';
             status('status-importacao', 'Buscando tendências...');
             try {
-                const [filmes, series, jogos] = await Promise.all(
-                    ['filmes', 'series', 'jogos'].map(t => api(`/api/tendencias/${t}`).then(r => r.json()).catch(() => [])));
+                const [filmes, series, jogos, livros] = await Promise.all(
+                    ['filmes', 'series', 'jogos', 'livros'].map(t => api(`/api/tendencias/${t}`).then(r => r.json()).catch(() => [])));
                 const fila = [
                     ...filmes.map(nome => ({ nome, tipo: 'filme' })),
                     ...series.map(nome => ({ nome, tipo: 'serie' })),
-                    ...jogos.map(nome => ({ nome, tipo: 'jogo' }))
+                    ...jogos.map(nome => ({ nome, tipo: 'jogo' })),
+                    ...livros.map(nome => ({ nome, tipo: 'livro' }))
                 ];
                 let feitos = 0;
                 for (const item of fila) {
@@ -2461,8 +2582,9 @@
         const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
         const textoConclusao = (obra, feita) => tipoDe(obra) === 'jogo'
             ? (feita ? 'Jogo terminado' : 'Terminei o jogo')
+            : tipoDe(obra) === 'livro' ? (feita ? 'Já li' : 'Marcar como lido')
             : (feita ? 'Já assisti' : 'Marcar como assistido');
-        const seloConclusao = obra => tipoDe(obra) === 'jogo' ? 'Jogado' : 'Assistido';
+        const seloConclusao = obra => ({ jogo: 'Jogado', livro: 'Lido' })[tipoDe(obra)] || 'Assistido';
 
         function seloConcluidaHTML(obra) {
             return `<span class="selo-concluida" data-selo-concluida="${esc(obra.titulo)}" ${minhasConcluidas.has(obra.titulo) ? '' : 'hidden'}>${ICONE_CHECK}<span>${seloConclusao(obra)}</span></span>`;
@@ -2509,7 +2631,7 @@
                 if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
                 feita ? minhasConcluidas.delete(titulo) : minhasConcluidas.add(titulo);
                 atualizarConclusoesNaTela();
-                if (!feita) toast(tipoDe(obra) === 'jogo' ? `"${titulo}" entrou nos seus jogos terminados` : `"${titulo}" marcado como assistido`);
+                if (!feita) toast(tipoDe(obra) === 'jogo' ? `"${titulo}" entrou nos seus jogos terminados` : tipoDe(obra) === 'livro' ? `"${titulo}" marcado como lido` : `"${titulo}" marcado como assistido`);
                 if (!$('aba-perfil').hidden && perfilAtual?.ehEu) carregarPerfil(sessao.usuario, perfilAba);
             } catch (e) {
                 console.error(e);
@@ -2589,6 +2711,7 @@
                     ${stat(e.jogos, 'jogos jogados', 'var(--jogo)', 'concluidas:jogo')}
                     ${stat(e.filmes, 'filmes assistidos', 'var(--filme)', 'concluidas:filme')}
                     ${stat(e.series, 'séries assistidas', 'var(--serie)', 'concluidas:serie')}
+                    ${stat(e.livros || 0, (e.livros || 0) === 1 ? 'livro lido' : 'livros lidos', 'var(--livro)', 'concluidas:livro')}
                     ${stat(e.reviews, e.reviews === 1 ? 'review' : 'reviews', 'var(--estrela)', 'reviews')}
                     ${stat(e.seguidores, e.seguidores === 1 ? 'seguidor' : 'seguidores', 'var(--accent)', 'seguidores')}
                     ${stat(e.seguindo, 'seguindo', 'var(--accent-2)', 'seguindo')}
@@ -2612,12 +2735,12 @@
 
             if (perfilAba === 'concluidas') {
                 const lista = p.concluidas.filter(o => !perfilFiltroTipo || tipoDe(o) === perfilFiltroTipo);
-                const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos']];
+                const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos'], ['livro', 'Livros']];
                 alvo.innerHTML = `
                     <div class="perfil-filtro">${filtros.map(([t, n]) => `<button type="button" class="chip ${perfilFiltroTipo === t ? 'ativo' : ''}" data-perfil-tipo="${t}">${n}</button>`).join('')}</div>
                     <div class="grid">${lista.length ? lista.map(cardHTML).join('')
                         : vazioHTML(p.concluidas.length ? 'Nada nesta categoria' : 'Nenhuma obra concluída ainda',
-                            p.ehEu ? 'Abra um filme, série ou jogo e use “Marcar como assistido” ou “Terminei o jogo”.' : `${quem} ainda não marcou obras aqui.`)}</div>`;
+                            p.ehEu ? 'Abra um filme, série, jogo ou livro e use “Marcar como assistido”, “Terminei o jogo” ou “Marcar como lido”.' : `${quem} ainda não marcou obras aqui.`)}</div>`;
                 return;
             }
             if (perfilAba === 'reviews') {
@@ -2915,7 +3038,12 @@
             status('status-senha', 'Salvando…');
             try {
                 const resposta = await api('/api/auth/senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senhaAtual, novaSenha }) });
-                if (resposta.status === 204) { fecharDialogo(); toast('Senha redefinida com sucesso'); return; }
+                if (resposta.status === 204) {
+                    fecharDialogo(); toast('Senha redefinida com sucesso');
+                    if (sessao.senhaFraca) { sessao.senhaFraca = false; try { localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao)); } catch {} }
+                    $('aviso-senha')?.remove();
+                    return;
+                }
                 const dados = await resposta.json().catch(() => ({}));
                 status('status-senha', dados.erro || 'Não foi possível redefinir a senha.', 'erro');
                 if (resposta.status === 403) { $('senha-atual').value = ''; $('senha-atual').focus(); }
@@ -2981,7 +3109,7 @@
             const conjunto = ehEmConjunto(lista);
             const concluidas = lista.obras.filter(o => minhasConcluidas.has(o.titulo)).length;
             const visiveis = lista.obras.filter(o => (!listaFiltroTipo || tipoDe(o) === listaFiltroTipo) && (!ocultarConcluidas || !minhasConcluidas.has(o.titulo)));
-            const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos']];
+            const filtros = [['', 'Todos'], ['filme', 'Filmes'], ['serie', 'Séries'], ['jogo', 'Jogos'], ['livro', 'Livros']];
             $('lista-conteudo').innerHTML = `
                 <div class="lista-topo">
                     <div>
@@ -3002,7 +3130,7 @@
                 ${lista.obras.length ? `
                 <div class="lista-filtros">
                     ${filtros.map(([t, n]) => `<button type="button" class="chip ${listaFiltroTipo === t ? 'ativo' : ''}" data-lista-tipo="${t}">${n}</button>`).join('')}
-                    <label><input type="checkbox" id="ocultar-concluidas" ${ocultarConcluidas ? 'checked' : ''}> Ocultar já vistas/jogadas</label>
+                    <label><input type="checkbox" id="ocultar-concluidas" ${ocultarConcluidas ? 'checked' : ''}> Ocultar já vistas, jogadas e lidas</label>
                 </div>` : ''}
                 <div class="grid">${visiveis.length
                     ? visiveis.map((o, i) => `<div class="item-lista">${cardHTML(porTitulo.get(o.titulo) || o, i)}
@@ -3010,7 +3138,7 @@
                         <button type="button" class="link-btn" data-remover-da-lista="${esc(o.titulo)}">Remover da lista</button></div>`).join('')
                     : lista.obras.length
                         ? vazioHTML('Nada com esse filtro', 'Mude o tipo de mídia ou mostre as obras já concluídas.')
-                        : vazioHTML('Lista vazia', 'Abra qualquer filme, série ou jogo e use “Salvar em lista”. Você também pode procurar um título em “O que você quer assistir hoje?”.',
+                        : vazioHTML('Lista vazia', 'Abra qualquer filme, série, jogo ou livro e use “Salvar em lista”. Você também pode procurar um título em “O que você quer assistir hoje?”.',
                             `<button class="btn btn-primary" onclick="irPara('catalogo')">Explorar catálogo ${ICONES.seta}</button>`)}</div>`;
         }
 
@@ -3364,6 +3492,95 @@
 
         // ================= EXCLUIR OBRA (administrador) =================
         // O botão só aparece para o administrador; o servidor também recusa (403) para os demais.
+        // ================= HISTÓRICO (administrador) =================
+        const historico = { categoria: '', texto: '', proximo: null, carregando: false };
+        const ICONES_EVENTO = {
+            obra: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 4v5M16 4v5"/></svg>',
+            conta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.4 4.2-6.5 8-6.5s7 2.1 8 6.5"/></svg>',
+            avaliacao: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.36l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93z"/></svg>',
+            lista: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>'
+        };
+        const dataHora = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); };
+
+        async function carregarHistorico(reiniciar) {
+            if (historico.carregando && !reiniciar) return;
+            historico.carregando = true;
+            if (reiniciar) {
+                historico.proximo = null;
+                $('historico-lista').innerHTML = '<li class="admin-vazio">Carregando histórico…</li>';
+                carregarAutores();
+            }
+            const params = new URLSearchParams({ limite: '40' });
+            if (historico.categoria) params.set('categoria', historico.categoria);
+            if (historico.texto) params.set('q', historico.texto);
+            if (!reiniciar && historico.proximo) params.set('antes', historico.proximo);
+            const pedido = params.toString();
+            historico.ultimoPedido = pedido;
+            try {
+                const r = await api('/api/admin/historico?' + pedido);
+                const dados = await r.json();
+                if (!r.ok) throw new Error(dados.erro || 'HTTP ' + r.status);
+                if (historico.ultimoPedido !== pedido) return;   // um filtro mais novo já foi pedido
+                const html = dados.eventos.map(eventoHTML).join('');
+                if (reiniciar) $('historico-lista').innerHTML = html || `<li class="admin-vazio">${historico.categoria || historico.texto ? 'Nada no histórico com esse filtro.' : 'Nada registrado ainda. As próximas ações dos usuários aparecem aqui.'}</li>`;
+                else $('historico-lista').insertAdjacentHTML('beforeend', html);
+                historico.proximo = dados.proximo;
+                $('historico-mais').hidden = !dados.proximo;
+            } catch (e) {
+                if (e.message !== 'Sessão expirada') $('historico-lista').innerHTML = `<li class="admin-vazio">Não foi possível carregar o histórico. <button class="link-btn" onclick="carregarHistorico(true)">Tentar de novo</button></li>`;
+            } finally { historico.carregando = false; }
+        }
+
+        function eventoHTML(e) {
+            const quem = e.usuario === 'sistema' ? '<b>O sistema</b>'
+                : e.usuario ? `<button type="button" class="autor-link" data-perfil="${esc(e.usuario)}">${esc(e.usuario)}</button>` : '<b>alguém</b>';
+            const abre = t => porTitulo.has(t) ? `<button type="button" class="link-btn" data-historico-obra="${esc(t)}">${esc(t)}</button>` : `<b>${esc(t)}</b>`;
+            const alvo = !e.alvo || e.alvo === e.usuario ? '' : e.obra && e.obra === e.alvo ? abre(e.alvo) : `<b>${esc(e.alvo)}</b>`;
+            const obraExtra = e.obra && e.obra !== e.alvo && porTitulo.has(e.obra) ? ` · <button type="button" class="link-btn" data-historico-obra="${esc(e.obra)}">ver obra</button>` : '';
+            return `<li class="evento" data-categoria="${esc(e.categoria)}">
+                <span class="evento-icone" aria-hidden="true">${ICONES_EVENTO[e.categoria] || ICONES_EVENTO.obra}</span>
+                <div class="evento-texto">${quem} ${esc(e.acao)} ${alvo}${e.detalhe || obraExtra ? `<span class="evento-detalhe">${esc(e.detalhe || '')}${obraExtra}</span>` : ''}</div>
+                <time datetime="${esc(e.em)}" title="${esc(dataHora(e.em))}">${esc(tempoRelativo(e.em))}</time>
+            </li>`;
+        }
+
+        async function carregarAutores() {
+            try {
+                const lista = await (await api('/api/admin/historico/autores')).json();
+                $('historico-autores').innerHTML = Array.isArray(lista) && lista.length
+                    ? `<span class="titulo-autores">Quem mais adicionou obras</span>` + lista.map(a => `
+                        <button type="button" class="autor-chip" data-historico-autor="${esc(a.usuario)}" title="Ver o que ${esc(a.usuario)} fez">
+                            <b>${esc(a.usuario)}</b><small>${plural(Number(a.obras), 'obra', 'obras')}</small></button>`).join('')
+                    : '';
+            } catch { $('historico-autores').innerHTML = ''; }
+        }
+
+        let esperaHistorico;
+        $('historico-busca').addEventListener('input', e => {
+            clearTimeout(esperaHistorico);
+            esperaHistorico = setTimeout(() => { historico.texto = e.target.value.trim(); carregarHistorico(true); }, 300);
+        });
+        $('historico-filtro').addEventListener('click', e => {
+            const b = e.target.closest('[data-categoria]');
+            if (!b) return;
+            historico.categoria = b.dataset.categoria;
+            document.querySelectorAll('#historico-filtro button').forEach(x => x.classList.toggle('ativo', x === b));
+            carregarHistorico(true);
+        });
+        $('historico-mais').addEventListener('click', () => carregarHistorico(false));
+        $('aba-admin').addEventListener('click', e => {
+            const obra = e.target.closest('[data-historico-obra]');
+            if (obra) { abrirModal(obra.dataset.historicoObra); return; }
+            const autor = e.target.closest('[data-historico-autor]');
+            if (autor) {
+                $('historico-busca').value = autor.dataset.historicoAutor;
+                historico.texto = autor.dataset.historicoAutor;
+                historico.categoria = 'obra';
+                document.querySelectorAll('#historico-filtro button').forEach(x => x.classList.toggle('ativo', x.dataset.categoria === 'obra'));
+                carregarHistorico(true);
+            }
+        });
+
         // ================= COMPARTILHAR OBRA =================
         // O link /obra?t=... é público (mostra pôster e sinopse na prévia do WhatsApp etc.) e leva direto à obra
         const linkDaObra = titulo => `${location.origin}/obra?t=${encodeURIComponent(titulo)}`;
@@ -3373,7 +3590,7 @@
             if (!obra) return;
             const link = linkDaObra(titulo);
             const tipo = NOME_TIPO[tipoDe(obra)] || 'Obra';
-            const texto = `Olha ${tipo === 'Série' ? 'essa série' : tipo === 'Jogo' ? 'esse jogo' : 'esse filme'} no OmniReview: ${titulo}`;
+            const texto = `Olha ${tipo === 'Série' ? 'essa série' : tipo === 'Jogo' ? 'esse jogo' : tipo === 'Livro' ? 'esse livro' : 'esse filme'} no OmniReview: ${titulo}`;
             const poster = obra.imagem || obra.capa;
             abrirDialogo(`
                 <h2 id="dialogo-titulo">Compartilhar</h2>
@@ -3503,6 +3720,11 @@
                 aplicarPapel();
             }).catch(() => {});
             carregarCatalogo().then(() => { abrirObraDoLink(); abrirListaDoLink(); });
+            if (sessao?.senhaFraca) {
+                document.body.insertAdjacentHTML('afterbegin', `<div class="aviso-senha" id="aviso-senha" role="alert">
+                    <span><b>Sua senha é fácil de adivinhar.</b> Troque agora para proteger sua conta${ehAdmin() ? ' (e o site inteiro: você é o administrador)' : ''}.</span>
+                    <button type="button" class="btn btn-primary" onclick="abrirRedefinirSenha()">Trocar senha</button></div>`);
+            }
         }
     </script>
 </body>

@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T00:41:31.919Z",
-  "aprovados": 29,
-  "total": 29,
+  "executado_em": "2026-11-09T02:09:05.020Z",
+  "aprovados": 34,
+  "total": 34,
   "casos": [
     {
       "id": "T00",
@@ -20,13 +20,13 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_zmymek; menu mostra \"teste_ui_zmymek\""
+      "detalhe": "usuário teste_ui_zh5as5; menu mostra \"teste_ui_zh5as5\""
     },
     {
       "id": "T01",
       "descricao": "Catálogo carrega cards do back-end",
       "ok": true,
-      "detalhe": "44 cards"
+      "detalhe": "59 cards"
     },
     {
       "id": "T02",
@@ -38,13 +38,13 @@
       "id": "T16",
       "descricao": "Busca da tela inicial sugere obras do acervo e abre a obra digitada",
       "ok": true,
-      "detalhe": "\"Resident Evil\""
+      "detalhe": "\"Hábitos Atômicos\""
     },
     {
       "id": "T03",
       "descricao": "Favorito fica salvo na conta (servidor): volta após recarregar e sem os dados do navegador (RF06)",
       "ok": true,
-      "detalhe": "\"Resident Evil\", servidor=1, contador=1"
+      "detalhe": "\"Hábitos Atômicos\", servidor=1, contador=1"
     },
     {
       "id": "T29",
@@ -56,7 +56,7 @@
       "id": "T04",
       "descricao": "Janela flutuante mostra título, sinopse e tags (RF05)",
       "ok": true,
-      "detalhe": "sinopse com 406 caracteres, 4 tags"
+      "detalhe": "sinopse com 349 caracteres, 3 tags"
     },
     {
       "id": "T05",
@@ -68,7 +68,7 @@
       "id": "T14",
       "descricao": "Avaliar com estrelas atualiza a média ao lado do título (modal e card)",
       "ok": true,
-      "detalhe": "modal: \"4,0/ 5 · 3 avaliações\", card: \"4,0\""
+      "detalhe": "modal: \"4,0/ 5 · 1 avaliação\", card: \"4,0\""
     },
     {
       "id": "T15",
@@ -86,7 +86,7 @@
       "id": "T07",
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
-      "detalhe": "Filme, Série, Jogo"
+      "detalhe": "Livro, Série, Filme"
     },
     {
       "id": "T08",
@@ -102,9 +102,9 @@
     },
     {
       "id": "T22",
-      "descricao": "Perfil mostra jogos jogados, filmes e séries assistidos e reviews",
+      "descricao": "Perfil mostra jogos jogados, filmes, séries e livros concluídos e reviews",
       "ok": true,
-      "detalhe": "1 jogos jogados | 1 filmes assistidos | 0 séries assistidas | 1 review | 0 seguidores | 0 seguindo"
+      "detalhe": "1 jogos jogados | 1 filmes assistidos | 0 séries assistidas | 0 livros lidos | 1 review | 0 seguidores | 0 seguindo"
     },
     {
       "id": "T23",
@@ -143,10 +143,22 @@
       "detalhe": "convidou=true, ícone=true, visitante vê=true/true/true, participante=true [Participantes, Sair da lista], popover=true, adicionou=true, dono vê \"por\"=true, link desativado=true/404"
     },
     {
+      "id": "T34",
+      "descricao": "Livros: filtro \"Livros\", ficha com autor, páginas e onde ler/comprar, e botão \"Marcar como lido\"",
+      "ok": true,
+      "detalhe": "15 livros (contador 15); \"Hábitos Atômicos\": Autor/Páginas/Tempo de leitura/Publicado em · Amazon, Estante Virtual, Google Livros, Open Library · botão \"Marcar como lido\""
+    },
+    {
+      "id": "T35",
+      "descricao": "Busca \"Qualquer\": nome em mais de uma mídia abre a escolha (filme ou livro) e nada é salvo sem escolher",
+      "ok": true,
+      "detalhe": "opções: Filme, Livro; obras antes/depois: 59/59"
+    },
+    {
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":4}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":9}"
     },
     {
       "id": "T28",
@@ -168,7 +180,7 @@
     },
     {
       "id": "T10",
-      "descricao": "Nenhum erro de JavaScript no console",
+      "descricao": "Nenhum erro de JavaScript no console nem bloqueio da Content-Security-Policy",
       "ok": true,
       "detalhe": ""
     },
@@ -177,6 +189,24 @@
       "descricao": "Sair volta ao login e invalida o token no servidor",
       "ok": true,
       "detalhe": "GET /api/obras com o token antigo: 401"
+    },
+    {
+      "id": "T19",
+      "descricao": "Administrador vê os usuários, cria uma conta comum e a exclui",
+      "ok": true,
+      "detalhe": "entrou=true, listou=true, criou=true, excluiu=true, admin protegido=true"
+    },
+    {
+      "id": "T20",
+      "descricao": "Administração sem rolagem horizontal em 400 px",
+      "ok": true,
+      "detalhe": "scrollWidth=400"
+    },
+    {
+      "id": "T33",
+      "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
+      "ok": true,
+      "detalhe": "teste_adm_seg excluiu a conta de teste_adm_yyeaipela Administração | teste_adm_seg criou a conta de teste_adm_yyeaipela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }
