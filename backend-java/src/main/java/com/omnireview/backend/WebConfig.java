@@ -32,10 +32,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // O site é servido pelo próprio back-end (mesma origem) e não precisa de CORS. Só o protótipo React rodando
-        // no computador de quem desenvolve (Vite, localhost) pode chamar a API de outra origem.
+        // Atenção: NÃO restringir a lista de origens. Em produção o site passa pelo Tailscale Funnel: o navegador manda
+        // "Origin: https://...ts.net", mas o servidor recebe a conexão como http://172.17.0.1:18090 e acharia que é
+        // outro site, recusando o login com 403 (já aconteceu). Liberar não abre brecha porque a API não usa cookies:
+        // a sessão é um token Bearer que só o próprio site conhece (fica no localStorage da origem dele), então outro
+        // site não tem como agir em nome de ninguém. Sem allowCredentials, o navegador também não envia cookies.
         registry.addMapping("/api/**")
-                .allowedOriginPatterns("http://localhost:[*]", "http://127.0.0.1:[*]")
+                .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type");
     }

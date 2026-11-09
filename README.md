@@ -131,7 +131,7 @@ completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não 
 | Abuso e robôs | Limites por endereço e por usuário (429 com `Retry-After`): 600 requisições/min, 30 logins/15 min, 5 cadastros/hora, 20 buscas na web/hora por usuário (cada uma chama APIs externas e a IA), 20 comentários/10 min. O IP real vem do `X-Forwarded-For` só quando a conexão chega de um proxy da rede interna (Tailscale Funnel/Docker) |
 | Navegador | Content-Security-Policy (só scripts do próprio site, `frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; respostas da API com `no-store`. Todo dado de usuário ou de API externa passa por `esc()` antes de ir para o HTML |
 | Entrada de dados | Consultas Cypher sempre parametrizadas; corpo das requisições limitado a 3 MB (413); fotos só como `data:image` validado; textos com limite de tamanho |
-| CORS | Só o próprio site e o protótipo React em `localhost` |
+| CORS | Liberado de propósito: a sessão é um token Bearer (sem cookies), que outro site não tem como obter. Restringir quebra o login atrás do Tailscale Funnel, onde o servidor vê o endereço interno do proxy e não o do site |
 | Infraestrutura | Neo4j sem porta publicada no servidor (no computador de desenvolvimento, só em `127.0.0.1`); container roda como usuário sem privilégios; segredos só em variáveis de ambiente / `config/segredos.properties` (fora do Git) |
 
 ## API

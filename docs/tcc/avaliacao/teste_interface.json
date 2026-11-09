@@ -1,6 +1,6 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T02:09:05.020Z",
+  "executado_em": "2026-11-09T02:20:32.863Z",
   "aprovados": 34,
   "total": 34,
   "casos": [
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_zh5as5; menu mostra \"teste_ui_zh5as5\""
+      "detalhe": "usuário teste_ui_ky9ch5; menu mostra \"teste_ui_ky9ch5\""
     },
     {
       "id": "T01",
@@ -158,7 +158,7 @@
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":9}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":23}"
     },
     {
       "id": "T28",
@@ -206,7 +206,7 @@
       "id": "T33",
       "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
       "ok": true,
-      "detalhe": "teste_adm_seg excluiu a conta de teste_adm_yyeaipela Administração | teste_adm_seg criou a conta de teste_adm_yyeaipela Administração; filtro=true, busca=true, autoria na obra=true"
+      "detalhe": "teste_adm_cors excluiu a conta de teste_adm_2qhzrpela Administração | teste_adm_cors criou a conta de teste_adm_2qhzrpela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }
