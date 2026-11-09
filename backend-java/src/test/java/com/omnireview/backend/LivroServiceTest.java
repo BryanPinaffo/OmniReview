@@ -36,6 +36,28 @@ class LivroServiceTest {
         assertTrue(tags.contains("Família"), tags);
     }
 
+    private static Map<String, Object> doc(String titulo, String tituloPt, int edicoes) {
+        return Map.of("key", "/works/" + titulo.hashCode(), "title", titulo, "edition_count", edicoes,
+                "editions", Map.of("docs", List.of(Map.of("title", tituloPt, "language", List.of("por")))));
+    }
+
+    @Test
+    void ordenaPelaObraOriginalENaoPeloTituloSolto() {
+        // casos reais do Open Library: a edição avulsa de 2016 vinha antes da obra de Jane Austen
+        var orgulho = LivroService.ordenarPorRelevancia("Orgulho e Preconceito", new java.util.ArrayList<>(List.of(
+                doc("Orgulho e Preconceito", "Orgulho e Preconceito", 1),
+                doc("Pride and Prejudice", "Orgulho e Preconceito", 4042),
+                doc("Amor Louco Amor", "Amor Louco Amor", 1))));
+        assertEquals("Pride and Prejudice", orgulho.get(0).get("title"));
+        assertEquals(2, orgulho.size(), "o que não tem nada a ver com o título sai");
+        // ordenar só por edições trazia Shakespeare ("Sogno d'una notte") para "Duna"
+        var duna = LivroService.ordenarPorRelevancia("Duna", new java.util.ArrayList<>(List.of(
+                doc("A Midsummer Night's Dream", "Sogno d'una notte d'estate", 1506),
+                doc("Dune", "Duna", 155))));
+        assertEquals("Dune", duna.get(0).get("title"));
+        assertEquals(1, duna.size());
+    }
+
     @Test
     void usaOTituloDaEdicaoEmPortugues() {
         Map<String, Object> doc = Map.of("title", "Atomic Habits",

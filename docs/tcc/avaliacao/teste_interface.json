@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T02:20:32.863Z",
-  "aprovados": 34,
-  "total": 34,
+  "executado_em": "2026-11-09T03:39:58.589Z",
+  "aprovados": 36,
+  "total": 36,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_ky9ch5; menu mostra \"teste_ui_ky9ch5\""
+      "detalhe": "usuário teste_ui_p2rcpc; menu mostra \"teste_ui_p2rcpc\""
     },
     {
       "id": "T01",
@@ -68,7 +68,7 @@
       "id": "T14",
       "descricao": "Avaliar com estrelas atualiza a média ao lado do título (modal e card)",
       "ok": true,
-      "detalhe": "modal: \"4,0/ 5 · 1 avaliação\", card: \"4,0\""
+      "detalhe": "modal: \"4,0/ 5 · 3 avaliações\", card: \"4,0\""
     },
     {
       "id": "T15",
@@ -87,6 +87,12 @@
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
       "detalhe": "Livro, Série, Filme"
+    },
+    {
+      "id": "T36",
+      "descricao": "\"Para você\" filtra por mídia (Filmes, Séries, Jogos, Livros) e volta a misturar em \"Todos\"",
+      "ok": true,
+      "detalhe": "filme: 1, serie: 1, jogo: 0, livro: 12; todos de novo=true"
     },
     {
       "id": "T08",
@@ -152,13 +158,19 @@
       "id": "T35",
       "descricao": "Busca \"Qualquer\": nome em mais de uma mídia abre a escolha (filme ou livro) e nada é salvo sem escolher",
       "ok": true,
-      "detalhe": "opções: Filme, Livro; obras antes/depois: 59/59"
+      "detalhe": "opções: Filme, Livro, Série, Filme, Série, Filme, Jogo, Livro; obras antes/depois: 59/59"
+    },
+    {
+      "id": "T37",
+      "descricao": "Busca com mídia escolhida (Livro) também pede confirmação e lista os títulos parecidos; nada é salvo sem escolher",
+      "ok": true,
+      "detalhe": "6 opções: Duna (2015) | Duna: Casa Atreides (2025) | MESSIAS DE DUNA (1985) | Geografía de las dunas costeras de Chile (2015); obras antes/depois: 59/59"
     },
     {
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":23}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":5}"
     },
     {
       "id": "T28",
@@ -206,7 +218,7 @@
       "id": "T33",
       "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
       "ok": true,
-      "detalhe": "teste_adm_cors excluiu a conta de teste_adm_2qhzrpela Administração | teste_adm_cors criou a conta de teste_adm_2qhzrpela Administração; filtro=true, busca=true, autoria na obra=true"
+      "detalhe": "teste_adm_gbk excluiu a conta de teste_adm_rr6d4pela Administração | teste_adm_gbk criou a conta de teste_adm_rr6d4pela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }

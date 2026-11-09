@@ -20,7 +20,7 @@ por travessia no grafo com peso IDF, intercalando filmes, séries, jogos e livro
 2. **Segredos:** copie `backend-java/config/segredos.exemplo.properties` para
    `backend-java/config/segredos.properties` e preencha a senha do Neo4j, as chaves do TMDB e da RAWG e a URL do
    Ollama. Esse arquivo é ignorado pelo Git. Também é possível usar variáveis de ambiente
-   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_RAWG_API_KEY`, `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
+   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_RAWG_API_KEY`, `OMNIREVIEW_GOOGLEBOOKS_API_KEY` (opcional), `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
 3. **Ollama:** `ollama pull llama3.2:3b` no servidor de IA.
 4. **Back-end:** `cd backend-java && ./mvnw spring-boot:run` e abra <http://localhost:8080>.
    Na primeira execução, o grafo de tags é criado automaticamente a partir das obras existentes.
@@ -56,14 +56,20 @@ estiver no acervo, ele é buscado na web (filmes e séries no TMDB, jogos na RAW
 parecido com o que foi digitado é classificado pela IA e adicionado automaticamente, e a janela da obra abre em seguida.
 Os botões Filme/Série/Jogo/Livro restringem a busca a uma mídia (útil quando o mesmo nome existe em mais de uma).
 
-Em "Qualquer", se o nome aparecer com a mesma força em mais de uma mídia (ex.: *Duna* é filme e livro), a busca não
-escolhe sozinha: mostra as opções (capa, tipo e começo da sinopse) e só a escolhida é classificada e salva. Se o nome já
+A busca na web nunca adiciona sozinha: ela lista o que encontrou (`GET /api/buscar-opcoes`) com capa, mídia, ano e
+autor ou começo da sinopse, e a pessoa confirma qual é (até 6 opções com a mídia escolhida; até 8, de todas as mídias,
+em "Qualquer", os títulos mais parecidos primeiro). Só a escolhida é classificada e salva, pelo identificador exato da
+fonte (ex.: `tmdb:movie:841`, guardado em `Obra.fonte`), então os dois filmes *Duna* (1984 e 2021) entram separados
+como `Duna` e `Duna (2021)`. Se o nome já
 está no acervo, a sugestão "Queria … em outra mídia?" procura as outras. Como o título identifica a obra no grafo,
 uma segunda mídia com o mesmo nome entra como `Título (Mídia)` (ex.: `Duna (Filme)`); a busca ignora esse sufixo.
 
 ## Livros
 
-Os livros vêm do [Open Library](https://openlibrary.org/developers/api) (não precisa de chave). A busca pede a edição
+Os livros vêm do [Google Books](https://developers.google.com/books) quando há chave configurada
+(`OMNIREVIEW_GOOGLEBOOKS_API_KEY`, gratuita): edições brasileiras com sinopse em português, editora e categorias. Sem
+chave, ou se o Google falhar, vêm do [Open Library](https://openlibrary.org/developers/api) (não precisa de chave), com
+os resultados reordenados para a obra original aparecer primeiro (título parecido com o digitado e mais edições). A busca pede a edição
 em português: quando ela existe, o título e a capa são os da edição brasileira (ex.: *Hábitos Atômicos*). A sinopse do
 Open Library costuma estar em inglês; antes de salvar, o Ollama a traduz para o português (se falhar, fica a original).
 Os assuntos do Open Library viram tags da taxonomia, que ganhou 8 categorias só de livros (Não Ficção, Autoajuda,
@@ -182,7 +188,8 @@ completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não 
 | GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo, autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
-| POST | `/api/buscar-ou-adicionar?nome=...[&tipo=filme\|serie\|jogo]` | Busca da tela inicial: devolve a obra do acervo ou a busca na web, gera o DNA e adiciona (`{"obra", "adicionada"}`) |
+| GET | `/api/buscar-opcoes?nome=...[&tipo=filme\|serie\|jogo\|livro]` | Opções encontradas na web para a pessoa confirmar (nada é salvo): `{"opcoes": [{ref, tipo, titulo, ano, imagem, sinopse\|detalhe, jaNoAcervo, tituloNoAcervo}]}` |
+| POST | `/api/buscar-ou-adicionar?nome=...&ref=...` | Adiciona exatamente a opção confirmada (`ref` = identificador da fonte) ou abre a do acervo (`{"obra", "adicionada"}`); sem `ref`, busca pelo nome |
 | GET | `/api/tendencias/{filmes\|series\|jogos\|livros}` | (admin) Títulos em alta |
 | POST | `/api/completar-detalhes` | (admin) Preenche sinopses e imagens faltantes |
 | POST | `/api/reprocessar-dna[?todas=true]` | (admin) Refaz as tags que falharam (ou todas) |

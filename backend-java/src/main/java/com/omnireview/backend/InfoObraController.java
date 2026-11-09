@@ -47,7 +47,7 @@ public class InfoObraController {
         String chave = tipo + "|" + obra.getTitulo();
         Entrada e = cache.get(chave);
         if (e == null || Instant.now().isAfter(e.expiraEm())) {
-            Map<String, Object> ficha = montar(tipo, obra.getTitulo());
+            Map<String, Object> ficha = montar(tipo, obra);
             boolean achou = Boolean.TRUE.equals(ficha.remove("encontrada"));
             e = new Entrada(ficha, Instant.now().plus(achou ? VALIDADE : VALIDADE_FALHA));
             cache.put(chave, e);
@@ -55,13 +55,14 @@ public class InfoObraController {
         return ResponseEntity.ok(e.ficha());
     }
 
-    private Map<String, Object> montar(String tipo, String titulo) {
+    private Map<String, Object> montar(String tipo, Obra obra) {
+        String titulo = obra.getTitulo();
         Map<String, Object> ficha = new LinkedHashMap<>();
         ficha.put("titulo", titulo);
         ficha.put("tipo", tipo);
         Map<String, Object> dados = switch (tipo) {
             case "jogo" -> rawg.fichaJogo(titulo);
-            case "livro" -> livros.ficha(titulo);
+            case "livro" -> livros.ficha(obra);
             case "serie" -> tmdb.ficha("tv", titulo);
             default -> tmdb.ficha("movie", titulo);
         };

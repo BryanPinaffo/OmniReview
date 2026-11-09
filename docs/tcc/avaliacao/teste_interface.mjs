@@ -21,7 +21,10 @@ const exe = NAVEGADORES.find(existsSync);
 if (!exe) throw new Error('Edge/Chrome não encontrado');
 
 const perfil = mkdtempSync(join(tmpdir(), 'omni-teste-'));
-const nav = spawn(exe, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${PORTA}`,
+// Perfil limpo de verdade: sem sincronizar a conta do Windows/Microsoft, sem extensões e sem telas de primeiro uso
+// (a janela de confirmação de sincronização do Edge prendia o navegador e travava as capturas de tela)
+const nav = spawn(exe, ['--headless=new', '--disable-gpu', '--disable-sync', '--disable-extensions', '--no-first-run',
+  '--no-default-browser-check', '--disable-features=msImplicitSignin,msEdgeSyncConsent', `--remote-debugging-port=${PORTA}`,
   `--user-data-dir=${perfil}`, '--window-size=1440,900', 'about:blank'], { stdio: 'ignore', detached: process.platform !== 'win32' });
 
 // Encerra o navegador e todos os processos filhos (no Windows, kill() só encerra o processo inicial)
@@ -225,6 +228,28 @@ await avaliar("irPara('paravoce')");
 const recs = await aguardar("document.querySelectorAll('#grid-recomendacoes .card').length > 0", 10000);
 const tiposRec = await avaliar("[...new Set([...document.querySelectorAll('#grid-recomendacoes .card .tipo')].map(e => e.textContent))]");
 caso('T07', 'Aba "Para você" gera recomendações de várias mídias (RF07)', recs && tiposRec.length >= 2, tiposRec.join(', '));
+
+// Filtro de mídia no "Para você": cada opção só traz aquela mídia (ou o aviso de que não há cruzamento)
+{
+  const porTipo = {};
+  for (const tipo of ['filme', 'serie', 'jogo', 'livro']) {
+    await avaliar(`document.querySelector('#filtro-paravoce [data-tipo="${tipo}"]').click()`);
+    await aguardar(`document.getElementById('contagem-recomendacoes').textContent.includes('de ') || !!document.querySelector('#grid-recomendacoes .vazio')`, 10000);
+    await esperar(200);
+    porTipo[tipo] = await avaliar(`(() => {
+      const cards = [...document.querySelectorAll('#grid-recomendacoes .card')];
+      return { n: cards.length, todos: cards.every(c => c.querySelector('.tipo')?.classList.contains('${tipo}')),
+               vazio: !!document.querySelector('#grid-recomendacoes .vazio') };
+    })()`);
+    if (tipo === 'livro') await capturar('paravoce_livros');
+  }
+  await avaliar(`document.querySelector('#filtro-paravoce [data-tipo=""]').click()`);
+  const voltou = await aguardar("new Set([...document.querySelectorAll('#grid-recomendacoes .card .tipo')].map(e => e.textContent)).size >= 2", 10000);
+  const coerente = Object.values(porTipo).every(r => (r.n > 0 && r.todos) || (r.n === 0 && r.vazio));
+  caso('T36', '"Para você" filtra por mídia (Filmes, Séries, Jogos, Livros) e volta a misturar em "Todos"',
+    coerente && Object.values(porTipo).some(r => r.n > 0) && voltou,
+    Object.entries(porTipo).map(([t, r]) => `${t}: ${r.n}`).join(', ') + `; todos de novo=${voltou}`);
+}
 
 await avaliar("irPara('catalogo')");
 await avaliar("(() => { const i = document.getElementById('filtro-texto'); i.value = 'zzzz-inexistente'; i.dispatchEvent(new Event('input')); })()");
@@ -544,6 +569,26 @@ await avaliar("irPara('catalogo')");
       perguntou && opcoes.includes('Filme') && opcoes.includes('Livro') && fechou && depois === antes,
       `opções: ${opcoes.join(', ')}; obras antes/depois: ${antes}/${depois}`);
   }
+}
+
+// ---------- Mesmo com a mídia escolhida, a busca na web pede confirmação e mostra os títulos repetidos ----------
+{
+  await avaliar("irPara('catalogo')");
+  const antes = await avaliar("api('/api/obras').then(r => r.json()).then(l => l.length)");
+  await avaliar("document.querySelector('#busca-hero-tipos [data-tipo=\"livro\"]').click()");
+  await preencher('busca-hero-texto', 'Duna');
+  await avaliar("procurarNaWeb('Duna')");
+  const abriu = await aguardar("document.querySelectorAll('#dialogo [data-escolher-midia]').length >= 2", 60000);
+  const opcoes = await avaliar(`[...document.querySelectorAll('#dialogo [data-escolher-midia]')].map(b => ({
+    tipo: b.querySelector('.tipo')?.textContent.trim(), titulo: b.querySelector('b')?.textContent.trim() }))`);
+  await capturar('confirmar_livro');
+  await avaliar("[...document.querySelectorAll('#dialogo .dialogo-acoes .btn')].find(b => /Nenhum|Não é/.test(b.textContent)).click()");
+  const fechou = await aguardar("document.getElementById('dialogo-fundo').hidden", 3000);
+  const depois = await avaliar("api('/api/obras').then(r => r.json()).then(l => l.length)");
+  await avaliar("document.querySelector('#busca-hero-tipos [data-tipo=\"\"]').click(); document.getElementById('busca-hero-texto').value = ''");
+  caso('T37', 'Busca com mídia escolhida (Livro) também pede confirmação e lista os títulos parecidos; nada é salvo sem escolher',
+    abriu && opcoes.length >= 2 && opcoes.every(o => o.tipo === 'Livro') && fechou && depois === antes,
+    `${opcoes.length} opções: ${opcoes.slice(0, 4).map(o => o.titulo).join(' | ')}; obras antes/depois: ${antes}/${depois}`);
 }
 
 // ---------- Encontrar pessoas: cartões um embaixo do outro, com o nome legível (regressão de CSS) ----------

@@ -286,6 +286,11 @@
         .resultado-info { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 22px 0 16px; flex-wrap: wrap; }
         .resultado-info h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
         .resultado-info span { color: var(--text-3); font-size: 13.5px; }
+        .paravoce-topo { align-items: center; }
+        .paravoce-topo > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+        #filtro-paravoce { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+        #filtro-paravoce::-webkit-scrollbar { display: none; }
+        #filtro-paravoce button { flex-shrink: 0; }
 
         /* ---------- GRID / CARDS ---------- */
         .grid {
@@ -814,6 +819,9 @@
         .opcao-midia-texto b { font-size: 15.5px; }
         .opcao-midia-texto small { color: var(--text-2); font-size: 13px; line-height: 1.45; }
         .opcao-midia-texto em { font-style: normal; font-size: 12px; color: var(--text-3); }
+        .opcao-ano { font-weight: 500; color: var(--text-3); }
+        .opcao-detalhe { color: var(--text-3) !important; }
+        .escolha-midia { max-height: min(60vh, 560px); overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
         .compartilhar-redes .btn { flex: 1 1 140px; justify-content: center; text-decoration: none; }
         /* Listas em conjunto e compartilhadas */
         .lista-participantes { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 13.5px; color: var(--text-2); }
@@ -1093,9 +1101,15 @@
                 </div>
                 <div class="favoritos" id="perfil-favoritos"></div>
             </div>
-            <div class="resultado-info">
-                <h2>Cruzamento transmídia</h2>
-                <span id="contagem-recomendacoes"></span>
+            <div class="resultado-info paravoce-topo">
+                <div><h2>Cruzamento transmídia</h2> <span id="contagem-recomendacoes"></span></div>
+                <div class="segment" id="filtro-paravoce" role="group" aria-label="Mostrar recomendações de">
+                    <button type="button" class="ativo" data-tipo="" aria-pressed="true">Todos</button>
+                    <button type="button" data-tipo="filme" aria-pressed="false">Filmes</button>
+                    <button type="button" data-tipo="serie" aria-pressed="false">Séries</button>
+                    <button type="button" data-tipo="jogo" aria-pressed="false">Jogos</button>
+                    <button type="button" data-tipo="livro" aria-pressed="false">Livros</button>
+                </div>
             </div>
             <div class="grid" id="grid-recomendacoes"></div>
         </section>
@@ -1859,7 +1873,7 @@
         // Digita -> sugere obras do acervo; se não houver, busca na web e adiciona automaticamente.
         const buscaHero = { tipo: '', opcoes: [], ativa: -1, ocupado: false };
         // "Duna (Filme)" e "Duna (Livro)" contam como "Duna": o sufixo só separa mídias com o mesmo nome no acervo
-        const chaveBusca = t => normalizar(String(t ?? '').replace(/\s+\((Filme|Série|Jogo|Livro)\)$/, '')).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        const chaveBusca = t => normalizar(String(t ?? '').replace(/\s+\((?:Filme|Série|Jogo|Livro|(?:Filme|Série|Jogo|Livro), (?:19|20)\d{2}|(?:19|20)\d{2})\)$/, '')).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         const ICONE_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>';
 
         function sugestoesDoAcervo(texto) {
@@ -1900,12 +1914,12 @@
                 <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
                     <span class="icone-web">${ICONE_WEB}</span>
                     <span class="busca-opcao-texto"><strong>Queria “${esc(texto)}” em outra mídia?</strong>
-                        <small>Procura o mesmo nome em ${midia} na web e pergunta qual você quer</small></span>
+                        <small>Procura o mesmo nome em ${midia} na web e mostra as opções para você escolher</small></span>
                 </li>` : `
                 <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
                     <span class="icone-web">${ICONE_WEB}</span>
                     <span class="busca-opcao-texto"><strong>${achadas.length ? 'Não é nenhum desses? ' : ''}Buscar “${esc(texto)}” na web</strong>
-                        <small>Procura em ${midia} e adiciona ao acervo com o DNA criativo${buscaHero.tipo ? '' : ' (se o nome existir em mais de uma mídia, você escolhe)'}</small></span>
+                        <small>Procura em ${midia} e mostra o que encontrar para você confirmar antes de adicionar</small></span>
                 </li>`);
             lista.hidden = false;
             $('busca-hero-texto').setAttribute('aria-expanded', 'true');
@@ -1937,7 +1951,7 @@
         function executarOpcao(opcao) {
             fecharSugestoes();
             if (opcao.acao === 'abrir') { statusBusca(''); abrirModal(opcao.titulo); }
-            else buscarOuAdicionar($('busca-hero-texto').value.trim(), { ignorarAcervo: opcao.acao === 'outra' });
+            else procurarNaWeb($('busca-hero-texto').value.trim(), { outraMidia: opcao.acao === 'outra' });
         }
 
         function enviarBuscaHero() {
@@ -1948,6 +1962,33 @@
             // Enter sem escolher: se o título exato já está no acervo, abre; senão busca na web
             const exata = sugestoesDoAcervo(texto).find(o => chaveBusca(o.titulo) === chaveBusca(texto));
             executarOpcao(exata ? { acao: 'abrir', titulo: exata.titulo } : { acao: 'web' });
+        }
+
+        // Procura na web e mostra as opções para a pessoa confirmar; só a escolhida é adicionada
+        async function procurarNaWeb(texto, extra = {}) {
+            if (!texto || buscaHero.ocupado) return;
+            buscaHero.ocupado = true;
+            $('busca-hero-botao').disabled = true;
+            statusBusca(`<span class="girando" aria-hidden="true"></span><span>Procurando “${esc(texto)}” na web…</span>`);
+            try {
+                const params = new URLSearchParams({ nome: texto });
+                if (buscaHero.tipo) params.set('tipo', buscaHero.tipo);
+                const resposta = await api(`/api/buscar-opcoes?${params}`);
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok) throw new Error(dados.erro || 'HTTP ' + resposta.status);
+                const opcoes = dados.opcoes || [];
+                if (!opcoes.length) {
+                    statusBusca(`Não encontramos “${esc(texto)}” na web. Confira o nome${buscaHero.tipo ? ' ou troque o tipo de mídia' : ''}.`, 'erro');
+                    return;
+                }
+                statusBusca(opcoes.length === 1 ? 'Confira se é esta a obra.' : `Encontramos ${opcoes.length} opções para “${esc(texto)}”. Escolha a certa.`);
+                escolherMidia(texto, opcoes);
+            } catch (e) {
+                if (e.message !== 'Sessão expirada') statusBusca(esc(e.message.startsWith('HTTP') ? 'Não foi possível buscar agora. Tente de novo.' : e.message), 'erro');
+            } finally {
+                buscaHero.ocupado = false;
+                $('busca-hero-botao').disabled = false;
+            }
         }
 
         async function buscarOuAdicionar(texto, extra = {}) {
@@ -1963,8 +2004,14 @@
                 const params = new URLSearchParams({ nome: texto });
                 if (tipoBusca) params.set('tipo', tipoBusca);
                 if (extra.ignorarAcervo) params.set('ignorarAcervo', 'true');
+                if (extra.ref) params.set('ref', extra.ref);
                 const resposta = await api(`/api/buscar-ou-adicionar?${params}`, { method: 'POST' });
                 clearInterval(relogio);
+                if (resposta.status === 429) {
+                    const dados = await resposta.json().catch(() => ({}));
+                    statusBusca(esc(dados.erro || 'Muitas buscas em pouco tempo. Tente de novo daqui a pouco.'), 'erro');
+                    return;
+                }
                 if (resposta.status === 404) {
                     statusBusca(`Não encontramos “${esc(texto)}” na web. Confira o nome${buscaHero.tipo ? ' ou troque o tipo de mídia' : ' ou escolha o tipo de mídia'}.`, 'erro');
                     return;
@@ -1999,19 +2046,20 @@
         function escolherMidia(texto, opcoes) {
             buscaHero.opcoesMidia = opcoes;
             abrirDialogo(`
-                <h2 id="dialogo-titulo">Qual “${esc(texto)}” você quer?</h2>
-                <p>Encontramos esse nome em mais de uma mídia. Escolha uma: só ela entra no acervo.</p>
+                <h2 id="dialogo-titulo">${opcoes.length === 1 ? 'É esta a obra?' : `Qual “${esc(texto)}” você quer?`}</h2>
+                <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao acervo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no acervo.'}</p>
                 <div class="escolha-midia">${opcoes.map((o, i) => `
                     <button type="button" class="opcao-midia" data-escolher-midia="${i}">
                         ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(o.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
                         <span class="opcao-midia-texto">
                             <span class="tipo ${esc(o.tipo)}">${NOME_TIPO[o.tipo] || esc(o.tipo)}</span>
-                            <b>${esc(o.titulo)}</b>
+                            <b>${esc(o.titulo)}${o.ano ? ` <span class="opcao-ano">(${esc(o.ano)})</span>` : ''}</b>
+                            ${o.detalhe ? `<small class="opcao-detalhe">${esc(o.detalhe)}</small>` : ''}
                             ${o.sinopse ? `<small>${esc(o.sinopse)}</small>` : ''}
-                            <em>${o.jaNoAcervo ? 'Já está no acervo' : 'Será adicionado ao acervo'}</em>
+                            <em>${o.jaNoAcervo ? 'Já está no acervo: abrir' : 'Adicionar ao acervo'}</em>
                         </span>
                     </button>`).join('')}</div>
-                <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo(); statusBusca('')">Nenhum desses</button></div>`);
+                <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo(); statusBusca('')">${opcoes.length === 1 ? 'Não é esta' : 'Nenhum desses'}</button></div>`);
         }
 
         $('dialogo').addEventListener('click', async e => {
@@ -2020,13 +2068,14 @@
             const o = buscaHero.opcoesMidia?.[Number(botao.dataset.escolherMidia)];
             if (!o) return;
             fecharDialogo();
+            const titulo = o.tituloNoAcervo || o.titulo;
             if (o.jaNoAcervo) {
-                if (!porTitulo.has(o.titulo)) await carregarCatalogo();
-                statusBusca(`<strong>${esc(o.titulo)}</strong> já estava no acervo.`, 'ok');
+                if (!porTitulo.has(titulo)) await carregarCatalogo();
+                statusBusca(`<strong>${esc(titulo)}</strong> já estava no acervo.`, 'ok');
                 $('busca-hero-texto').value = '';
-                abrirModal(o.titulo);
+                abrirModal(titulo);
             } else {
-                buscarOuAdicionar(o.titulo, { tipo: o.tipo });
+                buscarOuAdicionar(o.titulo, { tipo: o.tipo, ref: o.ref });
             }
         });
 
@@ -2119,10 +2168,13 @@
             return Object.keys(freq).sort((a, b) => freq[b] - freq[a]).slice(0, 5);
         }
 
-        async function buscarRecomendacoes(tags, excluir) {
+        let paraVoceTipo = '';   // filtro de mídia do "Para você" ('' = todas)
+
+        async function buscarRecomendacoes(tags, excluir, tipo = '') {
             const params = new URLSearchParams();
             tags.forEach(t => params.append('tags', t));
             excluir.forEach(t => params.append('excluir', t));
+            if (tipo) params.set('tipo', tipo);
             const resposta = await api(`/api/recomendar?${params}`);
             if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
             return resposta.json();
@@ -2139,7 +2191,7 @@
                 $('perfil-descricao').textContent = 'Favorite obras no catálogo para montar seu perfil de gosto.';
                 $('perfil-tags').innerHTML = '';
                 $('contagem-recomendacoes').textContent = '';
-                grid.innerHTML = vazioHTML('Seu perfil ainda está vazio', 'Toque no coração de filmes, séries ou jogos que você gosta. As recomendações aparecem aqui, misturando todas as mídias.',
+                grid.innerHTML = vazioHTML('Seu perfil ainda está vazio', 'Toque no coração de filmes, séries, jogos ou livros que você gosta. As recomendações aparecem aqui, misturando todas as mídias.',
                     `<button class="btn btn-primary" onclick="irPara('catalogo')">Explorar catálogo ${ICONES.seta}</button>`);
                 return;
             }
@@ -2155,17 +2207,37 @@
 
             grid.innerHTML = Array(6).fill('<div class="skeleton"></div>').join('');
             try {
-                const recs = (await buscarRecomendacoes(tags, curtidas)).filter(o => !estaCurtida(o.titulo));
+                const tipoPedido = paraVoceTipo;
+                const recs = (await buscarRecomendacoes(tags, curtidas, tipoPedido)).filter(o => !estaCurtida(o.titulo));
+                if (tipoPedido !== paraVoceTipo) return;   // a pessoa trocou o filtro enquanto carregava
                 recs.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); });
-                $('contagem-recomendacoes').textContent = `${recs.length} ${recs.length === 1 ? 'sugestão' : 'sugestões'}`;
+                const midia = { filme: 'filmes', serie: 'séries', jogo: 'jogos', livro: 'livros' }[tipoPedido];
+                $('contagem-recomendacoes').textContent = `${recs.length} ${recs.length === 1 ? 'sugestão' : 'sugestões'}${midia ? ' de ' + midia : ''}`;
                 grid.innerHTML = recs.length
                     ? recs.map(cardHTML).join('')
-                    : vazioHTML('Nenhum cruzamento ainda', 'Não há outras obras com essas tags no acervo. Importe mais títulos para ampliar as sugestões.');
+                    : midia
+                        ? vazioHTML(`Nenhum cruzamento com ${midia}`, `Ainda não há ${midia} no acervo com o mesmo DNA dos seus favoritos. Veja as outras mídias ou procure um título em “O que você quer ver hoje?”.`,
+                            `<button class="btn" onclick="filtrarParaVoce('')">Ver todas as mídias</button>`)
+                        : vazioHTML('Nenhum cruzamento ainda', 'Não há outras obras com essas tags no acervo. Importe mais títulos para ampliar as sugestões.');
             } catch (e) {
                 console.error(e);
                 grid.innerHTML = vazioHTML('Erro ao consultar o Neo4j', 'Não foi possível gerar as recomendações agora.');
             }
         }
+
+        function filtrarParaVoce(tipo) {
+            paraVoceTipo = tipo;
+            document.querySelectorAll('#filtro-paravoce button').forEach(b => {
+                const ativo = b.dataset.tipo === tipo;
+                b.classList.toggle('ativo', ativo);
+                b.setAttribute('aria-pressed', String(ativo));
+            });
+            gerarRecomendacoes();
+        }
+        $('filtro-paravoce').addEventListener('click', e => {
+            const b = e.target.closest('[data-tipo]');
+            if (b && b.dataset.tipo !== paraVoceTipo) filtrarParaVoce(b.dataset.tipo);
+        });
 
         // ================= MODAL =================
         let ultimoFoco = null;
@@ -2255,6 +2327,7 @@
             if (f.situacao) fatos.push(['Situação', f.situacao]);
             if (f.tempoMedioHoras) fatos.push(['Tempo médio de jogo', `${f.tempoMedioHoras} h`]);
             if (f.autores) fatos.push([f.autores.includes(',') ? 'Autores' : 'Autor', f.autores]);
+            if (f.editora) fatos.push(['Editora', f.editora]);
             if (f.paginas) fatos.push(['Páginas', `${f.paginas} páginas`]);
             if (f.tempoLeituraHoras) fatos.push(['Tempo de leitura', `~${f.tempoLeituraHoras} h`]);
             if (f.ano) fatos.push(['Publicado em', String(f.ano)]);
@@ -2276,7 +2349,7 @@
                 <p class="rotulo">${ehJogo ? 'Onde jogar' : ehLivro ? 'Onde ler ou comprar' : 'Onde assistir'}</p>
                 ${provedores ? `<div class="provedores">${provedores}</div>`
                     : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : ehLivro ? 'Não encontramos este livro nas livrarias.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
-                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : ehLivro ? 'Dados do livro: Open Library · tempo de leitura estimado a 40 páginas por hora' : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
+                ${ehJogo && f.fonte !== 'RAWG' ? '' : `<p class="ficha-fonte">${ehJogo ? 'Lojas e tempo médio: RAWG' : ehLivro ? `Dados do livro: ${esc(f.fonteDados || 'Open Library')} · tempo de leitura estimado a 40 páginas por hora` : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
         }
 
         async function carregarSemelhantes(obra, tags) {
