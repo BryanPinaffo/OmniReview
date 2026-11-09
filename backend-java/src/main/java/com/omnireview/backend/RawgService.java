@@ -86,6 +86,78 @@ public class RawgService {
         return steamService.buscarTendencias(15);
     }
 
+    /**
+     * Ficha de um jogo: tempo médio de jogo (horas, média dos jogadores da RAWG) e lojas onde comprar/jogar.
+     * Se a RAWG falhar, devolve ao menos o link da Steam. Retorna null se nada for encontrado.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> fichaJogo(String nome) {
+        if (rawgDisponivel() && apiKey != null && !apiKey.isBlank()) {
+            try {
+                Map<String, Object> busca = carteiro.getForObject(
+                        ClienteHttp.uri(BASE + "/games", Map.of("search", nome, "key", apiKey, "page_size", 5)), Map.class);
+                List<Map<String, Object>> resultados = busca == null ? null : (List<Map<String, Object>>) busca.get("results");
+                if (resultados != null && !resultados.isEmpty()) {
+                    String alvo = Provedores.normalizar(nome);
+                    Map<String, Object> jogo = resultados.stream()
+                            .filter(r -> alvo.equals(Provedores.normalizar(String.valueOf(r.get("name")))))
+                            .findFirst().orElse(resultados.get(0));
+                    Object id = jogo.get("id");
+                    Map<String, Object> d = carteiro.getForObject(ClienteHttp.uri(BASE + "/games/" + id, Map.of("key", apiKey)), Map.class);
+                    if (d != null) {
+                        Map<String, Object> ficha = new java.util.LinkedHashMap<>();
+                        if (d.get("playtime") instanceof Number n && n.intValue() > 0) ficha.put("tempoMedioHoras", n.intValue());
+                        if (d.get("slug") instanceof String slug) ficha.put("linkFicha", "https://rawg.io/games/" + slug);
+                        ficha.put("fonte", "RAWG");
+                        ficha.put("ondeJogar", lojas(id, d.get("stores")));
+                        return ficha;
+                    }
+                }
+            } catch (Exception e) {
+                registrarFalha(e);
+            }
+        }
+        String steam = steamService.linkDaLoja(nome);
+        if (steam == null) return null;
+        Map<String, Object> ficha = new java.util.LinkedHashMap<>();
+        ficha.put("fonte", "Steam");
+        ficha.put("ondeJogar", List.of(Map.of("nome", "Steam", "modalidade", "Loja", "link", steam)));
+        return ficha;
+    }
+
+    // Lojas do jogo: os nomes vêm nos detalhes; os links diretos, em /games/{id}/stores
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> lojas(Object idJogo, Object lojasDetalhes) {
+        Map<Object, String> links = new java.util.HashMap<>();
+        try {
+            Map<String, Object> r = carteiro.getForObject(ClienteHttp.uri(BASE + "/games/" + idJogo + "/stores", Map.of("key", apiKey)), Map.class);
+            if (r != null && r.get("results") instanceof List<?> itens) {
+                for (Object o : itens) {
+                    if (o instanceof Map<?, ?> m && m.get("url") instanceof String url && url.startsWith("http")) {
+                        links.put(String.valueOf(m.get("store_id")), url);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("RAWG: sem links das lojas (" + e.getMessage() + ")");
+        }
+        List<Map<String, Object>> lista = new ArrayList<>();
+        if (lojasDetalhes instanceof List<?> itens) {
+            for (Object o : itens) {
+                if (!(o instanceof Map<?, ?> item) || !(item.get("store") instanceof Map<?, ?> loja) || !(loja.get("name") instanceof String nomeLoja)) continue;
+                String link = links.get(String.valueOf(loja.get("id")));
+                if (link == null && loja.get("domain") instanceof String dominio && !dominio.isBlank()) link = "https://" + dominio;
+                if (link == null) continue;
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("nome", nomeLoja);
+                m.put("modalidade", "Loja");
+                m.put("link", link);
+                lista.add(m);
+            }
+        }
+        return lista;
+    }
+
     boolean rawgDisponivel() {
         return Instant.now().isAfter(rawgIndisponivelAte);
     }

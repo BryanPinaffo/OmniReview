@@ -82,6 +82,67 @@ public class TmdbService {
         }
     }
 
+    /**
+     * Ficha técnica de um filme ("movie") ou série ("tv"): duração, temporadas/episódios e onde assistir no Brasil.
+     * Retorna null se a obra não for encontrada ou se o TMDB falhar.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> ficha(String tipoTmdb, String titulo) {
+        if (apiKey == null || apiKey.isBlank()) return null;
+        try {
+            Map<String, Object> busca = carteiro.getForObject(
+                    ClienteHttp.uri(BASE + "/search/" + tipoTmdb, Map.of("query", titulo, "api_key", apiKey, "language", "pt-BR")),
+                    Map.class);
+            List<Map<String, Object>> resultados = busca == null ? null : (List<Map<String, Object>>) busca.get("results");
+            if (resultados == null || resultados.isEmpty()) return null;
+            String campoTitulo = tipoTmdb.equals("tv") ? "name" : "title";
+            String campoOriginal = tipoTmdb.equals("tv") ? "original_name" : "original_title";
+            String alvo = Provedores.normalizar(titulo);
+            Map<String, Object> escolhido = resultados.stream().limit(5)
+                    .filter(r -> alvo.equals(Provedores.normalizar(String.valueOf(r.get(campoTitulo))))
+                              || alvo.equals(Provedores.normalizar(String.valueOf(r.get(campoOriginal)))))
+                    .findFirst().orElseGet(() -> melhorResultado(resultados));
+
+            Object id = escolhido.get("id");
+            Map<String, Object> d = carteiro.getForObject(ClienteHttp.uri(BASE + "/" + tipoTmdb + "/" + id,
+                    Map.of("api_key", apiKey, "language", "pt-BR", "append_to_response", "watch/providers")), Map.class);
+            if (d == null) return null;
+
+            Map<String, Object> ficha = new java.util.LinkedHashMap<>();
+            if (tipoTmdb.equals("movie")) {
+                if (d.get("runtime") instanceof Number n && n.intValue() > 0) ficha.put("duracaoMinutos", n.intValue());
+            } else {
+                if (d.get("number_of_seasons") instanceof Number n && n.intValue() > 0) ficha.put("temporadas", n.intValue());
+                if (d.get("number_of_episodes") instanceof Number n && n.intValue() > 0) ficha.put("episodios", n.intValue());
+                Integer porEpisodio = null;
+                if (d.get("episode_run_time") instanceof List<?> l && !l.isEmpty() && l.get(0) instanceof Number n && n.intValue() > 0) {
+                    porEpisodio = n.intValue();
+                } else if (d.get("last_episode_to_air") instanceof Map<?, ?> ep && ep.get("runtime") instanceof Number n && n.intValue() > 0) {
+                    porEpisodio = n.intValue();
+                }
+                if (porEpisodio != null) ficha.put("duracaoEpisodioMinutos", porEpisodio);
+                String situacao = SITUACAO_SERIE.get(String.valueOf(d.get("status")));
+                if (situacao != null) ficha.put("situacao", situacao);
+            }
+            ficha.put("linkFicha", "https://www.themoviedb.org/" + tipoTmdb + "/" + id);
+
+            Map<String, Object> brasil = null;
+            if (d.get("watch/providers") instanceof Map<?, ?> wp && wp.get("results") instanceof Map<?, ?> porPais) {
+                brasil = (Map<String, Object>) porPais.get("BR");
+            }
+            ficha.put("ondeAssistir", Provedores.deTmdb(brasil, titulo));
+            if (brasil != null && brasil.get("link") instanceof String link) ficha.put("linkOndeAssistir", link);
+            return ficha;
+        } catch (Exception e) {
+            System.out.println("TMDB: falha ao montar a ficha de '" + titulo + "': " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static final Map<String, String> SITUACAO_SERIE = Map.of(
+            "Returning Series", "Em andamento", "Ended", "Finalizada", "Canceled", "Cancelada",
+            "In Production", "Em produção", "Planned", "Anunciada", "Pilot", "Piloto");
+
     @SuppressWarnings("unchecked")
     private List<String> tendencias(String tipoTmdb, String campoTitulo) {
         Set<String> titulos = new LinkedHashSet<>();

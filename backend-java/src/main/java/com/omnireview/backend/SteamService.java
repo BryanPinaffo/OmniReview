@@ -75,6 +75,21 @@ public class SteamService {
         }
     }
 
+    /** Link da página do jogo na loja Steam, ou null se não encontrado. */
+    @SuppressWarnings("unchecked")
+    public String linkDaLoja(String nome) {
+        try {
+            String urlBusca = BASE + "/storesearch/?term=" + URLEncoder.encode(nome, StandardCharsets.UTF_8) + "&" + IDIOMA;
+            Map<String, Object> busca = carteiro.getForObject(java.net.URI.create(urlBusca), Map.class);
+            List<Map<String, Object>> itens = busca == null ? null : (List<Map<String, Object>>) busca.get("items");
+            if (itens == null || itens.isEmpty() || itens.get(0).get("id") == null) return null;
+            return "https://store.steampowered.com/app/" + itens.get(0).get("id");
+        } catch (Exception e) {
+            System.out.println("Steam: falha ao buscar a loja de '" + nome + "': " + e.getMessage());
+            return null;
+        }
+    }
+
     /** Mais vendidos + promoções da Steam (só jogos, sem pacotes/DLCs). */
     @SuppressWarnings("unchecked")
     public List<String> buscarTendencias(int limite) {
