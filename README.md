@@ -49,10 +49,30 @@ O site é publicado com o **Tailscale Funnel** (HTTPS, sem abrir portas no rotea
   informando a atual; as outras sessões dele são encerradas. O administrador também pode gerar uma nova senha para um
   usuário comum na aba Administração.
 
+## Catálogo: Top 15, "Para você" e temas
+
+Sem busca, tag ou ordenação, o catálogo é uma vitrine de carrosséis:
+
+1. **Top 15 de cada mídia**, puxado da internet: filmes e séries em alta na semana no TMDB, jogos mais jogados agora
+   na Steam (sem programas como o Wallpaper Engine) e livros em alta na semana no Open Library. Em **Todos** aparecem
+   os quatro; com uma mídia escolhida, só o dela.
+2. **Top 15 para você**: a mesma recomendação da aba "Para você" (sem favoritos e sem o que a pessoa já viu, jogou ou
+   leu), com as mídias misturadas em **Todos** ou só da mídia escolhida (ex.: "Top 15 filmes para você").
+3. **Temas**: o resto do catálogo separado pelas tags mais comuns do DNA (ex.: Animação, Aventura). Cada obra aparece
+   em um carrossel só; "Ver todos" filtra o catálogo pela tag. O que não cabe em nenhum tema vai para "Outros títulos".
+
+"Ver tudo em grade" volta para a grade completa. O servidor atualiza o Top 15 sozinho (`TopService`): 1 minuto depois
+de iniciar e a cada 6 horas. O que entrar no Top e ainda não estiver no catálogo é adicionado automaticamente (com o
+DNA da IA e "sistema" como autor no histórico). Enquanto atualiza, a lista anterior completa o carrossel, e o site
+confere o Top de tempos em tempos (a cada 15 s durante a atualização), então as obras novas aparecem sem recarregar.
+Cada lista fica no grafo como `(:Top {tipo, titulos, atualizadoEm})`. O administrador pode pedir a atualização na hora
+(Administração → "Atualizar Top 15 agora"). Configuração: `omnireview.top.intervalo` (padrão `PT6H`),
+`omnireview.top.atraso-inicial` (`PT1M`) e `omnireview.top.automatico=false` para desligar.
+
 ## "O que você quer assistir hoje?"
 
-Campo de busca na tela inicial. Enquanto a pessoa digita, aparecem as obras do acervo que combinam. Se o título não
-estiver no acervo, ele é buscado na web (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), o resultado mais
+Campo de busca na tela inicial. Enquanto a pessoa digita, aparecem as obras do catálogo que combinam. Se o título não
+estiver no catálogo, ele é buscado na web (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), o resultado mais
 parecido com o que foi digitado é classificado pela IA e adicionado automaticamente, e a janela da obra abre em seguida.
 Os botões Filme/Série/Jogo/Livro restringem a busca a uma mídia (útil quando o mesmo nome existe em mais de uma).
 
@@ -61,7 +81,7 @@ autor ou começo da sinopse, e a pessoa confirma qual é (até 6 opções com a 
 em "Qualquer", os títulos mais parecidos primeiro). Só a escolhida é classificada e salva, pelo identificador exato da
 fonte (ex.: `tmdb:movie:841`, guardado em `Obra.fonte`), então os dois filmes *Duna* (1984 e 2021) entram separados
 como `Duna` e `Duna (2021)`. Se o nome já
-está no acervo, a sugestão "Queria … em outra mídia?" procura as outras. Como o título identifica a obra no grafo,
+está no catálogo, a sugestão "Queria … em outra mídia?" procura as outras. Como o título identifica a obra no grafo,
 uma segunda mídia com o mesmo nome entra como `Título (Mídia)` (ex.: `Duna (Filme)`); a busca ignora esse sufixo.
 
 ## Livros
@@ -89,7 +109,7 @@ completar; ao terminar grava `(:Configuracao {chave: 'livrosIniciais'})` e não 
 | Adicionar obra pela busca "O que você quer assistir hoje?" | ✔ | ✔ |
 | Perfil, seguir pessoas, marcar obras como assistidas/terminadas, redefinir a própria senha | ✔ | ✔ |
 | Aba **Administração**: ver todos os usuários, criar, excluir e redefinir a senha de contas comuns | ✔ | — |
-| Adicionar obra manualmente, importar tendências, manutenção do acervo, excluir obras | ✔ | — |
+| Adicionar obra manualmente, importar tendências, manutenção do catálogo, excluir obras | ✔ | — |
 
 - A conta de administrador vem da configuração (fora do Git) e é criada no primeiro início; se alguém tiver se
   cadastrado antes com o mesmo nome, a configuração prevalece e as sessões dessa conta são encerradas. Depois disso a
@@ -105,7 +125,7 @@ mostram o nome, mas sem link para o perfil.
 ## Boas-vindas (contas novas)
 
 Depois do cadastro, a pessoa escolhe até 5 filmes, 5 séries, 5 jogos e 5 livros (cada etapa pode ser pulada). A grade
-mostra o acervo daquela mídia; o que não estiver lá pode ser procurado na web pela barra de busca, com a mesma
+mostra o catálogo daquela mídia; o que não estiver lá pode ser procurado na web pela barra de busca, com a mesma
 confirmação da tela inicial, e já entra escolhido. As escolhas viram favoritos e a pessoa cai no "Para você". Quem
 chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a próxima visita.
 
@@ -170,7 +190,7 @@ chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a
 | POST | `/api/admin/usuarios` | (admin) Cria um usuário comum (`{"usuario", "senha"}`) |
 | DELETE | `/api/admin/usuarios/{usuario}` | (admin) Exclui um usuário comum, com notas e comentários |
 | GET | `/api/admin/historico?categoria=&q=&antes=&limite=` | (admin) Histórico: quem adicionou/excluiu obras, criou contas, avaliou, comentou e mexeu em listas (mais recentes primeiro, paginado) |
-| GET | `/api/admin/historico/autores` | (admin) Quem mais adicionou obras ao acervo |
+| GET | `/api/admin/historico/autores` | (admin) Quem mais adicionou obras ao catálogo |
 | GET | `/api/admin/obras/impacto?titulo=...` | (admin) Quantas notas, comentários, listas e marcas a obra tem |
 | DELETE | `/api/admin/obras?titulo=...` | (admin) Exclui a obra com notas, comentários, presença em listas e marcas |
 | POST | `/api/auth/senha` | Redefine a própria senha (`{"senhaAtual", "novaSenha"}`) |
@@ -195,14 +215,16 @@ chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a
 | POST / DELETE | `/api/listas/{id}` | Renomeia (`{"nome"}`) / exclui a lista |
 | POST / DELETE | `/api/listas/{id}/obras` | Adiciona (`{"titulo"}`) / remove (`?titulo=`) uma obra |
 | GET | `/api/obras` | Catálogo completo |
+| GET | `/api/top` | Top 15 de filmes, séries, jogos e livros (obras na ordem do ranking), quando cada um foi atualizado e se está atualizando |
+| POST | `/api/admin/top/atualizar` | (admin) Atualiza o Top 15 agora, em segundo plano (202) |
 | GET | `/obra?t=...` | Link de compartilhamento (público, sem login): prévia com título, sinopse e pôster (Open Graph) e redireciona para a obra no site |
 | GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo e tempo para zerar (história, com extras, 100% — IGDB), autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | GET | `/api/buscar-opcoes?nome=...[&tipo=filme\|serie\|jogo\|livro]` | Opções encontradas na web para a pessoa confirmar (nada é salvo): `{"opcoes": [{ref, tipo, titulo, ano, imagem, sinopse\|detalhe, jaNoAcervo, tituloNoAcervo}]}` |
-| POST | `/api/buscar-ou-adicionar?nome=...&ref=...` | Adiciona exatamente a opção confirmada (`ref` = identificador da fonte) ou abre a do acervo (`{"obra", "adicionada"}`); sem `ref`, busca pelo nome |
+| POST | `/api/buscar-ou-adicionar?nome=...&ref=...` | Adiciona exatamente a opção confirmada (`ref` = identificador da fonte) ou abre a do catálogo (`{"obra", "adicionada"}`); sem `ref`, busca pelo nome |
 | GET | `/api/tendencias/{filmes\|series\|jogos\|livros}` | (admin) Títulos em alta |
-| POST | `/api/completar-detalhes` | (admin) Preenche sinopses e imagens faltantes |
+| POST | `/api/completar-detalhes` | (admin) Preenche sinopses e imagens faltantes e traduz sinopses que ficaram em inglês (até 15 por chamada) |
 | POST | `/api/reprocessar-dna[?todas=true]` | (admin) Refaz as tags que falharam (ou todas) |
 
 ## Testes e avaliação

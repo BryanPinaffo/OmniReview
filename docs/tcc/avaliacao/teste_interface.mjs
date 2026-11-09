@@ -140,14 +140,15 @@ caso('T02', 'Cards exibem pôster (imagens carregadas na primeira dobra)', comIm
 // ---------- "O que você quer assistir hoje?" ----------
 const digitarBusca = (valor) => avaliar(`(() => { const e = document.getElementById('busca-hero-texto'); e.focus(); e.value = ${JSON.stringify(valor)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 const tituloAcervo = await avaliar("catalogo[0].titulo");
+const obrasAntesDaBusca = await avaliar("catalogo.length");
 await digitarBusca(tituloAcervo.slice(0, Math.max(3, Math.ceil(tituloAcervo.length / 2))).toLowerCase());
 const sugeriu = await aguardar(`!document.getElementById('busca-hero-lista').hidden && [...document.querySelectorAll('#busca-hero-lista .busca-opcao strong')].some(e => e.textContent === ${JSON.stringify(tituloAcervo)})`, 3000);
 await capturar('busca_sugestoes');
 await digitarBusca(tituloAcervo.toUpperCase());
 await avaliar("document.getElementById('busca-hero').requestSubmit()");
 const abriu = await aguardar(`document.getElementById('modal-fundo').classList.contains('aberto') && document.getElementById('modal-titulo').textContent === ${JSON.stringify(tituloAcervo)}`, 5000);
-const naoAdicionou = await avaliar("catalogo.length") === await avaliar("document.querySelectorAll('#grid-catalogo .card').length");
-caso('T16', 'Busca da tela inicial sugere obras do acervo e abre a obra digitada', sugeriu && abriu && naoAdicionou, `"${tituloAcervo}"`);
+const naoAdicionou = await avaliar("catalogo.length") === obrasAntesDaBusca;
+caso('T16', 'Busca da tela inicial sugere obras do catálogo e abre a obra digitada', sugeriu && abriu && naoAdicionou, `"${tituloAcervo}"`);
 await avaliar("fecharModal()");
 
 // Opcional (altera o acervo): OMNI_TESTE_ADICIONAR="<título que não está no acervo>"
@@ -293,6 +294,89 @@ await avaliar("document.querySelector('#filtro-tipo [data-tipo=jogo]').click()")
 const soJogos = await avaliar("[...document.querySelectorAll('#grid-catalogo .card .tipo')].every(e => e.classList.contains('jogo'))");
 caso('T08', 'Busca e filtro por mídia funcionam (RF04)', vazio && soJogos);
 await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()");
+
+// Vitrine do catálogo: Top 15 de cada mídia (em alta na internet), "Top 15 para você" e temas sem repetir obra
+{
+  const pvPronto = "!document.querySelector('#grid-catalogo [data-trilho^=\"paravoce-\"] .skeleton')";
+  const rolarAte = sel => avaliar(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (e) { e.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); } })()`);
+  const pronta = await aguardar(`document.getElementById('grid-catalogo').classList.contains('vitrine') && ${pvPronto}`, 10000);
+  await rolarAte('#titulo-resultado');
+  await esperar(500);
+  await capturar('catalogo_vitrine');
+  await rolarAte('#grid-catalogo [data-trilho^="paravoce-"]');
+  await esperar(500);
+  await capturar('catalogo_vitrine_paravoce');
+  const v = await avaliar(`(() => {
+    const cards = sel => [...document.querySelectorAll('#grid-catalogo ' + sel)].flatMap(t => [...t.querySelectorAll('.card')].map(c => c.dataset.titulo));
+    const tops = [...document.querySelectorAll('#grid-catalogo [data-trilho^="top-"]')];
+    const temas = cards('[data-trilho^="tema-"], [data-trilho="outros"]');
+    const topEPv = new Set(cards('[data-trilho^="top-"], [data-trilho^="paravoce-"]'));
+    const naTela = new Set(cards('[data-trilho]'));
+    return {
+      tops: tops.map(t => t.dataset.trilho).join(','),
+      rank: tops[0]?.querySelector('.card .rank')?.textContent,
+      maxTop: Math.max(0, ...tops.map(t => t.querySelectorAll('.card').length)),
+      pv: document.querySelectorAll('#grid-catalogo [data-trilho^="paravoce-"] .card').length,
+      pvAviso: [...document.querySelectorAll('#grid-catalogo .vitrine-secao')].some(s => s.getAttribute('aria-label').includes('para você') && s.querySelector('.vitrine-aviso')),
+      nTemas: document.querySelectorAll('#grid-catalogo [data-trilho^="tema-"]').length,
+      resto: temas.length,
+      repetidos: temas.length - new Set(temas).size,
+      temaComTopOuPv: temas.filter(t => topEPv.has(t)).length,
+      faltando: catalogo.filter(o => !naTela.has(o.titulo)).length,
+    };
+  })()`);
+  const top = await avaliar(`api('/api/top').then(r => r.json()).then(d => ['filme', 'serie', 'jogo', 'livro'].map(t => ({ t, n: d[t].length,
+    certos: d[t].every(o => tipoDe(o) === t && porTitulo.has(o.titulo)) })))`);
+  const topOk = top.every(x => x.n > 0 && x.n <= 15 && x.certos);
+  // Separação por temas sobre o catálogo inteiro (na tela, o "resto" depende do tamanho do catálogo)
+  const temasCatalogo = await avaliar(`(() => {
+    const r = separarPorTemas(ordenarParaVitrine(catalogo));
+    const t = r.temas.flatMap(x => x.obras.map(o => o.titulo));
+    return { n: r.temas.length, repetidas: t.length - new Set(t).size, todas: t.length + r.sobra.length === catalogo.length,
+      coerentes: r.temas.every(x => x.obras.length >= MIN_POR_TEMA && x.obras.length <= MAX_POR_TEMA && x.obras.every(o => tagsDe(o).includes(x.tag))),
+      nomes: r.temas.slice(0, 6).map(x => x.tag + ' ' + x.obras.length).join(', ') };
+  })()`);
+  const temasOk = temasCatalogo.n > 0 && temasCatalogo.repetidas === 0 && temasCatalogo.todas && temasCatalogo.coerentes;
+
+  await avaliar("document.querySelector('#filtro-tipo [data-tipo=filme]').click()");
+  await aguardar(pvPronto, 10000);
+  await rolarAte('#titulo-resultado');
+  const f = await avaliar(`({
+    tops: [...document.querySelectorAll('#grid-catalogo [data-trilho^="top-"]')].map(t => t.dataset.trilho).join(','),
+    soFilmes: [...document.querySelectorAll('#grid-catalogo .card .tipo')].every(e => e.classList.contains('filme')),
+    tituloPv: [...document.querySelectorAll('#grid-catalogo .vitrine-topo h3')].map(h => h.textContent).find(t => t.includes('para você')),
+  })`);
+  await capturar('catalogo_vitrine_filmes');
+
+  await avaliar('limparFiltros()');   // volta para "Todos"
+  await rolarAte('#grid-catalogo [data-trilho^="tema-"]');
+  await esperar(400);
+  await capturar('catalogo_vitrine_temas');
+  const verTodos = await avaliar(`(() => {
+    const b = document.querySelector('#grid-catalogo [data-ver-tema]');
+    if (!b) return 'sem temas';
+    const tag = b.dataset.verTema;
+    b.click();
+    const cards = [...document.querySelectorAll('#grid-catalogo .card')];
+    return !document.getElementById('grid-catalogo').classList.contains('vitrine') && document.getElementById('titulo-resultado').textContent === tag
+      && cards.length > 0 && cards.every(c => tagsDe(porTitulo.get(c.dataset.titulo)).includes(tag));
+  })()`);
+  await avaliar('limparFiltros()');
+  await avaliar("document.getElementById('btn-modo-catalogo').click()");
+  const grade = await avaliar("!document.getElementById('grid-catalogo').classList.contains('vitrine') && document.querySelectorAll('#grid-catalogo .card').length === catalogo.length");
+  await avaliar("document.getElementById('btn-modo-catalogo').click()");
+  const voltou = await avaliar("document.getElementById('grid-catalogo').classList.contains('vitrine')");
+
+  caso('T41', 'Catálogo em vitrine: Top 15 de cada mídia (da internet), Top 15 para você (misturado ou da mídia) e temas sem repetir obra',
+    pronta && topOk && v.tops === 'top-filme,top-serie,top-jogo,top-livro' && v.rank === '1' && v.maxTop <= 15
+    && (v.pv > 0 || v.pvAviso) && v.pv <= 15 && (v.nTemas > 0 || v.resto < 6) && v.repetidos === 0 && v.temaComTopOuPv === 0 && v.faltando === 0
+    && temasOk && f.tops === 'top-filme' && f.soFilmes && f.tituloPv === 'Top 15 filmes para você'
+    && (verTodos === true || (verTodos === 'sem temas' && v.nTemas === 0)) && grade && voltou,
+    `top: ${top.map(x => `${x.t}=${x.n}`).join(' ')}; carrosséis do top: ${v.tops}; para você: ${v.pv}${v.pvAviso ? ' (aviso)' : ''}; `
+    + `${v.nTemas} temas na tela (${v.resto} obras depois do top e do para você), repetidas=${v.repetidos}, iguais ao top/para você=${v.temaComTopOuPv}, fora da vitrine=${v.faltando}; `
+    + `temas do catálogo inteiro: ${temasCatalogo.nomes} (repetidas=${temasCatalogo.repetidas}, coerentes=${temasCatalogo.coerentes}); `
+    + `filmes: ${f.tops} "${f.tituloPv}" só filmes=${f.soFilmes}; ver todos=${verTodos}; grade=${grade}`);
+}
 
 // ---------- Assisti / terminei e perfil ----------
 const obraFilme = await avaliar("catalogo.find(o => tipoDe(o) === 'filme').titulo");
@@ -559,7 +643,7 @@ await avaliar("irPara('catalogo')");
   await avaliar("irPara('catalogo')");
   await avaliar("document.querySelector('#filtro-tipo [data-tipo=livro]').click()");
   await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0", 5000);
-  const livros = await avaliar("[...document.querySelectorAll('#grid-catalogo .card')].map(c => c.querySelector('.tipo')?.classList.contains('livro'))");
+  const livros = await avaliar("[...new Map([...document.querySelectorAll('#grid-catalogo .card')].map(c => [c.dataset.titulo, c.querySelector('.tipo')?.classList.contains('livro')])).values()]");
   const contador = await avaliar("Number(document.getElementById('stat-livro').textContent)");
   const umLivro = await avaliar("catalogo.find(o => tipoDe(o) === 'livro' && o.imagem)?.titulo");
   await avaliar(`abrirModal(${JSON.stringify(umLivro)})`);
@@ -810,7 +894,7 @@ if (process.env.OMNI_ADMIN_SENHA) {
     const t = await aguardar("!!document.querySelector('#modal .obra-autoria')", 3000);
     const texto = await avaliar("document.querySelector('#modal .obra-autoria')?.textContent || ''");
     await avaliar('fecharModal()');
-    return t && /Adicionada (ao acervo por|antes do histórico)/.test(texto);
+    return t && /Adicionada (ao catálogo por|automaticamente|antes do histórico)/.test(texto);
   })();
   caso('T33', 'Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra',
     historicoInicial && soContas && buscou && autoria

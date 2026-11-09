@@ -1,8 +1,8 @@
 {
   "url": "http://localhost:8081/",
-  "executado_em": "2026-11-09T19:46:12.583Z",
-  "aprovados": 39,
-  "total": 39,
+  "executado_em": "2026-11-09T20:55:00.806Z",
+  "aprovados": 40,
+  "total": 40,
   "casos": [
     {
       "id": "T00",
@@ -20,7 +20,7 @@
       "id": "T12",
       "descricao": "Cadastro pela tela valida a confirmação e entra no catálogo",
       "ok": true,
-      "detalhe": "usuário teste_ui_dpcoic; menu mostra \"teste_ui_dpcoic\""
+      "detalhe": "usuário teste_ui_u6b06p; menu mostra \"teste_ui_u6b06p\""
     },
     {
       "id": "T40",
@@ -32,17 +32,17 @@
       "id": "T01",
       "descricao": "Catálogo carrega cards do back-end",
       "ok": true,
-      "detalhe": "59 cards"
+      "detalhe": "82 cards"
     },
     {
       "id": "T02",
       "descricao": "Cards exibem pôster (imagens carregadas na primeira dobra)",
       "ok": true,
-      "detalhe": "24 imagens carregadas"
+      "detalhe": "30 imagens carregadas"
     },
     {
       "id": "T16",
-      "descricao": "Busca da tela inicial sugere obras do acervo e abre a obra digitada",
+      "descricao": "Busca da tela inicial sugere obras do catálogo e abre a obra digitada",
       "ok": true,
       "detalhe": "\"Hábitos Atômicos\""
     },
@@ -50,7 +50,7 @@
       "id": "T03",
       "descricao": "Favorito fica salvo na conta (servidor): volta após recarregar e sem os dados do navegador (RF06)",
       "ok": true,
-      "detalhe": "\"Hábitos Atômicos\", servidor=1, contador=1"
+      "detalhe": "\"Resident Evil\", servidor=1, contador=1"
     },
     {
       "id": "T29",
@@ -62,7 +62,7 @@
       "id": "T04",
       "descricao": "Janela flutuante mostra título, sinopse e tags (RF05)",
       "ok": true,
-      "detalhe": "sinopse com 349 caracteres, 3 tags"
+      "detalhe": "sinopse com 406 caracteres, 4 tags"
     },
     {
       "id": "T05",
@@ -92,25 +92,31 @@
       "id": "T07",
       "descricao": "Aba \"Para você\" gera recomendações de várias mídias (RF07)",
       "ok": true,
-      "detalhe": "Livro, Série, Filme"
+      "detalhe": "Filme, Série, Livro, Jogo"
     },
     {
       "id": "T39",
       "descricao": "\"Para você\" não sugere favoritos nem o que já foi visto, jogado ou lido",
       "ok": true,
-      "detalhe": "\"Esquire's The New Rules for Men\" marcado como visto e removido das sugestões: true; nenhum favorito na lista: true"
+      "detalhe": "\"Cara-de-Barro\" marcado como visto e removido das sugestões: true; nenhum favorito na lista: true"
     },
     {
       "id": "T36",
       "descricao": "\"Para você\" filtra por mídia (Filmes, Séries, Jogos, Livros) e volta a misturar em \"Todos\"",
       "ok": true,
-      "detalhe": "filme: 1, serie: 1, jogo: 0, livro: 12; todos de novo=true"
+      "detalhe": "filme: 12, serie: 8, jogo: 9, livro: 5; todos de novo=true"
     },
     {
       "id": "T08",
       "descricao": "Busca e filtro por mídia funcionam (RF04)",
       "ok": true,
       "detalhe": ""
+    },
+    {
+      "id": "T41",
+      "descricao": "Catálogo em vitrine: Top 15 de cada mídia (da internet), Top 15 para você (misturado ou da mídia) e temas sem repetir obra",
+      "ok": true,
+      "detalhe": "top: filme=15 serie=15 jogo=15 livro=15; carrosséis do top: top-filme,top-serie,top-jogo,top-livro; para você: 15; 4 temas na tela (19 obras depois do top e do para você), repetidas=0, iguais ao top/para você=0, fora da vitrine=0; temas do catálogo inteiro: Ação 20, Drama 17, Psicológico 16, Aventura 10, Fantasia 5, Multijogador 4 (repetidas=0, coerentes=true); filmes: top-filme \"Top 15 filmes para você\" só filmes=true; ver todos=true; grade=true"
     },
     {
       "id": "T21",
@@ -164,19 +170,19 @@
       "id": "T34",
       "descricao": "Livros: filtro \"Livros\", ficha com autor, páginas e onde ler/comprar, e botão \"Marcar como lido\"",
       "ok": true,
-      "detalhe": "15 livros (contador 15); \"Hábitos Atômicos\": Autor/Páginas/Tempo de leitura/Publicado em · Amazon, Estante Virtual, Google Livros, Open Library · botão \"Marcar como lido\""
+      "detalhe": "19 livros (contador 19); \"Hábitos Atômicos\": Autor/Páginas/Tempo de leitura/Publicado em · Amazon, Estante Virtual, Google Livros, Open Library · botão \"Marcar como lido\""
     },
     {
       "id": "T35",
       "descricao": "Busca \"Qualquer\": nome em mais de uma mídia abre a escolha (filme ou livro) e nada é salvo sem escolher",
       "ok": true,
-      "detalhe": "opções: Filme, Livro, Série, Filme, Série, Filme, Jogo, Livro; obras antes/depois: 59/59"
+      "detalhe": "opções: Filme, Livro, Série, Filme, Série, Filme, Jogo, Livro; obras antes/depois: 82/82"
     },
     {
       "id": "T37",
       "descricao": "Busca com mídia escolhida (Livro) também pede confirmação e lista os títulos parecidos; nada é salvo sem escolher",
       "ok": true,
-      "detalhe": "6 opções: Duna (2015) | Duna: Casa Atreides (2025) | MESSIAS DE DUNA (1985) | Geografía de las dunas costeras de Chile (2015); obras antes/depois: 59/59"
+      "detalhe": "6 opções: Duna (2015) | Duna: Casa Atreides (2025) | Messias de Duna (1985) | Geografía de las dunas costeras de Chile (2015); obras antes/depois: 82/82"
     },
     {
       "id": "T38",
@@ -188,7 +194,7 @@
       "id": "T32",
       "descricao": "Encontrar pessoas: cartões empilhados e largos, nome em uma linha (sem quebrar letra por letra)",
       "ok": true,
-      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":2}"
+      "detalhe": "{\"display\":\"grid\",\"largura\":1300,\"empilhados\":true,\"nomeEmUmaLinha\":true,\"qtd\":1}"
     },
     {
       "id": "T28",
@@ -236,7 +242,7 @@
       "id": "T33",
       "descricao": "Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra",
       "ok": true,
-      "detalhe": "teste_adm_bvp excluiu a conta de teste_adm_1uvkypela Administração | teste_adm_bvp criou a conta de teste_adm_1uvkypela Administração; filtro=true, busca=true, autoria na obra=true"
+      "detalhe": "teste_adm_trad excluiu a conta de teste_adm_wti6kpela Administração | teste_adm_trad criou a conta de teste_adm_wti6kpela Administração; filtro=true, busca=true, autoria na obra=true"
     }
   ]
 }

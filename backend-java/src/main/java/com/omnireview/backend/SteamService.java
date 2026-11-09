@@ -79,6 +79,55 @@ public class SteamService {
         }
     }
 
+    /**
+     * Jogos mais jogados agora na Steam (até {@code maximo}): {ref ("steam:ID"), título}. A lista da Steam mistura programas
+     * (ex.: Wallpaper Engine); cada item é conferido na loja e só entram jogos.
+     */
+    @SuppressWarnings("unchecked")
+    public List<String[]> maisJogados(int maximo) {
+        List<String[]> lista = new ArrayList<>();
+        try {
+            Map<String, Object> r = carteiro.getForObject(java.net.URI.create(
+                    "https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/"), Map.class);
+            if (!(r != null && r.get("response") instanceof Map<?, ?> resp && resp.get("ranks") instanceof List<?> ranks)) return lista;
+            for (Object o : ranks) {
+                if (lista.size() >= maximo) break;
+                if (!(o instanceof Map<?, ?> rank) || !(rank.get("appid") instanceof Number id)) continue;
+                Map<String, Object> app = detalhesDoApp(String.valueOf(id.longValue()));
+                if (app == null || !"game".equals(app.get("type")) || ehProgramaNaoJogo(app.get("genres"))) continue;
+                lista.add(new String[]{"steam:" + id.longValue(), limparTitulo((String) app.get("name"))});
+            }
+        } catch (Exception e) {
+            System.out.println("Steam: falha ao buscar os mais jogados: " + e.getMessage());
+        }
+        return lista;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> detalhesDoApp(String id) {
+        try {
+            Map<String, Object> resposta = carteiro.getForObject(java.net.URI.create(BASE + "/appdetails?appids=" + id + "&" + IDIOMA), Map.class);
+            Map<String, Object> app = resposta == null ? null : (Map<String, Object>) resposta.get(id);
+            return app != null && Boolean.TRUE.equals(app.get("success")) ? (Map<String, Object>) app.get("data") : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Gêneros de software da Steam (ids 51 a 60: utilitários, edição de vídeo/foto/áudio, design...). */
+    static boolean ehProgramaNaoJogo(Object genres) {
+        if (!(genres instanceof List<?> lista)) return false;
+        for (Object g : lista) {
+            if (g instanceof Map<?, ?> m && m.get("id") != null) {
+                try {
+                    int id = Integer.parseInt(String.valueOf(m.get("id")));
+                    if (id >= 51 && id <= 60) return true;
+                } catch (NumberFormatException ignorado) { /* id não numérico: não é de software */ }
+            }
+        }
+        return false;
+    }
+
     /** DLC, trilha sonora, pacote ou item cosmético (a busca da loja mistura tudo com os jogos). */
     static boolean pareceExtra(String nome) {
         String n = nome.toLowerCase(Locale.ROOT);

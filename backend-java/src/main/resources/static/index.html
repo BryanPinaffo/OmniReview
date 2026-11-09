@@ -602,7 +602,39 @@
         .trilho .titulo-linha { margin-bottom: 0; flex-direction: column; gap: 6px; }
         .trilho .card .tags { display: none; }
 
-        /* ---------- DRAWER (Gerenciar acervo) ---------- */
+        /* ---------- VITRINE DO CATÁLOGO (Top 15 da internet, Top 15 para você e temas, em carrosséis) ---------- */
+        .grid.vitrine { display: block; }
+        .sem-animacao .card { animation: none; }
+        .vitrine-secao { margin: 0 0 34px; min-width: 0; }
+        .vitrine-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .vitrine-topo > div:first-child { min-width: 0; }
+        .vitrine-topo h3 { font-family: var(--font-display); font-size: 19px; font-weight: 600; letter-spacing: -0.015em; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .vitrine-topo p { margin: 4px 0 0; color: var(--text-3); font-size: 12.5px; }
+        .vitrine-acoes { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .link-ver { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 8px; border-radius: 8px; white-space: nowrap; }
+        .link-ver:hover { color: var(--text); background: var(--surface); }
+        .btn-rolar { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); display: grid; place-items: center; cursor: pointer; transition: opacity .2s, background .2s; }
+        .btn-rolar:hover:not(:disabled) { background: var(--surface-2); }
+        .btn-rolar:disabled { opacity: .3; cursor: default; }
+        .btn-rolar svg { width: 16px; height: 16px; }
+        @media (hover: none) { .btn-rolar { display: none; } }
+        .trilho.vitrine-trilho { grid-auto-columns: clamp(136px, 15.5vw, 188px); gap: clamp(12px, 1.6vw, 18px); padding: 8px 2px 12px; }
+        .card .rank {
+            position: absolute; top: 4px; left: 10px; z-index: 2; pointer-events: none;
+            font-family: var(--font-display); font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.05em;
+            color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9);
+        }
+        .card.com-rank .selo-concluida { top: 54px; }
+        .selo-ao-vivo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 99px; font-family: inherit; font-size: 11px; font-weight: 700; color: #d6d0ff; background: var(--accent-soft); border: 1px solid rgba(139,123,255,0.35); letter-spacing: 0; }
+        .selo-ao-vivo i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: piscar-vivo 1.4s infinite; }
+        @keyframes piscar-vivo { 50% { opacity: .25; } }
+        .vitrine-aviso { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 18px 20px; border: 1px dashed var(--line-strong); border-radius: var(--radius); color: var(--text-2); font-size: 14px; }
+        .vitrine-aviso p { margin: 0; }
+        .resultado-acoes { display: flex; align-items: center; gap: 12px; }
+        .btn-modo { background: none; border: 1px solid var(--line-strong); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 99px; cursor: pointer; }
+        .btn-modo:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
+
+        /* ---------- DRAWER (Gerenciar catálogo) ---------- */
         .drawer-fundo { position: fixed; inset: 0; z-index: 90; background: rgba(4,5,8,0.6); opacity: 0; pointer-events: none; transition: opacity .3s; }
         .drawer-fundo.aberto { opacity: 1; pointer-events: auto; }
         .drawer {
@@ -1096,9 +1128,9 @@
     <!-- ===== CATÁLOGO ===== -->
     <main id="aba-catalogo">
         <section class="wrap hero">
-            <span class="eyebrow"><i></i> IA local classificando o acervo</span>
+            <span class="eyebrow"><i></i> IA local classificando o catálogo</span>
             <h1>Filmes, séries, jogos e livros com o <em>mesmo DNA criativo.</em></h1>
-            <p class="lead">Procure qualquer título: se ele ainda não estiver no acervo, a OmniReview busca na web, gera o DNA criativo com a IA e adiciona na hora. Depois, cruzamos as tags entre mídias para achar o próximo título para você.</p>
+            <p class="lead">Procure qualquer título: se ele ainda não estiver no catálogo, a OmniReview busca na web, gera o DNA criativo com a IA e adiciona na hora. Depois, cruzamos as tags entre mídias para achar o próximo título para você.</p>
             <form class="busca-hero" id="busca-hero" role="search" autocomplete="off" onsubmit="event.preventDefault()" novalidate>
                 <label class="busca-hero-pergunta" for="busca-hero-texto">O que você quer ver hoje?</label>
                 <div class="busca-hero-campo">
@@ -1157,8 +1189,11 @@
 
         <section class="wrap">
             <div class="resultado-info">
-                <h2 id="titulo-resultado">Todo o acervo</h2>
-                <span id="contagem-resultado"></span>
+                <h2 id="titulo-resultado">Todo o catálogo</h2>
+                <div class="resultado-acoes">
+                    <span id="contagem-resultado"></span>
+                    <button type="button" class="btn-modo" id="btn-modo-catalogo" hidden>Ver tudo em grade</button>
+                </div>
             </div>
             <div class="grid" id="grid-catalogo"></div>
         </section>
@@ -1226,7 +1261,7 @@
             <div class="admin-cabecalho">
                 <span class="eyebrow"><i style="background: var(--accent); box-shadow: 0 0 10px var(--accent)"></i> Área do administrador</span>
                 <h1>Administração</h1>
-                <p class="lead">Gerencie as contas de usuário e o acervo. Usuários comuns não veem esta área.</p>
+                <p class="lead">Gerencie as contas de usuário e o catálogo. Usuários comuns não veem esta área.</p>
             </div>
 
             <h2 class="admin-secao">Usuários</h2>
@@ -1273,7 +1308,7 @@
                 </div>
             </div>
 
-            <h2 class="admin-secao">Acervo</h2>
+            <h2 class="admin-secao">Catálogo</h2>
             <div class="admin-acervo">
             <div class="bloco">
                 <h3>Adicionar uma obra</h3>
@@ -1301,8 +1336,15 @@
             </div>
 
             <div class="bloco">
+                <h3>Top 15 automático</h3>
+                <p>Filmes e séries em alta no TMDB, jogos mais jogados na Steam e livros em alta no Open Library. Atualiza sozinho a cada 6 horas e adiciona ao catálogo o que faltar.</p>
+                <button class="btn btn-block" id="btn-top" onclick="atualizarTopAgora()">Atualizar Top 15 agora</button>
+                <div class="status" id="status-top"></div>
+            </div>
+
+            <div class="bloco">
                 <h3>Manutenção</h3>
-                <p>Completa sinopses e capas de obras antigas e refaz tags que falharam. Para excluir um filme, série, jogo ou livro, abra a obra e use “Excluir obra”.</p>
+                <p>Completa sinopses e capas que faltam, traduz as sinopses que ficaram em inglês (até 15 por vez) e refaz tags que falharam. Para excluir um filme, série, jogo ou livro, abra a obra e use “Excluir obra”.</p>
                 <div style="display: grid; gap: 8px;">
                     <button class="btn btn-block" id="btn-detalhes" onclick="manutencao('completar-detalhes', 'btn-detalhes')">Completar sinopses e capas</button>
                     <button class="btn btn-block" id="btn-reprocessar" onclick="manutencao('reprocessar-dna', 'btn-reprocessar')">Refazer tags com erro</button>
@@ -1892,17 +1934,23 @@
                 const resumoPronto = carregarMeuResumo();
                 const listasProntas = carregarListas();
                 const favoritosProntos = carregarFavoritos();
+                const topPronto = buscarTop();
                 const resposta = await api('/api/obras');
                 catalogo = await resposta.json();
                 porTitulo.clear();
                 catalogo.forEach(o => porTitulo.set(o.titulo, o));
+                assinaturaTop = '';
+                aplicarTop(await topPronto);
                 atualizarStats();
                 renderizarChips();
                 renderizarCatalogo();
                 atualizarContador();
                 await Promise.all([notasProntas, resumoPronto, listasProntas, favoritosProntos]);
+                favoritosCarregados = true;
                 sincronizarBotoesFavorito();
                 atualizarContador();
+                if (emVitrine()) renderizarCatalogo(true);   // o "Top 15 para você" depende dos favoritos
+                agendarTop();
                 completarDetalhesAutomatico();
             } catch (e) {
                 console.error(e);
@@ -1982,23 +2030,289 @@
             return lista;
         }
 
-        function renderizarCatalogo() {
+        // Sem busca, tag, filtro de DNA nem ordenação, o catálogo vira uma vitrine de carrosséis
+        let modoGrade = false;            // "Ver tudo em grade"
+        let favoritosCarregados = false;
+        const TIPOS_VITRINE = ['filme', 'serie', 'jogo', 'livro'];
+        const PLURAL_TIPO = { filme: 'filmes', serie: 'séries', jogo: 'jogos', livro: 'livros' };
+        const FONTE_TOP = { filme: 'Em alta na semana (TMDB)', serie: 'Em alta na semana (TMDB)', jogo: 'Mais jogados agora na Steam', livro: 'Em alta na semana (Open Library)' };
+        const MAX_TEMAS = 16, MIN_POR_TEMA = 3, MAX_POR_TEMA = 20, TAMANHO_TOP = 15;
+        const SETA_ESQ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+        const SETA_DIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+        function semFiltrosAtivos() {
+            return !filtro.texto.trim() && !filtro.tags.size && filtro.ordem === 'padrao'
+                && !$('filtro-dna-incluir').value.trim() && !$('filtro-dna-excluir').value.trim();
+        }
+        const emVitrine = () => !modoGrade && semFiltrosAtivos();
+
+        function renderizarCatalogo(semAnimacao = false) {
             const lista = filtrarCatalogo();
-            const titulos = { TODOS: 'Todo o acervo', filme: 'Filmes', serie: 'Séries', jogo: 'Jogos', livro: 'Livros' };
+            const titulos = { TODOS: 'Todo o catálogo', filme: 'Filmes', serie: 'Séries', jogo: 'Jogos', livro: 'Livros' };
             $('titulo-resultado').textContent = filtro.tags.size ? [...filtro.tags].join(' + ') : titulos[filtro.tipo];
             $('contagem-resultado').textContent = `${lista.length} ${lista.length === 1 ? 'obra' : 'obras'}`;
+            const grid = $('grid-catalogo');
+            const botaoModo = $('btn-modo-catalogo');
+            botaoModo.hidden = !catalogo.length || !semFiltrosAtivos();
+            botaoModo.textContent = modoGrade ? 'Ver em carrosséis' : 'Ver tudo em grade';
+            const vitrine = emVitrine() && lista.length > 0;
+            grid.classList.toggle('vitrine', vitrine);
+            grid.classList.toggle('sem-animacao', semAnimacao);
 
             if (!catalogo.length) {
-                $('grid-catalogo').innerHTML = ehAdmin()
-                    ? vazioHTML('O acervo está vazio', 'Importe as tendências ou adicione uma obra para começar.',
+                grid.innerHTML = ehAdmin()
+                    ? vazioHTML('O catálogo está vazio', 'Importe as tendências ou adicione uma obra para começar.',
                         '<button class="btn btn-primary" onclick="irPara(\'admin\')">Ir para a Administração</button>')
-                    : vazioHTML('O acervo está vazio', 'Procure um título em “O que você quer ver hoje?” para adicioná-lo.');
+                    : vazioHTML('O catálogo está vazio', 'Procure um título em “O que você quer ver hoje?” para adicioná-lo.');
                 return;
             }
-            $('grid-catalogo').innerHTML = lista.length
+            if (vitrine) { renderizarVitrine(lista); return; }
+            grid.innerHTML = lista.length
                 ? lista.map(cardHTML).join('')
                 : vazioHTML('Nada encontrado', 'Nenhuma obra combina com esses filtros. Tente remover alguma tag ou mudar o tipo de mídia.',
                     '<button class="btn" onclick="limparFiltros()">Limpar filtros</button>');
+        }
+
+        /**
+         * Vitrine: Top 15 de cada mídia (em alta na internet), "Top 15 para você" e, depois, o resto do catálogo
+         * separado por temas (tags do DNA), cada obra em um carrossel só.
+         */
+        function renderizarVitrine(lista) {
+            const grid = $('grid-catalogo');
+            const rolagem = {};
+            grid.querySelectorAll('[data-trilho]').forEach(t => { rolagem[t.dataset.trilho] = t.scrollLeft; });
+            const tipos = filtro.tipo === 'TODOS' ? TIPOS_VITRINE : [filtro.tipo];
+            const mostradas = new Set();
+            const secoes = [];
+
+            for (const t of tipos) {
+                const obras = (topObras[t] || []).map(o => porTitulo.get(o.titulo)).filter(o => o && tipoDe(o) === t).slice(0, TAMANHO_TOP);
+                if (!obras.length) continue;
+                obras.forEach(o => mostradas.add(o.titulo));
+                const quando = topInfo.atualizadoEm?.[t] ? ` · atualizado ${tempoRelativo(topInfo.atualizadoEm[t])}` : '';
+                secoes.push(secaoVitrineHTML({ id: 'top-' + t, titulo: `Top ${obras.length} ${PLURAL_TIPO[t]}`, sub: FONTE_TOP[t] + quando,
+                    obras, ranking: true, aoVivo: topInfo.atualizando }));
+            }
+            if (!secoes.length && topInfo.atualizando) {
+                secoes.push(avisoVitrineHTML('Top 15', 'Montando o Top 15 com o que está em alta na internet. As obras que faltam entram no catálogo sozinhas.'));
+            }
+
+            const tipoPv = tipos.length === 1 ? tipos[0] : '';
+            const tituloPv = tipoPv ? `Top 15 ${PLURAL_TIPO[tipoPv]} para você` : 'Top 15 para você';
+            const pv = paraVoceDaVitrine(tipoPv);
+            if (pv.estado === 'pronto' && pv.obras.length) {
+                pv.obras.forEach(o => mostradas.add(o.titulo));
+                secoes.push(secaoVitrineHTML({ id: 'paravoce-' + (tipoPv || 'todos'), titulo: tituloPv,
+                    sub: tipoPv ? 'Com o DNA dos seus favoritos, sem o que você já viu, jogou ou leu'
+                        : 'Filmes, séries, jogos e livros misturados, com o DNA dos seus favoritos', obras: pv.obras }));
+            } else if (pv.estado === 'carregando') {
+                secoes.push(secaoVitrineHTML({ id: 'paravoce-' + (tipoPv || 'todos'), titulo: tituloPv, sub: 'Cruzando o DNA dos seus favoritos...', carregando: true }));
+            } else {
+                secoes.push(avisoVitrineHTML(tituloPv, {
+                    'sem-favoritos': 'Toque no coração das obras que você gosta: o seu Top 15 aparece aqui.',
+                    'sem-tags': 'Seus favoritos ainda não têm DNA criativo para cruzar.',
+                }[pv.estado] || (tipoPv ? `Nada novo em ${PLURAL_TIPO[tipoPv]} combinando com seus favoritos.` : 'Nada novo combinando com seus favoritos.')
+                    + ' Procure um título em “O que você quer ver hoje?”.'));
+            }
+
+            const { temas, sobra } = separarPorTemas(ordenarParaVitrine(lista.filter(o => !mostradas.has(o.titulo))));
+            temas.forEach(({ tag, obras }) => secoes.push(secaoVitrineHTML({ id: 'tema-' + tag, titulo: tag, obras, verTodos: tag })));
+            if (sobra.length) secoes.push(secaoVitrineHTML({ id: 'outros', titulo: temas.length ? 'Outros títulos' : 'Mais do catálogo', obras: sobra }));
+
+            grid.innerHTML = secoes.join('');
+            grid.querySelectorAll('[data-trilho]').forEach(t => {
+                if (rolagem[t.dataset.trilho]) t.scrollLeft = rolagem[t.dataset.trilho];
+                atualizarSetas(t);
+            });
+        }
+
+        function secaoVitrineHTML({ id, titulo, sub = '', obras = [], ranking = false, carregando = false, verTodos = '', aoVivo = false }) {
+            const cards = carregando ? Array(6).fill('<div class="skeleton"></div>').join('')
+                : obras.map((o, i) => ranking ? cardRankHTML(o, i) : cardHTML(o, i)).join('');
+            return `
+                <section class="vitrine-secao" aria-label="${esc(titulo)}">
+                    <div class="vitrine-topo">
+                        <div><h3>${esc(titulo)}${aoVivo ? '<span class="selo-ao-vivo"><i></i>Atualizando</span>' : ''}</h3>${sub ? `<p>${esc(sub)}</p>` : ''}</div>
+                        <div class="vitrine-acoes">
+                            ${verTodos ? `<button type="button" class="link-ver" data-ver-tema="${esc(verTodos)}">Ver todos</button>` : ''}
+                            <button type="button" class="btn-rolar" data-rolar="-1" aria-label="Voltar">${SETA_ESQ}</button>
+                            <button type="button" class="btn-rolar" data-rolar="1" aria-label="Avançar">${SETA_DIR}</button>
+                        </div>
+                    </div>
+                    <div class="trilho vitrine-trilho" data-trilho="${esc(id)}">${cards}</div>
+                </section>`;
+        }
+
+        function avisoVitrineHTML(titulo, texto) {
+            return `
+                <section class="vitrine-secao" aria-label="${esc(titulo)}">
+                    <div class="vitrine-topo"><div><h3>${esc(titulo)}</h3></div></div>
+                    <div class="vitrine-aviso"><p>${esc(texto)}</p></div>
+                </section>`;
+        }
+
+        // Card com a posição no ranking (Top 15)
+        function cardRankHTML(obra, i) {
+            return cardHTML(obra, i)
+                .replace('<article class="card"', '<article class="card com-rank"')
+                .replace('<div class="sombra"></div>', `<div class="sombra"></div><span class="rank" aria-hidden="true">${i + 1}</span>`);
+        }
+
+        // Melhor avaliadas primeiro; depois as adicionadas mais recentemente
+        function ordenarParaVitrine(obras) {
+            const peso = o => { const n = notas.get(o.titulo); return n?.total ? n.media + Math.min(n.total, 10) * 0.05 : 0; };
+            return obras.map((o, i) => ({ o, i, p: peso(o), d: o.adicionadaEm || '' }))
+                .sort((a, b) => b.p - a.p || b.d.localeCompare(a.d) || a.i - b.i)
+                .map(x => x.o);
+        }
+
+        /**
+         * Separa as obras pelos temas mais comuns (tags do DNA). Cada obra entra em um carrossel só: o tema com mais
+         * obras pega as suas (até MAX_POR_TEMA, as melhores primeiro), o próximo tema é escolhido entre as que
+         * sobraram, e assim por diante, enquanto houver tema com pelo menos MIN_POR_TEMA obras.
+         */
+        function separarPorTemas(obras) {
+            const temas = [];
+            const usados = new Set();
+            let restantes = obras;
+            while (temas.length < MAX_TEMAS) {
+                const freq = new Map();
+                restantes.forEach(o => tagsDe(o).forEach(t => { if (!usados.has(t)) freq.set(t, (freq.get(t) || 0) + 1); }));
+                const [tag, n] = [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))[0] || [];
+                if (!tag || n < MIN_POR_TEMA) break;
+                usados.add(tag);
+                const doTema = restantes.filter(o => tagsDe(o).includes(tag)).slice(0, MAX_POR_TEMA);
+                const escolhidas = new Set(doTema.map(o => o.titulo));
+                temas.push({ tag, obras: doTema });
+                restantes = restantes.filter(o => !escolhidas.has(o.titulo));
+            }
+            return { temas, sobra: restantes };
+        }
+
+        // "Top 15 para você" da vitrine: mesma recomendação da aba "Para você" (sem favoritos e sem o que já foi visto)
+        const pvVitrine = { chave: '', obras: [], pedido: '' };
+        function paraVoceDaVitrine(tipo) {
+            if (!favoritosCarregados) return { estado: 'carregando' };
+            if (!curtidas.some(t => porTitulo.has(t))) return { estado: 'sem-favoritos' };
+            const tags = tagsDoPerfil();
+            if (!tags.length) return { estado: 'sem-tags' };
+            const chave = [tipo, tags.join(','), curtidas.length, minhasConcluidas.size].join('|');
+            if (pvVitrine.chave === chave) {
+                return { estado: 'pronto', obras: pvVitrine.obras.map(o => porTitulo.get(o.titulo))
+                    .filter(o => o && !estaCurtida(o.titulo) && !minhasConcluidas.has(o.titulo)).slice(0, TAMANHO_TOP) };
+            }
+            if (pvVitrine.pedido !== chave) {
+                pvVitrine.pedido = chave;
+                buscarRecomendacoes(tags, [], tipo, true)
+                    .catch(e => { console.warn('Não foi possível montar o Top 15 para você', e); return []; })
+                    .then(recs => {
+                        if (pvVitrine.pedido !== chave) return;   // a pessoa trocou a mídia enquanto carregava
+                        pvVitrine.chave = chave;
+                        pvVitrine.obras = recs;
+                        if (!$('aba-catalogo').hidden && emVitrine()) renderizarCatalogo(true);
+                    });
+            }
+            return { estado: 'carregando' };
+        }
+
+        function atualizarSetas(trilho) {
+            const acoes = trilho.closest('.vitrine-secao')?.querySelector('.vitrine-acoes');
+            if (!acoes) return;
+            const voltar = acoes.querySelector('[data-rolar="-1"]'), avancar = acoes.querySelector('[data-rolar="1"]');
+            if (!voltar || !avancar) return;
+            voltar.disabled = trilho.scrollLeft <= 2;
+            avancar.disabled = trilho.scrollLeft >= trilho.scrollWidth - trilho.clientWidth - 2;
+        }
+
+        $('grid-catalogo').addEventListener('click', e => {
+            const rolar = e.target.closest('[data-rolar]');
+            if (rolar) {
+                const trilho = rolar.closest('.vitrine-secao').querySelector('.vitrine-trilho');
+                trilho.scrollBy({ left: Number(rolar.dataset.rolar) * trilho.clientWidth * 0.85, behavior: 'smooth' });
+                return;
+            }
+            const tema = e.target.closest('[data-ver-tema]');
+            if (tema) {
+                filtro.tags.clear();
+                filtro.tags.add(tema.dataset.verTema);
+                renderizarChips(); renderizarCatalogo();
+                $('titulo-resultado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+        $('grid-catalogo').addEventListener('scroll', e => { if (e.target.classList?.contains('vitrine-trilho')) atualizarSetas(e.target); }, true);
+        window.addEventListener('resize', () => document.querySelectorAll('.vitrine-trilho').forEach(atualizarSetas));
+        $('btn-modo-catalogo').addEventListener('click', () => { modoGrade = !modoGrade; renderizarCatalogo(); });
+
+        // ---------- Top 15 (em alta na internet), atualizado pelo servidor ----------
+        let topObras = { filme: [], serie: [], jogo: [], livro: [] };
+        let topInfo = { atualizando: false, mensagem: '', atualizadoEm: {} };
+        let assinaturaTop = '', relogioTop = null;
+
+        async function buscarTop() {
+            try {
+                const r = await api('/api/top');
+                return r.ok ? await r.json() : null;
+            } catch { return null; }
+        }
+
+        /** Guarda o Top 15 que veio do servidor; obras que entraram no catálogo desde o carregamento já aparecem. true se mudou. */
+        function aplicarTop(dados) {
+            if (!dados) return false;
+            let novas = false;
+            const proximo = {};
+            TIPOS_VITRINE.forEach(t => {
+                proximo[t] = Array.isArray(dados[t]) ? dados[t].filter(o => o?.titulo) : [];
+                proximo[t].forEach(o => {
+                    if (!porTitulo.has(o.titulo)) { catalogo.push(o); porTitulo.set(o.titulo, o); novas = true; }
+                });
+            });
+            const assinatura = JSON.stringify([TIPOS_VITRINE.map(t => proximo[t].map(o => o.titulo)), !!dados.atualizando]);
+            const mudou = novas || assinatura !== assinaturaTop;
+            topObras = proximo;
+            assinaturaTop = assinatura;
+            topInfo = { atualizando: !!dados.atualizando, mensagem: dados.mensagem || '', atualizadoEm: dados.atualizadoEm || {} };
+            if (novas) { atualizarStats(); renderizarChips(); }
+            mostrarStatusTop();
+            return mudou;
+        }
+
+        // Confere o Top 15 de tempos em tempos (mais rápido enquanto o servidor está atualizando)
+        async function verificarTop() {
+            if (!document.hidden && catalogo.length && aplicarTop(await buscarTop()) && !$('aba-catalogo').hidden && emVitrine()) {
+                renderizarCatalogo(true);
+            }
+            agendarTop();
+        }
+        function agendarTop() {
+            clearTimeout(relogioTop);
+            relogioTop = setTimeout(verificarTop, topInfo.atualizando ? 15000 : 120000);
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden && catalogo.length) verificarTop(); });
+
+        function mostrarStatusTop() {
+            const botao = $('btn-top');
+            if (!botao || !ehAdmin()) return;
+            botao.disabled = topInfo.atualizando;
+            if (topInfo.atualizando) { status('status-top', topInfo.mensagem || 'Atualizando o Top 15...'); return; }
+            const datas = Object.values(topInfo.atualizadoEm || {}).filter(Boolean).sort();
+            status('status-top', datas.length ? `Última atualização ${tempoRelativo(datas[datas.length - 1])}.`
+                : 'Ainda não foi montado: roda sozinho 1 minuto depois que o servidor inicia.', datas.length ? 'ok' : '');
+        }
+
+        async function atualizarTopAgora() {
+            $('btn-top').disabled = true;
+            status('status-top', 'Pedindo a atualização...');
+            try {
+                const r = await api('/api/admin/top/atualizar', { method: 'POST' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const d = await r.json();
+                topInfo.atualizando = true;
+                status('status-top', d.iniciou ? 'Atualizando em segundo plano. O que faltar entra no catálogo (a IA leva alguns segundos por obra).' : 'Já está atualizando.', 'ok');
+                agendarTop();
+            } catch {
+                status('status-top', 'Não foi possível iniciar a atualização.', 'erro');
+                $('btn-top').disabled = false;
+            }
         }
 
         function limparFiltros() {
@@ -2019,9 +2333,9 @@
         });
 
         // ================= "O QUE VOCÊ QUER VER HOJE?" =================
-        // Digita -> sugere obras do acervo; se não houver, busca na web e adiciona automaticamente.
+        // Digita -> sugere obras do catálogo; se não houver, busca na web e adiciona automaticamente.
         const buscaHero = { tipo: '', opcoes: [], ativa: -1, ocupado: false };
-        // "Duna (Filme)" e "Duna (Livro)" contam como "Duna": o sufixo só separa mídias com o mesmo nome no acervo
+        // "Duna (Filme)" e "Duna (Livro)" contam como "Duna": o sufixo só separa mídias com o mesmo nome no catálogo
         const chaveBusca = t => normalizar(String(t ?? '').replace(/\s+\((?:Filme|Série|Jogo|Livro|(?:Filme|Série|Jogo|Livro), (?:19|20)\d{2}|(?:19|20)\d{2})\)$/, '')).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
         const ICONE_WEB = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>';
 
@@ -2057,7 +2371,7 @@
                 return `<li class="busca-opcao" role="option" id="busca-opcao-${i}" data-indice="${i}" aria-selected="false">
                     <span class="mini-capa">${imagemHTML(o, 'imagem', '')}</span>
                     <span class="busca-opcao-texto"><strong>${esc(o.titulo)}</strong>
-                        <small><span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(o.tipo || 'Obra')}</span>${n?.total ? `<span>${ICONES.estrela} ${fmtNota(n.media)}</span>` : ''}<span>No acervo</span></small></span>
+                        <small><span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(o.tipo || 'Obra')}</span>${n?.total ? `<span>${ICONES.estrela} ${fmtNota(n.media)}</span>` : ''}<span>No catálogo</span></small></span>
                 </li>`;
             }).join('') + (exata ? `
                 <li class="busca-opcao web" role="option" id="busca-opcao-${achadas.length}" data-indice="${achadas.length}" aria-selected="false">
@@ -2111,7 +2425,7 @@
             if (buscaHero.ocupado) return;
             if (!texto) { $('busca-hero-texto').focus(); return; }
             if (buscaHero.ativa >= 0 && !$('busca-hero-lista').hidden) { executarOpcao(buscaHero.opcoes[buscaHero.ativa]); return; }
-            // Enter sem escolher: se o título exato já está no acervo, abre; senão busca na web
+            // Enter sem escolher: se o título exato já está no catálogo, abre; senão busca na web
             const exata = sugestoesDoAcervo(texto).find(o => chaveBusca(o.titulo) === chaveBusca(texto));
             executarOpcao(exata ? { acao: 'abrir', titulo: exata.titulo } : { acao: 'web' });
         }
@@ -2150,7 +2464,7 @@
             buscaHero.ocupado = true;
             $('busca-hero-botao').disabled = true;
             const inicio = Date.now();
-            const mensagem = () => `<span class="girando" aria-hidden="true"></span><span>${extra.ignorarAcervo ? `Procurando “${esc(texto)}” em outras mídias na web…` : extra.tipo ? `Adicionando “${esc(texto)}” (${NOME_TIPO[extra.tipo] || ''}) e gerando o DNA criativo com a IA…` : `“${esc(texto)}” não está no acervo. Buscando na web e gerando o DNA criativo com a IA…`} <small>${Math.round((Date.now() - inicio) / 1000)} s</small></span>`;
+            const mensagem = () => `<span class="girando" aria-hidden="true"></span><span>${extra.ignorarAcervo ? `Procurando “${esc(texto)}” em outras mídias na web…` : extra.tipo ? `Adicionando “${esc(texto)}” (${NOME_TIPO[extra.tipo] || ''}) e gerando o DNA criativo com a IA…` : `“${esc(texto)}” não está no catálogo. Buscando na web e gerando o DNA criativo com a IA…`} <small>${Math.round((Date.now() - inicio) / 1000)} s</small></span>`;
             statusBusca(mensagem());
             const relogio = setInterval(() => statusBusca(mensagem()), 1000);
             try {
@@ -2178,11 +2492,11 @@
                 }
                 if (adicionada) {
                     await carregarCatalogo();
-                    if (!bv.ativo) toast(`“${obra.titulo}” foi adicionado ao acervo`);   // nas boas-vindas o cartão já avisa (e o toast cobriria o "Próximo")
-                    statusBusca(`Adicionado ao acervo: <strong>${esc(obra.titulo)}</strong> (${NOME_TIPO[tipoDe(obra)] || esc(obra.tipo)}).`, 'ok');
+                    if (!bv.ativo) toast(`“${obra.titulo}” foi adicionado ao catálogo`);   // nas boas-vindas o cartão já avisa (e o toast cobriria o "Próximo")
+                    statusBusca(`Adicionado ao catálogo: <strong>${esc(obra.titulo)}</strong> (${NOME_TIPO[tipoDe(obra)] || esc(obra.tipo)}).`, 'ok');
                 } else {
                     if (!porTitulo.has(obra.titulo)) porTitulo.set(obra.titulo, obra);
-                    statusBusca(`<strong>${esc(obra.titulo)}</strong> já estava no acervo.`, 'ok');
+                    statusBusca(`<strong>${esc(obra.titulo)}</strong> já estava no catálogo.`, 'ok');
                 }
                 if (bv.ativo) { bvAdicionada(obra); return; }
                 $('busca-hero-texto').value = '';
@@ -2202,7 +2516,7 @@
             buscaHero.opcoesMidia = opcoes;
             abrirDialogo(`
                 <h2 id="dialogo-titulo">${opcoes.length === 1 ? 'É esta a obra?' : `Qual “${esc(texto)}” você quer?`}</h2>
-                <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao acervo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no acervo.'}</p>
+                <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao catálogo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no catálogo.'}</p>
                 <div class="escolha-midia">${opcoes.map((o, i) => `
                     <button type="button" class="opcao-midia" data-escolher-midia="${i}">
                         ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(o.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
@@ -2211,7 +2525,7 @@
                             <b>${esc(o.titulo)}${o.ano ? ` <span class="opcao-ano">(${esc(o.ano)})</span>` : ''}</b>
                             ${o.detalhe ? `<small class="opcao-detalhe">${esc(o.detalhe)}</small>` : ''}
                             ${o.sinopse ? `<small>${esc(o.sinopse)}</small>` : ''}
-                            <em>${o.jaNoAcervo ? 'Já está no acervo: abrir' : 'Adicionar ao acervo'}</em>
+                            <em>${o.jaNoAcervo ? 'Já está no catálogo: abrir' : 'Adicionar ao catálogo'}</em>
                         </span>
                     </button>`).join('')}</div>
                 <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo(); statusBusca('')">${opcoes.length === 1 ? 'Não é esta' : 'Nenhum desses'}</button></div>`);
@@ -2229,7 +2543,7 @@
                 bvAdicionada(porTitulo.get(titulo) || { titulo, tipo: o.tipo });
             } else if (o.jaNoAcervo) {
                 if (!porTitulo.has(titulo)) await carregarCatalogo();
-                statusBusca(`<strong>${esc(titulo)}</strong> já estava no acervo.`, 'ok');
+                statusBusca(`<strong>${esc(titulo)}</strong> já estava no catálogo.`, 'ok');
                 $('busca-hero-texto').value = '';
                 abrirModal(titulo);
             } else {
@@ -2377,7 +2691,7 @@
                 grid.innerHTML = recs.length
                     ? recs.map(cardHTML).join('')
                     : midia
-                        ? vazioHTML(`Nenhum cruzamento com ${midia}`, `Ainda não há ${midia} no acervo com o mesmo DNA dos seus favoritos. Veja as outras mídias ou procure um título em “O que você quer ver hoje?”.`,
+                        ? vazioHTML(`Nenhum cruzamento com ${midia}`, `Ainda não há ${midia} no catálogo com o mesmo DNA dos seus favoritos. Veja as outras mídias ou procure um título em “O que você quer ver hoje?”.`,
                             `<button class="btn" onclick="filtrarParaVoce('')">Ver todas as mídias</button>`)
                         : vazioHTML('Nada novo por aqui', 'Você já favoritou ou viu tudo o que combina com o seu DNA. Procure novos títulos em “O que você quer ver hoje?” para ampliar as sugestões.');
             } catch (e) {
@@ -2421,7 +2735,7 @@
                         <span class="tipo ${tipo}">${NOME_TIPO[tipo] || esc(obra.tipo || 'Obra')}</span>
                         <div class="modal-titulo-linha"><h2 id="modal-titulo">${esc(obra.titulo)}</h2>${notaModalHTML(obra.titulo)}</div>
                         ${ehAdmin() ? `<p class="obra-autoria">${obra.adicionadaPor
-                            ? `Adicionada ao acervo por <b>${esc(obra.adicionadaPor)}</b> · <time datetime="${esc(obra.adicionadaEm || '')}" title="${esc(dataHora(obra.adicionadaEm))}">${esc(tempoRelativo(obra.adicionadaEm))}</time>`
+                            ? `${obra.adicionadaPor === 'sistema' ? 'Adicionada automaticamente (Top 15 ou livros em alta)' : `Adicionada ao catálogo por <b>${esc(obra.adicionadaPor)}</b>`} · <time datetime="${esc(obra.adicionadaEm || '')}" title="${esc(dataHora(obra.adicionadaEm))}">${esc(tempoRelativo(obra.adicionadaEm))}</time>`
                             : 'Adicionada antes do histórico (autor desconhecido)'}</p>` : ''}
                         <div class="tags">
                             ${tags.length ? tags.map(t => `<button class="tag" data-filtrar-tag="${esc(t)}" title="Ver todas com esta tag">${esc(t)}</button>`).join('') : '<span class="tag vazia">Ainda sem tags</span>'}
@@ -2548,7 +2862,7 @@
             }
         });
 
-        // ================= FILTROS / ACERVO (administração) =================
+        // ================= FILTROS / CATÁLOGO (administração) =================
         function abrirDrawer() {
             $('drawer').classList.add('aberto'); $('drawer-fundo').classList.add('aberto');
             setTimeout(() => $('filtro-dna-incluir').focus(), 300);
@@ -2575,7 +2889,7 @@
                 const texto = await resposta.text();
                 const obra = texto ? JSON.parse(texto) : null;
                 if (resposta.ok && obra) {
-                    status('status-manual', `"${obra.titulo}" adicionado ao acervo.`, 'ok');
+                    status('status-manual', `"${obra.titulo}" adicionado ao catálogo.`, 'ok');
                     $('input-manual-nome').value = '';
                     await carregarCatalogo();
                 } else {
@@ -3763,7 +4077,7 @@
                             `<li class="${i < bv.etapa ? 'feito' : i === bv.etapa ? 'atual' : ''}"${i === bv.etapa ? ' aria-current="step"' : ''}>${x.nome}</li>`).join('')}</ol>
                         <p class="bv-ola">Bem-vindo(a), ${esc(sessao?.usuario || '')}!</p>
                         <h2 id="bv-titulo">${e.titulo}</h2>
-                        <p class="bv-sub">Elas viram seus favoritos e montam o seu “Para você”. Não achou? Procure pelo nome: se não estiver no acervo, buscamos na web.</p>
+                        <p class="bv-sub">Elas viram seus favoritos e montam o seu “Para você”. Não achou? Procure pelo nome: se não estiver no catálogo, buscamos na web.</p>
                     </header>
                     <label class="search bv-busca">${ICONES.busca}<input id="bv-busca" type="search" placeholder="Procurar ${e.nome}..." autocomplete="off" aria-label="Procurar ${e.nome}"></label>
                     <div class="bv-grade" id="bv-grade"></div>
@@ -3798,11 +4112,11 @@
                 </button>`;
             }).join('');
             const web = bv.busca.trim() && !bv.adicionando
-                ? `<button type="button" class="bv-web" data-bv-web>${ICONE_WEB}<span>${lista.length ? 'Não é nenhum desses?' : `Não temos “${esc(bv.busca.trim())}” no acervo.`} Procurar na web</span></button>`
+                ? `<button type="button" class="bv-web" data-bv-web>${ICONE_WEB}<span>${lista.length ? 'Não é nenhum desses?' : `Não temos “${esc(bv.busca.trim())}” no catálogo.`} Procurar na web</span></button>`
                 : '';
             $('bv-grade').innerHTML = (bv.adicionando ? cartaoAdicionandoBv() : '') + (itens || web || bv.adicionando
                 ? itens + web
-                : `<p class="bv-vazio">Ainda não há ${e.nome} no acervo. Procure um título acima para adicionar.</p>`);
+                : `<p class="bv-vazio">Ainda não há ${e.nome} no catálogo. Procure um título acima para adicionar.</p>`);
             atualizarSelecaoBv();
         }
 
@@ -3866,7 +4180,7 @@
             if (bv.ativo) renderizarGradeBv();
         }
 
-        // Obra encontrada na web (ou que já estava no acervo) durante as boas-vindas: já entra escolhida
+        // Obra encontrada na web (ou que já estava no catálogo) durante as boas-vindas: já entra escolhida
         function bvAdicionada(obra) {
             const e = ETAPAS_BV[bv.etapa];
             clearInterval(bv.relogio);
@@ -4118,7 +4432,7 @@
             if (!$('aba-listas').hidden) renderizarListas();
             if (!$('aba-paravoce').hidden) gerarRecomendacoes();
             if (!$('aba-perfil').hidden && perfilUsuario) carregarPerfil(perfilUsuario, perfilAba);
-            toast(`"${titulo}" foi excluído do acervo`);
+            toast(`"${titulo}" foi excluído do catálogo`);
         }
 
         $('modal').addEventListener('click', e => {

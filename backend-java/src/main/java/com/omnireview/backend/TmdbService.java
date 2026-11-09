@@ -202,6 +202,32 @@ public class TmdbService {
             "Returning Series", "Em andamento", "Ended", "Finalizada", "Canceled", "Cancelada",
             "In Production", "Em produção", "Planned", "Anunciada", "Pilot", "Piloto");
 
+    /** Em alta na semana no TMDB (até {@code maximo}): {ref ("tmdb:movie:ID"), título em português}, na ordem do ranking. */
+    @SuppressWarnings("unchecked")
+    public List<String[]> emAlta(String tipoTmdb, int maximo) {
+        List<String[]> lista = new ArrayList<>();
+        if (apiKey == null || apiKey.isBlank()) return lista;
+        String campoTitulo = tipoTmdb.equals("tv") ? "name" : "title";
+        for (int pagina = 1; pagina <= 3 && lista.size() < maximo; pagina++) {
+            try {
+                Map<String, Object> resposta = carteiro.getForObject(ClienteHttp.uri(BASE + "/trending/" + tipoTmdb + "/week",
+                        Map.of("api_key", apiKey, "language", "pt-BR", "page", pagina)), Map.class);
+                List<Map<String, Object>> resultados = resposta == null ? null : (List<Map<String, Object>>) resposta.get("results");
+                if (resultados == null) break;
+                for (Map<String, Object> item : resultados) {
+                    if (lista.size() >= maximo) break;
+                    if (item.get("id") != null && item.get(campoTitulo) instanceof String t && !t.isBlank()) {
+                        lista.add(new String[]{"tmdb:" + tipoTmdb + ":" + item.get("id"), t});
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("TMDB: falha ao buscar o que está em alta: " + e.getMessage());
+                break;
+            }
+        }
+        return lista;
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> tendencias(String tipoTmdb, String campoTitulo) {
         Set<String> titulos = new LinkedHashSet<>();

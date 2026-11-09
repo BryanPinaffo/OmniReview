@@ -32,6 +32,7 @@ public class AutenticacaoService {
     static final int MAX_TENTATIVAS = 5;
     static final Duration BLOQUEIO = Duration.ofMinutes(15);
     static final Pattern FORMATO_USUARIO = Pattern.compile("[a-z0-9._-]{3,30}");
+    static final java.util.Set<String> USUARIOS_RESERVADOS = java.util.Set.of("sistema");
     static final int MIN_SENHA = 8;
     static final int MAX_SENHA = 128;
     // Trava geral por usuário (somando todos os endereços): impede força bruta distribuída sem deixar
@@ -102,7 +103,8 @@ public class AutenticacaoService {
             return Resultado.falha(400, "Essa senha é muito comum e fácil de adivinhar. Escolha outra.");
         }
         synchronized (this) {
-            if (usuarios.existsById(usuario)) {
+            // "sistema" assina o que o servidor faz sozinho (Top 15, livros iniciais) no histórico: ninguém pode usar
+            if (usuarios.existsById(usuario) || USUARIOS_RESERVADOS.contains(usuario)) {
                 return Resultado.falha(409, "Este nome de usuário já está em uso.");
             }
             Usuario novo = new Usuario(usuario, Senhas.gerarHash(senha), Instant.now(relogio).toString(), Usuario.COMUM);

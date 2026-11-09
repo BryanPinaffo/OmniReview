@@ -57,20 +57,52 @@ public class RecomendacaoController {
     }
 
     /**
+     * A obra deste item da web no catálogo, adicionando-a se ainda não estiver (usado pelo Top 15 automático).
+     * Procura pelo identificador da fonte; obras antigas (sem fonte) com o mesmo título e mídia contam como a mesma
+     * e passam a guardar a fonte. Com ref, busca exatamente aquele item; sem ref, pelo nome.
+     */
+    public Optional<Obra> garantirNoCatalogo(String ref, String nome, String tipo, String usuario, String origem) {
+        if (ref != null) {
+            Optional<Obra> ja = repository.findFirstByFonte(ref);
+            if (ja.isPresent()) return ja;
+        }
+        String[] dados = ref != null ? dadosPorRef(ref) : buscarDados(nome, tipo);
+        if (dados == null || campo(dados, 0) == null) return Optional.empty();
+        String fonte = campo(dados, 5);
+        if (fonte != null) {
+            Optional<Obra> ja = repository.findFirstByFonte(fonte);
+            if (ja.isPresent()) return ja;
+        }
+        // Livro com o mesmo título (em português ou o original) é o mesmo livro, mesmo vindo de outra fonte
+        // (Google Books x Open Library); filmes e séries com o mesmo nome podem ser obras diferentes (remakes)
+        boolean livro = "Livro".equals(tipo);
+        Optional<Obra> antiga = mesmaObraNoAcervo(dados[0], tipo)
+                .or(() -> livro && nome != null ? mesmaObraNoAcervo(nome, tipo) : Optional.empty())
+                .filter(o -> o.getFonte() == null || livro);
+        if (antiga.isPresent()) {
+            if (fonte != null && antiga.get().getFonte() == null) {
+                antiga.get().setFonte(fonte);
+                repository.save(antiga.get());
+            }
+            return antiga;
+        }
+        return Optional.of(classificarESalvar(dados, tipo, usuario, origem, true));
+    }
+
+    /**
      * Importa até {@code limite} livros em alta (Open Library) que ainda não estão no acervo. Usado na primeira
      * inicialização com livros (ver {@link LivrosIniciais}); devolve quantos livros entraram.
      */
     public int importarLivrosEmAlta(String usuario, String origem, int limite) {
         int novos = 0;
-        for (String nome : livroService.buscarTendencias()) {
+        for (String[] item : livroService.emAltaComRef(Math.max(limite, LivroService.MAX_TENDENCIAS) * 2)) {
             if (novos >= limite) break;
             try {
-                String[] dados = buscarDados(nome, "Livro");
-                if (dados == null || campo(dados, 0) == null || mesmaObraNoAcervo(dados[0], "Livro").isPresent()) continue;
-                classificarESalvar(dados, "Livro", usuario, origem);
-                novos++;
+                long antes = repository.count();
+                garantirNoCatalogo(item[0], item[1], "Livro", usuario, origem);
+                if (repository.count() > antes) novos++;
             } catch (Exception e) {
-                System.out.println("Livros em alta: falha em '" + nome + "': " + e.getMessage());
+                System.out.println("Livros em alta: falha em '" + item[1] + "': " + e.getMessage());
             }
         }
         return novos;
@@ -96,7 +128,7 @@ public class RecomendacaoController {
      *                         entra como obra nova, com título próprio se o nome já estiver em uso ("Duna (1984)").
      */
     private Obra classificarESalvar(String[] dadosDaWeb, String tipo, String usuario, String origem, boolean escolhaExplicita) {
-        String[] dados = "Livro".equals(tipo) ? livroService.emPortugues(dadosDaWeb) : dadosDaWeb.clone();
+        String[] dados = comSinopseEmPortugues(dadosDaWeb);
         String fonte = campo(dados, 5);
         Optional<Obra> mesmaFonte = fonte == null ? Optional.empty() : repository.findFirstByFonte(fonte);
         if (mesmaFonte.isPresent()) dados[0] = mesmaFonte.get().getTitulo();
@@ -419,16 +451,29 @@ public class RecomendacaoController {
             System.out.println("DNA refeito: " + obra.getTitulo() + " -> " + obra.getDnaCriativo());
         }
         historico.registrar(usuario(req), "obra", "refez as tags com a IA de", atualizadas.size() + (atualizadas.size() == 1 ? " obra" : " obras"),
-                null, todas ? "todo o acervo" : "só as que tinham falhado");
+                null, todas ? "todo o catálogo" : "só as que tinham falhado");
         return atualizadas;
     }
 
     /** Preenche sinopse e imagens que estiverem faltando, sem chamar a IA. */
+    /** Traduções por chamada da manutenção (cada uma leva alguns segundos na IA); o resto fica para a próxima. */
+    static final int MAX_TRADUCOES_POR_VEZ = 15;
+
     @PostMapping("/completar-detalhes")
     public List<Obra> completarDetalhes(HttpServletRequest req) {
         List<Obra> atualizadas = new ArrayList<>();
+        int traducoes = 0;
         for (Obra obra : repository.findAll()) {
             if (temSinopse(obra.getSinopse()) && obra.getImagem() != null) {
+                // Já completa: só traduz a sinopse, se tiver ficado em inglês (obras de antes da tradução automática)
+                if (traducoes < MAX_TRADUCOES_POR_VEZ && IaService.pareceIngles(obra.getSinopse())) {
+                    traducoes++;
+                    String traduzida = iaService.traduzirParaPortugues(obra.getSinopse());
+                    if (!traduzida.equals(obra.getSinopse())) {
+                        obra.setSinopse(traduzida);
+                        atualizadas.add(repository.save(obra));
+                    }
+                }
                 continue;
             }
             String[] dados = dadosParaSalvar(obra.getTitulo(), obra.getTipo());
@@ -438,7 +483,7 @@ public class RecomendacaoController {
             }
         }
         if (!atualizadas.isEmpty()) {
-            historico.registrar(usuario(req), "obra", "completou sinopses e capas de",
+            historico.registrar(usuario(req), "obra", "completou ou traduziu sinopses e capas de",
                     atualizadas.size() + (atualizadas.size() == 1 ? " obra" : " obras"), null, null);
         }
         return atualizadas;
@@ -541,10 +586,20 @@ public class RecomendacaoController {
         return req == null ? null : (String) req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_USUARIO);
     }
 
-    /** Como {@link #buscarDados}, mas com a sinopse de livro já traduzida (para gravar no acervo). */
+    /** Como {@link #buscarDados}, mas com a sinopse já em português (para gravar no catálogo). */
     private String[] dadosParaSalvar(String nome, String tipo) {
-        String[] dados = buscarDados(nome, tipo);
-        return "Livro".equals(tipo) ? livroService.emPortugues(dados) : dados;
+        return comSinopseEmPortugues(buscarDados(nome, tipo));
+    }
+
+    /**
+     * Cópia dos dados com a sinopse traduzida pelo Ollama quando vem em inglês: livros do Open Library e jogos da
+     * Steam/RAWG sem descrição em português (ex.: Geometry Dash). Se a IA falhar, fica a original.
+     */
+    private String[] comSinopseEmPortugues(String[] dados) {
+        if (dados == null) return null;
+        String[] copia = dados.clone();
+        if (copia.length > 1 && copia[1] != null) copia[1] = iaService.traduzirParaPortugues(copia[1]);
+        return copia;
     }
 
     private Obra salvar(Obra obra) {

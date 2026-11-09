@@ -60,6 +60,7 @@ class AutenticacaoServiceTest {
         assertEquals(400, auth.cadastrar("joaozinho", "JOAOZINHO").status());
         assertTrue(auth.cadastrar("joao", "senha-forte-123").ok());
         assertEquals(409, auth.cadastrar("JOAO", "outra-senha-456").status());
+        assertEquals(409, auth.cadastrar("Sistema", "senha-forte-123").status());   // reservado: assina o Top 15 automático
     }
 
     @Test

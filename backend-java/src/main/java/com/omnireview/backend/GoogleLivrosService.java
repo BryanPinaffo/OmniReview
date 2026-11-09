@@ -55,7 +55,7 @@ public class GoogleLivrosService {
             if (!vistos.add(Provedores.normalizar(titulo) + "|" + Provedores.normalizar(autor))) continue;
             Map<String, Object> c = new LinkedHashMap<>();
             c.put("ref", "gb:" + id);
-            c.put("titulo", titulo.strip());
+            c.put("titulo", LivroService.arrumarCaixa(titulo.strip()));
             String ano = ano(v);
             if (ano != null) c.put("ano", ano);
             c.put("imagem", capa(v));
@@ -169,7 +169,7 @@ public class GoogleLivrosService {
         if (v.get("categories") instanceof List<?> cats)
             for (Object c : cats) partes.addAll(Arrays.asList(String.valueOf(c).split("\\s*/\\s*")));
         String capa = capa(v);
-        return new String[]{titulo.strip(), limparHtml((String) v.get("description")), LivroService.generosParaTaxonomia(partes),
+        return new String[]{LivroService.arrumarCaixa(titulo.strip()), limparHtml((String) v.get("description")), LivroService.generosParaTaxonomia(partes),
                 capa, capa, "gb:" + item.get("id"), ano(v)};
     }
 

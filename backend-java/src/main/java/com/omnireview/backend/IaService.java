@@ -236,13 +236,22 @@ public class IaService {
         }
     }
 
-    /** Heurística simples: muitas palavras comuns do inglês e poucas do português. */
+    private static final String[] PALAVRAS_EN = {" the ", " and ", " of ", " is ", " with ", " his ", " her ", " to ", " in ",
+            " your ", " you ", " this ", " that ", " for ", " from ", " are ", " these ", " it ", " on ", " by "};
+    private static final String[] PALAVRAS_PT = {" o ", " e ", " de ", " que ", " um ", " uma ", " com ", " não ", " para ", " seu ",
+            " os ", " do ", " da ", " em ", " no ", " na ", " se ", " por ", " é ", " dos "};
+
+    /**
+     * Heurística simples: várias palavras comuns do inglês e menos do português. Funciona também com sinopses de uma
+     * frase só (ex.: "Jump and fly your way through danger in this rhythm-based action platformer!") e não confunde
+     * texto em português com nome em inglês ("A experiência Call of Duty é compatível com...").
+     */
     static boolean pareceIngles(String texto) {
         String t = " " + texto.toLowerCase(Locale.ROOT).replaceAll("[^a-zà-ú ]", " ") + " ";
         int en = 0, pt = 0;
-        for (String w : new String[]{" the ", " and ", " of ", " is ", " with ", " his ", " her ", " to ", " in ", " a "}) if (t.contains(w)) en++;
-        for (String w : new String[]{" o ", " e ", " de ", " que ", " um ", " uma ", " com ", " não ", " para ", " seu "}) if (t.contains(w)) pt++;
-        return en >= 4 && en > pt;
+        for (String w : PALAVRAS_EN) if (t.contains(w)) en++;
+        for (String w : PALAVRAS_PT) if (t.contains(w)) pt++;
+        return en >= 3 && en > pt;
     }
 
     /**

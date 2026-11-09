@@ -43,11 +43,9 @@ public class LivroService {
     }
 
     private final RestTemplate carteiro;
-    private final IaService ia;
     private final GoogleLivrosService google;
 
-    public LivroService(IaService ia, GoogleLivrosService google) {
-        this.ia = ia;
+    public LivroService(GoogleLivrosService google) {
         this.google = google;
         this.carteiro = ClienteHttp.criar(6_000, 15_000);
         // O Open Library pede um User-Agent que identifique a aplicação
@@ -59,7 +57,7 @@ public class LivroService {
 
     /**
      * Retorna {titulo, sinopse, generos, capa, capa} ou null se nada for encontrado.
-     * A sinopse vem como está (às vezes em inglês): quem for salvar o livro chama {@link #emPortugues(String[])}.
+     * A sinopse vem como está (às vezes em inglês): quem salva a obra traduz (RecomendacaoController).
      */
     public String[] buscarLivroNaInternet(String nome) {
         String[] doGoogle = google.buscar(nome);
@@ -130,14 +128,6 @@ public class LivroService {
         }
     }
 
-    /** Traduz a sinopse dos dados de um livro para o português (com o Ollama), se estiver em inglês. */
-    public String[] emPortugues(String[] dados) {
-        if (dados == null || dados.length < 2 || dados[1] == null) return dados;
-        String[] copia = dados.clone();
-        copia[1] = ia.traduzirParaPortugues(dados[1]);
-        return copia;
-    }
-
     /** Ficha do livro (fonte de onde a obra veio): autores, ano, páginas, tempo de leitura e onde ler/comprar. */
     public Map<String, Object> ficha(Obra obra) {
         String fonte = obra.getFonte();
@@ -180,23 +170,73 @@ public class LivroService {
     }
 
     /** Livros em alta na semana (Open Library), com capa e autor; no máximo {@link #MAX_TENDENCIAS}. */
-    @SuppressWarnings("unchecked")
     public List<String> buscarTendencias() {
-        Set<String> titulos = new LinkedHashSet<>();
+        return emAlta(MAX_TENDENCIAS);
+    }
+
+    /** Títulos (originais) dos livros em alta na semana, na ordem do ranking; até {@code maximo}. */
+    public List<String> emAlta(int maximo) {
+        return emAltaComRef(maximo).stream().map(item -> item[1]).toList();
+    }
+
+    static final int MIN_EDICOES_EM_ALTA = 5;
+
+    /**
+     * Livros em alta na semana no Open Library: {ref ("ol:/works/OL...W"), título original}, na ordem do ranking.
+     * Pela chave da obra, o livro entra com o título e a capa da edição em português ("Atomic Habits" vira
+     * "Hábitos Atômicos"). O ranking semanal mistura edições avulsas e livros sem tradução (ex.: "Esquire's The New
+     * Rules for Men"), então só entram obras com edição em português, capa, autor e pelo menos 5 edições.
+     */
+    @SuppressWarnings("unchecked")
+    public List<String[]> emAltaComRef(int maximo) {
+        List<String[]> lista = new ArrayList<>();
+        Set<String> chaves = new HashSet<>();
         try {
-            Map<String, Object> r = carteiro.getForObject(java.net.URI.create(BASE + "/trending/weekly.json?limit=60"), Map.class);
+            Map<String, Object> r = carteiro.getForObject(java.net.URI.create(BASE + "/trending/weekly.json?limit=100"), Map.class);
             if (r != null && r.get("works") instanceof List<?> obras) {
                 for (Object o : obras) {
-                    if (!(o instanceof Map<?, ?> w) || !(w.get("title") instanceof String t)) continue;
-                    boolean temCapa = w.get("cover_i") != null;
-                    boolean temAutor = w.get("author_name") instanceof List<?> a && !a.isEmpty();
-                    if (temCapa && temAutor && t.length() <= 80 && titulos.size() < MAX_TENDENCIAS) titulos.add(t);
+                    if (lista.size() >= maximo) break;
+                    if (o instanceof Map<?, ?> w && serveParaEmAlta(w) && chaves.add((String) w.get("key"))) {
+                        lista.add(new String[]{"ol:" + w.get("key"), ((String) w.get("title")).strip()});
+                    }
                 }
             }
         } catch (Exception e) {
             System.out.println("Open Library: falha ao buscar tendências: " + e.getMessage());
         }
-        return new ArrayList<>(titulos);
+        return lista;
+    }
+
+    static boolean serveParaEmAlta(Map<?, ?> w) {
+        return w.get("key") instanceof String k && k.matches("/works/OL[0-9]{1,12}W")
+                && w.get("title") instanceof String t && !t.isBlank() && t.length() <= 80
+                && w.get("cover_i") != null
+                && w.get("author_name") instanceof List<?> autores && !autores.isEmpty()
+                && w.get("language") instanceof List<?> idiomas && idiomas.contains("por")
+                && w.get("edition_count") instanceof Number n && n.intValue() >= MIN_EDICOES_EM_ALTA;
+    }
+
+    private static final Set<String> MINUSCULAS = Set.of("a", "o", "as", "os", "e", "de", "da", "do", "das", "dos", "em",
+            "no", "na", "nos", "nas", "um", "uma", "para", "por", "com", "ao", "à", "the", "of", "and", "to", "in");
+
+    /** Título todo em maiúsculas ("O ALQUIMISTA", comum em edições cadastradas por livrarias) vira "O Alquimista". */
+    static String arrumarCaixa(String titulo) {
+        if (titulo == null) return null;
+        String letras = titulo.replaceAll("[^\\p{L}]", "");
+        Locale pt = Locale.forLanguageTag("pt-BR");
+        if (letras.length() < 4 || !letras.equals(letras.toUpperCase(pt)) || letras.equals(letras.toLowerCase(pt))) return titulo;
+        String[] palavras = titulo.toLowerCase(pt).split(" ");
+        for (int i = 0; i < palavras.length; i++) {
+            String p = palavras[i];
+            // depois de "-", ":" ou "." começa um subtítulo: "Em Chamas - Os Jogos da Fome"
+            boolean comeco = i == 0 || palavras[i - 1].matches("[-–—]|.*[:.]");
+            if (p.isEmpty() || (!comeco && MINUSCULAS.contains(p))) continue;
+            if (i > 0 && p.matches("(?=[ivx])x{0,3}(ix|iv|v?i{0,3})[.,:;]?")) { palavras[i] = p.toUpperCase(pt); continue; }   // numeral romano: "Livro II"
+            int j = 0;
+            while (j < p.length() && !Character.isLetter(p.charAt(j))) j++;
+            if (j < p.length()) palavras[i] = p.substring(0, j) + Character.toUpperCase(p.charAt(j)) + p.substring(j + 1);
+        }
+        return String.join(" ", palavras);
     }
 
     // ---------------- auxiliares ----------------
@@ -259,7 +299,7 @@ public class LivroService {
 
     static String tituloEmPortugues(Map<String, Object> doc) {
         Map<?, ?> e = edicaoPt(doc);
-        return e != null && e.get("title") instanceof String t && !t.isBlank() ? t.strip() : (String) doc.get("title");
+        return arrumarCaixa(e != null && e.get("title") instanceof String t && !t.isBlank() ? t.strip() : (String) doc.get("title"));
     }
 
     private static String capa(Map<String, Object> doc) {

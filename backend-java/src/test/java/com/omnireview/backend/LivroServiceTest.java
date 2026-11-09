@@ -84,5 +84,49 @@ class LivroServiceTest {
     void detectaSinopseEmIngles() {
         assertTrue(IaService.pareceIngles("The boy discovers he is a wizard and is invited to study at a school of magic with his friends."));
         assertFalse(IaService.pareceIngles("O menino descobre que é um bruxo e é convidado para estudar em uma escola de magia com seus amigos."));
+        // descrição de jogo da Steam sem versão em português (agora também é traduzida)
+        assertTrue(IaService.pareceIngles("Jump and fly your way through danger in this rhythm-based action platformer! Prepare for a near "
+                + "impossible challenge in the world of Geometry Dash. Push your skills to the limit as you jump, fly and flip your way "
+                + "through dangerous passages and spiky obstacles."));
+        assertFalse(IaService.pareceIngles("Cyberpunk 2077 é um RPG de ação e aventura em mundo aberto que se passa em Night City, "
+                + "uma megalópole obcecada por poder, glamour e modificações corporais."));
+        // sinopses de uma frase só
+        assertTrue(IaService.pareceIngles("Jump and fly your way through danger in this rhythm-based action platformer!"));
+        assertTrue(IaService.pareceIngles("Times change. Technology changes. And so THE RULES must be updated. From work to style, "
+                + "these are the things successful men need to know."));
+        // português com nome em inglês continua português
+        assertFalse(IaService.pareceIngles("A experiência Call of Duty é compatível com Modern Warfare 4, Black Ops 7 e Warzone."));
+        assertFalse(IaService.pareceIngles("Em The Last of Us, Joel e Ellie atravessam um país destruído por uma pandemia."));
+        assertFalse(IaService.pareceIngles("Deadlock é um jogo multijogador em fase inicial de desenvolvimento."));
+    }
+
+    @Test
+    void tituloTodoEmMaiusculasViraTituloNormal() {
+        assertEquals("O Alquimista", LivroService.arrumarCaixa("O ALQUIMISTA"));
+        assertEquals("Em Chamas - Os Jogos da Fome - Livro II", LivroService.arrumarCaixa("EM CHAMAS - OS JOGOS DA FOME - LIVRO II"));
+        assertEquals("A Revolução Civil", LivroService.arrumarCaixa("A REVOLUÇÃO CIVIL"));
+        assertEquals("Hábitos Atômicos", LivroService.arrumarCaixa("Hábitos Atômicos"));   // já normal: não mexe
+        assertEquals("1984", LivroService.arrumarCaixa("1984"));
+        assertEquals("IT", LivroService.arrumarCaixa("IT"));                             // curto demais para saber
+        assertEquals("嫌われる勇気", LivroService.arrumarCaixa("嫌われる勇気"));
+    }
+
+    @Test
+    void topDeLivrosSoAceitaObraComEdicaoEmPortuguesEVariasEdicoes() {
+        Map<String, Object> bom = Map.of("key", "/works/OL17930368W", "title", "Atomic Habits", "cover_i", 1,
+                "author_name", List.of("James Clear"), "language", List.of("eng", "por"), "edition_count", 42);
+        assertTrue(LivroService.serveParaEmAlta(bom));
+
+        Map<String, Object> semTraducao = new java.util.HashMap<>(bom);
+        semTraducao.put("language", List.of("eng"));
+        assertFalse(LivroService.serveParaEmAlta(semTraducao));
+
+        Map<String, Object> edicaoAvulsa = new java.util.HashMap<>(bom);   // ex.: "Esquire's The New Rules for Men"
+        edicaoAvulsa.put("edition_count", 1);
+        assertFalse(LivroService.serveParaEmAlta(edicaoAvulsa));
+
+        Map<String, Object> semCapa = new java.util.HashMap<>(bom);
+        semCapa.remove("cover_i");
+        assertFalse(LivroService.serveParaEmAlta(semCapa));
     }
 }
