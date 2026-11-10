@@ -211,16 +211,32 @@ public class IaService {
      * Em qualquer falha devolve o texto original (a sinopse em inglês é melhor do que nenhuma).
      */
     public String traduzirParaPortugues(String texto) {
+        return traduzirParaPortugues(texto, null);
+    }
+
+    /**
+     * Como {@link #traduzirParaPortugues(String)}, protegendo o título da obra: mesmo pedindo para manter nomes
+     * próprios, o modelo pequeno traduzia "The Legend of Zelda: Breath of the Wild" para "A Legenda de Zelda: Alívio
+     * do Fogo". O título vai no pedido e, no texto, vira um marcador (OBRA1X) que volta a ser o título depois.
+     */
+    public String traduzirParaPortugues(String texto, String titulo) {
         if (texto == null || texto.isBlank() || !pareceIngles(texto)) return texto;
+        String nome = titulo == null ? null : RecomendacaoController.semSufixoDeMidia(titulo).strip();
+        if (nome != null && nome.length() < 3) nome = null;
         try {
             Map<String, Object> opcoes = new HashMap<>();
             opcoes.put("temperature", 0);
             opcoes.put("seed", 42);
             opcoes.put("num_predict", 700);
+            Map<String, String> trocas = new LinkedHashMap<>();
+            String protegido = protegerTitulo(limitar(texto, 1800), nome, trocas);
             Map<String, Object> corpo = new HashMap<>();
             corpo.put("model", modelo);
             corpo.put("prompt", "Traduza a sinopse abaixo para o português do Brasil, de forma natural e fiel. " +
-                    "Mantenha nomes próprios. Responda somente com a tradução, sem comentários.\n\n" + limitar(texto, 1800));
+                    "Não traduza nomes próprios: títulos de jogos, filmes, séries e livros, personagens e lugares ficam " +
+                    "exatamente como no original. " +
+                    (nome != null ? "O título desta obra é “" + nome + "”: escreva-o igual, sem traduzir. " : "") +
+                    "Responda somente com a tradução, sem comentários.\n\n" + protegido);
             corpo.put("stream", false);
             corpo.put("options", opcoes);
             HttpHeaders headers = new HttpHeaders();
@@ -229,11 +245,42 @@ public class IaService {
             Map<String, Object> resposta = carteiro.postForObject(urlGerar, new HttpEntity<>(corpo, headers), Map.class);
             String traducao = resposta == null ? null : (String) resposta.get("response");
             if (traducao == null || traducao.isBlank() || traducao.length() < texto.length() / 3) return texto;
-            return traducao.strip().replaceAll("^(?i)(tradução|sinopse)\\s*:\\s*", "");
+            return restaurarTitulo(traducao.strip().replaceAll("^(?i)(tradução|sinopse)\\s*:\\s*", ""), trocas);
         } catch (Exception e) {
             System.out.println("Ollama: não foi possível traduzir a sinopse (" + e.getMessage() + ")");
             return texto;
         }
+    }
+
+    /**
+     * Troca no texto o título (e o subtítulo depois dos dois-pontos, se tiver 6 letras ou mais: "Breath of the Wild")
+     * por marcadores que o modelo não traduz; {@code trocas} guarda marcador -> nome.
+     */
+    static String protegerTitulo(String texto, String titulo, Map<String, String> trocas) {
+        if (titulo == null || titulo.isBlank()) return texto;
+        List<String> nomes = new ArrayList<>(List.of(titulo.strip()));
+        int doisPontos = titulo.indexOf(':');
+        if (doisPontos > 0 && titulo.substring(doisPontos + 1).strip().length() >= 6) nomes.add(titulo.substring(doisPontos + 1).strip());
+        String t = texto;
+        for (int i = 0; i < nomes.size(); i++) {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(nomes.get(i)),
+                    java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.UNICODE_CASE);
+            if (!p.matcher(t).find()) continue;
+            String marca = "OBRA" + (i + 1) + "X";
+            t = p.matcher(t).replaceAll(marca);
+            trocas.put(marca, nomes.get(i));
+        }
+        return t;
+    }
+
+    /** Volta os marcadores para o título (também se o modelo comer o "X" final: "OBRA1"). */
+    static String restaurarTitulo(String traducao, Map<String, String> trocas) {
+        String t = traducao;
+        for (Map.Entry<String, String> e : trocas.entrySet()) {
+            String numero = e.getKey().substring(4, e.getKey().length() - 1);
+            t = t.replaceAll("\\bOBRA" + numero + "X?\\b", java.util.regex.Matcher.quoteReplacement(e.getValue()));
+        }
+        return t;
     }
 
     private static final String[] PALAVRAS_EN = {" the ", " and ", " of ", " is ", " with ", " his ", " her ", " to ", " in ",

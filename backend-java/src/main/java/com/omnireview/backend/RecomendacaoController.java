@@ -502,7 +502,7 @@ public class RecomendacaoController {
                 // Já completa: só traduz a sinopse, se tiver ficado em inglês (obras de antes da tradução automática)
                 if (traducoes < MAX_TRADUCOES_POR_VEZ && IaService.pareceIngles(obra.getSinopse())) {
                     traducoes++;
-                    String traduzida = iaService.traduzirParaPortugues(obra.getSinopse());
+                    String traduzida = iaService.traduzirParaPortugues(obra.getSinopse(), obra.getTitulo());
                     if (!traduzida.equals(obra.getSinopse())) {
                         obra.setSinopse(traduzida);
                         atualizadas.add(repository.save(obra));
@@ -632,7 +632,7 @@ public class RecomendacaoController {
     private String[] comSinopseEmPortugues(String[] dados) {
         if (dados == null) return null;
         String[] copia = dados.clone();
-        if (copia.length > 1 && copia[1] != null) copia[1] = iaService.traduzirParaPortugues(copia[1]);
+        if (copia.length > 1 && copia[1] != null) copia[1] = iaService.traduzirParaPortugues(copia[1], copia[0]);   // o título não é traduzido
         return copia;
     }
 

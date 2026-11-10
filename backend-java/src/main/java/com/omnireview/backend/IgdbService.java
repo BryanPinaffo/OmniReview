@@ -565,9 +565,18 @@ public class IgdbService {
         h.setBearerAuth(acesso);
         h.setAccept(List.of(MediaType.APPLICATION_JSON));
         h.setContentType(MediaType.TEXT_PLAIN);
-        aguardarVez();
+        HttpEntity<String> pedido = new HttpEntity<>(corpo, h);
         try {
-            Object r = carteiro.postForObject(API + endpoint, new HttpEntity<>(corpo, h), Object.class);
+            Object r;
+            try {
+                aguardarVez();
+                r = carteiro.postForObject(API + endpoint, pedido, Object.class);
+            } catch (org.springframework.web.client.ResourceAccessException lento) {
+                // Rede ou tempo esgotado: tenta mais uma vez antes de dar o IGDB por fora do ar (uma resposta lenta
+                // isolada tirava os jogos de console da busca por 10 minutos)
+                aguardarVez();
+                r = carteiro.postForObject(API + endpoint, pedido, Object.class);
+            }
             return r instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
         } catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
             token = null;   // token revogado/vencido antes da hora: pede outro na próxima
