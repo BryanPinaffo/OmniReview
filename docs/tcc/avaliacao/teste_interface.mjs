@@ -69,6 +69,8 @@ const aguardar = async (expr, ms = 15000) => {
 await cdp('Runtime.enable');
 await cdp('Log.enable');
 await cdp('Page.enable');
+// Fecha a obra como o X da janela (volta no histórico do navegador) e espera o navegador terminar de voltar
+const fecharObra = async () => { await avaliar('fecharModal(true)'); await esperar(200); };
 const casos = [];
 const caso = (id, descricao, ok, detalhe = '') => { casos.push({ id, descricao, ok, detalhe }); console.log(`${ok ? 'OK  ' : 'FALHA'} ${id} ${descricao} ${detalhe}`); };
 
@@ -149,7 +151,7 @@ await avaliar("document.getElementById('busca-hero').requestSubmit()");
 const abriu = await aguardar(`document.getElementById('modal-fundo').classList.contains('aberto') && document.getElementById('modal-titulo').textContent === ${JSON.stringify(tituloAcervo)}`, 5000);
 const naoAdicionou = await avaliar("catalogo.length") === obrasAntesDaBusca;
 caso('T16', 'Busca da tela inicial sugere obras do catálogo e abre a obra digitada', sugeriu && abriu && naoAdicionou, `"${tituloAcervo}"`);
-await avaliar("fecharModal()");
+await fecharObra();
 
 // Opcional (altera o acervo): OMNI_TESTE_ADICIONAR="<título que não está no acervo>"
 if (process.env.OMNI_TESTE_ADICIONAR) {
@@ -165,7 +167,7 @@ if (process.env.OMNI_TESTE_ADICIONAR) {
   await capturar('busca_adicionada');
   caso('T17', 'Título fora do acervo é buscado na web e adicionado automaticamente', ofereceWeb && adicionou,
     `${await avaliar("document.getElementById('modal-titulo')?.textContent")} — ${await avaliar("document.getElementById('busca-hero-status').textContent")}`);
-  await avaliar("fecharModal()");
+  await fecharObra();
 }
 
 // Favoritos ficam no servidor: valem depois de recarregar e mesmo com os dados do navegador apagados
@@ -274,7 +276,7 @@ caso('T07', 'Aba "Para você" gera recomendações de várias mídias (RF07)', r
   await aguardar("!!document.querySelector('#modal [data-concluir]')", 5000);
   await avaliar("document.querySelector('#modal [data-concluir]').click()");
   await aguardar(`minhasConcluidas.has(${JSON.stringify(sugerido)})`, 6000);
-  await avaliar('fecharModal()');
+  await fecharObra();
   const sumiu = await aguardar(`document.querySelectorAll('#grid-recomendacoes .card').length > 0
     && ![...document.querySelectorAll('#grid-recomendacoes .card')].some(c => c.dataset.titulo === ${JSON.stringify(sugerido)})`, 10000);
   await avaliar(`api('/api/perfil/concluidas?titulo=' + encodeURIComponent(${JSON.stringify(sugerido)}), { method: 'DELETE' }).then(() => minhasConcluidas.delete(${JSON.stringify(sugerido)}))`);
@@ -378,6 +380,95 @@ await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()"
     + `filmes: ${f.tops} "${f.tituloPv}" só filmes=${f.soFilmes}; ver todos=${verTodos}; grade=${grade}`);
 }
 
+// Voltar do navegador: cada tela (mídia do catálogo, obra, aba, seção do perfil, diálogo) é uma entrada no histórico
+{
+  const voltar = async (cond, ms = 6000) => { await avaliar('history.back()'); return aguardar(cond, ms); };
+  const aberta = "document.getElementById('modal-fundo').classList.contains('aberto')";
+  const obraNaTela = t => `${aberta} && document.getElementById('modal-titulo').textContent === ${JSON.stringify(t)}`;
+  const naAba = a => `abaAtual === '${a}' && !document.getElementById('aba-${a}').hidden`;
+  const vitrine = "document.getElementById('grid-catalogo').classList.contains('vitrine')";
+  const p = {};
+  await avaliar("irPara('catalogo')");
+  await esperar(300);
+
+  // mídia -> obra -> obra de "Com o mesmo DNA" e volta passo a passo
+  await avaliar("document.querySelector('#filtro-tipo [data-tipo=filme]').click()");
+  const obraA = await avaliar("document.querySelector('#grid-catalogo .card').dataset.titulo");
+  await avaliar("document.querySelector('#grid-catalogo .card').click()");
+  await aguardar(obraNaTela(obraA), 4000);
+  const temDna = await aguardar("document.querySelectorAll('#modal-trilho .card').length > 0", 10000);
+  const obraB = temDna ? await avaliar("document.querySelector('#modal-trilho .card').dataset.titulo") : null;
+  if (obraB) { await avaliar("document.querySelector('#modal-trilho .card').click()"); await aguardar(obraNaTela(obraB), 4000); }
+  p.endereco = await avaliar("location.hash");
+  p.voltaObraA = obraB ? await voltar(obraNaTela(obraA)) : true;
+  p.fechaObra = await voltar(`!${aberta} && filtro.tipo === 'filme' && ${naAba('catalogo')}`);
+  p.voltaTodos = await voltar(`filtro.tipo === 'TODOS' && ${vitrine}`);
+
+  // o X fecha a obra sem deixar entrada "morta": o Voltar seguinte já muda de tela
+  await avaliar("document.querySelector('.nav-link[data-aba=paravoce]').click()");
+  await aguardar(naAba('paravoce'), 4000);
+  await avaliar("document.querySelector('.nav-link[data-aba=catalogo]').click()");
+  await aguardar(naAba('catalogo'), 4000);
+  await avaliar("document.querySelector('#grid-catalogo .card').click()");
+  await aguardar(aberta, 4000);
+  await avaliar("document.querySelector('#modal .modal-fechar').click()");
+  await esperar(300);
+  p.xFecha = await avaliar(`!${aberta} && ${naAba('catalogo')}`);
+  p.semEntradaMorta = await voltar(naAba('paravoce'));
+  p.voltaCatalogo = await voltar(naAba('catalogo'));
+
+  // diálogo: o Voltar fecha só o diálogo; fechado pelo X, o Voltar seguinte já fecha a obra
+  await avaliar("document.querySelector('#grid-catalogo .card').click()");
+  await aguardar(aberta, 4000);
+  await avaliar("document.querySelector('#modal [data-compartilhar]').click()");
+  await aguardar("!document.getElementById('dialogo-fundo').hidden", 3000);
+  p.dialogo = await voltar(`document.getElementById('dialogo-fundo').hidden && ${aberta}`);
+  await avaliar("document.querySelector('#modal [data-compartilhar]').click()");
+  await aguardar("!document.getElementById('dialogo-fundo').hidden", 3000);
+  await avaliar("document.querySelector('#dialogo .modal-fechar').click()");
+  await esperar(300);
+  p.dialogoX = await avaliar(`document.getElementById('dialogo-fundo').hidden && ${aberta}`) && await voltar(`!${aberta} && ${naAba('catalogo')}`);
+
+  // perfil: seção e volta
+  await avaliar("document.querySelector('.nav-link[data-aba=perfil]').click()");
+  await aguardar("!!document.querySelector('.perfil-abas [data-perfil-aba=reviews]')", 8000);
+  await avaliar("document.querySelector('.perfil-abas [data-perfil-aba=reviews]').click()");
+  p.enderecoPerfil = await avaliar("location.hash");
+  p.secao = await voltar("perfilAba === 'concluidas' && document.querySelector('.perfil-abas [data-perfil-aba=concluidas]')?.getAttribute('aria-selected') === 'true'");
+  p.saiPerfil = await voltar(naAba('catalogo'));
+
+  // rolagem: "Ver todos" de um tema e o Voltar retorna aos carrosséis no mesmo ponto
+  await aguardar(vitrine, 4000);
+  const temTema = await avaliar("!!document.querySelector('#grid-catalogo [data-ver-tema]')");
+  p.rolagem = 'sem temas';
+  if (temTema) {
+    await avaliar("document.querySelector('#grid-catalogo [data-ver-tema]').scrollIntoView({ block: 'center', behavior: 'instant' })");
+    await esperar(500);
+    const antes = await avaliar('Math.round(scrollY)');
+    await avaliar("document.querySelector('#grid-catalogo [data-ver-tema]').click()");
+    await esperar(800);
+    await voltar(vitrine);
+    await esperar(600);
+    const depois = await avaliar('Math.round(scrollY)');
+    p.rolagem = antes > 200 && Math.abs(depois - antes) < 40 ? true : `${antes} -> ${depois}`;
+  }
+
+  // recarregar a página mantém a tela
+  await avaliar("document.querySelector('.nav-link[data-aba=paravoce]').click()");
+  await aguardar(naAba('paravoce'), 4000);
+  await esperar(300);
+  await cdp('Page.reload');
+  p.recarregou = await aguardar(`document.readyState === 'complete' && typeof abaAtual !== 'undefined' && ${naAba('paravoce')}
+    && document.querySelectorAll('#grid-recomendacoes .card, #grid-recomendacoes .vazio').length > 0`, 15000);
+  p.voltaDepoisDeRecarregar = await voltar(`typeof abaAtual !== 'undefined' && ${naAba('catalogo')}`, 10000);
+  await aguardar("document.querySelectorAll('#grid-catalogo .card').length > 0", 15000);
+
+  const ok = Object.values(p).every(v => v === true || typeof v === 'string' && (v === 'sem temas' || v.startsWith('#')));
+  caso('T42', 'Voltar do navegador volta para a tela anterior (mídia, obra, aba, seção do perfil, diálogo, rolagem) e recarregar mantém a tela',
+    ok && p.endereco.includes('obra=') && p.enderecoPerfil.includes('secao=reviews'),
+    Object.entries(p).map(([k, v]) => `${k}=${v}`).join(', '));
+}
+
 // ---------- Assisti / terminei e perfil ----------
 const obraFilme = await avaliar("catalogo.find(o => tipoDe(o) === 'filme').titulo");
 const obraJogo = await avaliar("catalogo.find(o => tipoDe(o) === 'jogo').titulo");
@@ -389,10 +480,10 @@ const marcar = async (titulo) => {
 };
 const marcouFilme = await marcar(obraFilme);
 const textoBotaoFilme = await avaliar("document.querySelector('#modal [data-concluir]').textContent.trim()");
-await avaliar('fecharModal()');
+await fecharObra();
 const marcouJogo = await marcar(obraJogo);
 const textoBotaoJogo = await avaliar("document.querySelector('#modal [data-concluir]').textContent.trim()");
-await avaliar('fecharModal()');
+await fecharObra();
 const seloNoCard = await avaliar(`[...document.querySelectorAll('#grid-catalogo [data-selo-concluida]')].some(e => e.dataset.seloConcluida === ${JSON.stringify(obraFilme)} && !e.hidden)`);
 caso('T21', 'Botão "assisti / terminei o jogo" marca a obra e mostra o selo no card', marcouFilme && marcouJogo && seloNoCard,
   `filme: "${textoBotaoFilme}", jogo: "${textoBotaoJogo}"`);
@@ -482,7 +573,7 @@ await capturar('popover_listas');
 await avaliar("[...document.querySelectorAll('#popover-listas [data-alternar-lista]')].find(b => b.textContent.includes('Quero assistir')).click()");
 const salvouNaPadrao = await aguardar(`minhasListas.find(l => l.nome === 'Quero assistir').obras.some(o => o.titulo === ${JSON.stringify(obraFilme)})
   && document.querySelector('#modal [data-salvar-lista]').textContent.includes('Quero assistir')`, 8000);
-await avaliar("fecharModal()");
+await fecharObra();
 // cria uma lista nova pelo menu da obra, já com um jogo
 await avaliar(`abrirModal(${JSON.stringify(obraJogo)})`);
 await aguardar("!!document.querySelector('#modal [data-salvar-lista]')", 3000);
@@ -490,7 +581,7 @@ await avaliar("document.querySelector('#modal [data-salvar-lista]').click()");
 await preencher('nova-lista-nome', 'Zerar nas férias');
 await avaliar("document.getElementById('nova-lista-form').requestSubmit()");
 const criouComJogo = await aguardar(`minhasListas.some(l => l.nome === 'Zerar nas férias' && l.obras.some(o => o.titulo === ${JSON.stringify(obraJogo)}))`, 8000);
-await avaliar("fecharModal()");
+await fecharObra();
 // página Minhas listas
 await avaliar("irPara('listas')");
 await aguardar("document.querySelectorAll('#listas-abas .lista-chip').length >= 3", 5000);
@@ -529,7 +620,7 @@ await avaliar("irPara('catalogo')");
   const previa = await avaliar(`fetch(${JSON.stringify(link)}).then(async r => ({ status: r.status, html: await r.text() }))`);
   const previaOk = previa.status === 200 && previa.html.includes('property="og:title"') && previa.html.includes('og:image')
     && previa.html.includes(obraFilme.replace(/&/g, '&amp;').replace(/"/g, '&quot;'));
-  await avaliar('fecharDialogo(); fecharModal()');
+  await avaliar('fecharDialogo(); fecharModal(true)'); await esperar(200);
   // logado: o link abre a obra direto e limpa o endereço
   await cdp('Page.navigate', { url: link });
   const abriuLogado = await aguardar(`document.getElementById('modal-titulo')?.textContent === ${JSON.stringify(obraFilme)}`, 15000);
@@ -547,7 +638,7 @@ await avaliar("irPara('catalogo')");
   await cdp('Page.navigate', { url: `${base}/login.html?voltar=${encodeURIComponent('/\\exemplo.com')}` });
   await aguardar("location.pathname === '/' && document.querySelectorAll('#grid-catalogo .card').length > 0", 10000);
   const semRedirExterno = (await avaliar('location.host')) === new URL(base).host;
-  await avaliar('fecharModal()');
+  await fecharObra();
   caso('T30', 'Compartilhar: gera link direto, prévia pública com pôster, abre a obra (logado ou após o login) e não redireciona para fora',
     linkOk && zap.startsWith('https://wa.me/') && previaOk && abriuLogado && enderecoLimpo && loginComVoltar && voltouParaObra && semRedirExterno,
     `link=${linkOk}, prévia=${previaOk}, abriu=${abriuLogado}, endereço limpo=${enderecoLimpo}, login guarda destino=${loginComVoltar}, voltou=${voltouParaObra}, sem redirecionamento externo=${semRedirExterno}`);
@@ -597,7 +688,7 @@ await avaliar("irPara('catalogo')");
   const visitanteSemLista = await avaliar(`!minhasListas.some(l => l.id === '${idLista}')`);
   await avaliar(`document.querySelector('#dialogo [data-abrir-obra]').click()`);
   const abriuObraDaVisita = await aguardar(`document.getElementById('modal-titulo')?.textContent === ${JSON.stringify(obraFilme)}`, 6000);
-  await avaliar('fecharModal()');
+  await fecharObra();
 
   // participante: o link leva para a lista; ele adiciona um jogo pela janela da obra e não vê as opções do dono
   await entrarComo(membro);
@@ -612,7 +703,7 @@ await avaliar("irPara('catalogo')");
   const mostraDono = await avaliar(`document.querySelector('#popover-listas [data-alternar-lista="${idLista}"]').textContent.includes('de ${usuarioTeste}')`);
   await avaliar(`document.querySelector('#popover-listas [data-alternar-lista="${idLista}"]').click()`);
   const membroAdicionou = await aguardar(`${listaSel}?.obras.some(o => o.titulo === ${JSON.stringify(obraJogo)} && o.adicionadaPor === '${membro.usuario}')`, 6000);
-  await avaliar('fecharModal()');
+  await fecharObra();
 
   // dono de novo: vê o jogo "adicionado por" o participante; desativa o link
   await entrarComo(sessaoDono);
@@ -658,7 +749,7 @@ await avaliar("irPara('catalogo')");
   await avaliar("document.getElementById('modal-ficha').scrollIntoView({ block: 'center' })");
   await esperar(300);
   await capturar('livro_modal');
-  await avaliar('fecharModal()');
+  await fecharObra();
   await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()");
   await capturar('catalogo_livros');
   caso('T34', 'Livros: filtro "Livros", ficha com autor, páginas e onde ler/comprar, e botão "Marcar como lido"',
@@ -739,7 +830,7 @@ await avaliar("irPara('catalogo')");
     .then(d => d.soNotas.some(n => n.meu && n.estrelas === 3) && !d.comentarios.some(c => c.meu))`);
   await avaliar("document.querySelector('[data-remover-nota]')?.click()");   // limpeza: tira a nota
   await aguardar(`!(${minhaSoNota})`, 6000);
-  await avaliar('fecharModal()');
+  await fecharObra();
   caso('T38', 'Comentários: quem só deu estrelas aparece na lista; comentário com spoiler fica borrado até tocar',
     apareceuSoNota && publicou && borrado && soNotaSumiu && revelado && voltouSoNota && servidor,
     `só nota=${apareceuSoNota}, spoiler borrado=${publicou}/${borrado}, só nota some ao comentar=${soNotaSumiu}, revelou=${revelado}, volta ao excluir=${voltouSoNota}, servidor=${servidor}`);
@@ -776,7 +867,7 @@ const fichaDe = async (titulo, nomeCaptura) => {
     links: [...document.querySelectorAll('#modal-ficha a.provedor')].map(a => ({ href: a.href, alvo: a.target, rel: a.rel })),
     texto: document.getElementById('modal-ficha').innerText.replace(/\\s+/g, ' ').slice(0, 160) })`);
   if (nomeCaptura) { await avaliar("document.getElementById('modal-ficha').scrollIntoView({ block: 'center' })"); await esperar(400); await capturar(nomeCaptura); }
-  await avaliar("fecharModal()");
+  await fecharObra();
   return r;
 };
 const linksOk = l => l.every(a => /^https:\/\//.test(a.href) && a.alvo === '_blank' && a.rel.includes('noopener'));
@@ -804,7 +895,7 @@ if (process.env.OMNI_CAPTURAS) {
   await avaliar("document.getElementById('modal-avaliacoes').scrollIntoView()");
   await esperar(400);
   await capturar('mobile_modal_avaliacoes');
-  await avaliar("fecharModal()");
+  await fecharObra();
   await avaliar("abrirPerfil(sessao.usuario)");
   await aguardar("!!document.querySelector('.perfil-stats')", 8000);
   await esperar(500);
@@ -826,7 +917,7 @@ const statusAdmin = await avaliar(`Promise.all([
 await avaliar("abrirModal(catalogo[0].titulo)");
 await aguardar("!!document.querySelector('#modal [data-concluir]')", 3000);
 const semBotaoExcluir = await avaliar("!document.querySelector('#modal [data-excluir-obra]')");
-await avaliar("fecharModal()");
+await fecharObra();
 caso('T18', 'Usuário comum não vê a Administração nem "Excluir obra" e o servidor recusa as rotas de admin (403)',
   semAdminNaTela && semBotaoExcluir && statusAdmin.every((x) => x === 403), `status: ${statusAdmin.join(', ')}; botão excluir oculto: ${semBotaoExcluir}`);
 
@@ -893,7 +984,7 @@ if (process.env.OMNI_ADMIN_SENHA) {
     await avaliar("abrirModal(catalogo[0].titulo)");
     const t = await aguardar("!!document.querySelector('#modal .obra-autoria')", 3000);
     const texto = await avaliar("document.querySelector('#modal .obra-autoria')?.textContent || ''");
-    await avaliar('fecharModal()');
+    await fecharObra();
     return t && /Adicionada (ao catálogo por|automaticamente|antes do histórico)/.test(texto);
   })();
   caso('T33', 'Histórico do administrador: registra quem fez o quê, filtra por categoria, busca e mostra quem adicionou a obra',

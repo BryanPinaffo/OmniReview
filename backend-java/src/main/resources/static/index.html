@@ -1921,7 +1921,7 @@
             if (e.key === 'Escape') {
                 if (fecharDialogo()) return;
                 if ($('popover-listas') && !$('popover-listas').hidden) { alternarPopoverListas(false); document.querySelector('#modal [data-salvar-lista]')?.focus(); return; }
-                fecharModal(); fecharDrawer();
+                fecharModal(true); fecharDrawer();
             }
             if (e.key === '/' && !e.target.matches('input, textarea')) { e.preventDefault(); irPara('catalogo'); $('filtro-texto').focus(); }
         });
@@ -1946,10 +1946,12 @@
                 renderizarCatalogo();
                 atualizarContador();
                 await Promise.all([notasProntas, resumoPronto, listasProntas, favoritosProntos]);
+                const primeiraVez = !favoritosCarregados;
                 favoritosCarregados = true;
                 sincronizarBotoesFavorito();
                 atualizarContador();
                 if (emVitrine()) renderizarCatalogo(true);   // o "Top 15 para você" depende dos favoritos
+                if (primeiraVez && abaAtual === 'paravoce') gerarRecomendacoes();   // a página abriu (ou recarregou) no "Para você"
                 agendarTop();
                 completarDetalhesAutomatico();
             } catch (e) {
@@ -2003,6 +2005,7 @@
                 filtro.tags.clear();
             } else return;
             renderizarChips(); renderizarCatalogo();
+            registrarTela();
         });
 
         function filtrarCatalogo() {
@@ -2236,12 +2239,13 @@
                 filtro.tags.clear();
                 filtro.tags.add(tema.dataset.verTema);
                 renderizarChips(); renderizarCatalogo();
+                registrarTela();   // o Voltar retorna aos carrosséis, no mesmo ponto
                 $('titulo-resultado').scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         });
         $('grid-catalogo').addEventListener('scroll', e => { if (e.target.classList?.contains('vitrine-trilho')) atualizarSetas(e.target); }, true);
         window.addEventListener('resize', () => document.querySelectorAll('.vitrine-trilho').forEach(atualizarSetas));
-        $('btn-modo-catalogo').addEventListener('click', () => { modoGrade = !modoGrade; renderizarCatalogo(); });
+        $('btn-modo-catalogo').addEventListener('click', () => { modoGrade = !modoGrade; renderizarCatalogo(); registrarTela(); });
 
         // ---------- Top 15 (em alta na internet), atualizado pelo servidor ----------
         let topObras = { filme: [], serie: [], jogo: [], livro: [] };
@@ -2318,8 +2322,9 @@
         function limparFiltros() {
             filtro.texto = ''; filtro.tipo = 'TODOS'; filtro.tags.clear();
             $('filtro-texto').value = ''; $('filtro-dna-incluir').value = ''; $('filtro-dna-excluir').value = '';
-            document.querySelectorAll('#filtro-tipo button').forEach(b => b.classList.toggle('ativo', b.dataset.tipo === 'TODOS'));
+            marcarFiltroTipo();
             renderizarChips(); renderizarCatalogo();
+            registrarTela();
         }
 
         $('filtro-texto').addEventListener('input', e => { filtro.texto = e.target.value; renderizarCatalogo(); });
@@ -2330,6 +2335,7 @@
             filtro.tipo = b.dataset.tipo;
             document.querySelectorAll('#filtro-tipo button').forEach(x => x.classList.toggle('ativo', x === b));
             renderizarCatalogo();
+            registrarTela();
         });
 
         // ================= "O QUE VOCÊ QUER VER HOJE?" =================
@@ -2616,8 +2622,249 @@
         }
 
         // ================= NAVEGAÇÃO =================
-        function irPara(aba) {
-            if (aba === 'admin' && !ehAdmin()) aba = 'catalogo';
+        // O site é uma página só, mas cada tela vira uma entrada no histórico do navegador: o Voltar (ou o gesto de voltar
+        // do celular) leva à tela anterior do OmniReview em vez de sair do site, e recarregar a página mantém a tela.
+        // Contam como tela: a aba, o perfil (de quem e qual seção), a lista aberta, o tipo/tema/grade do catálogo, a mídia
+        // do "Para você", a obra aberta (cada obra é uma entrada: a de "Com o mesmo DNA" volta para a anterior), as
+        // janelas de diálogo e as etapas das boas-vindas. Fechar uma janela pelo X, Esc ou Cancelar também volta no
+        // histórico, para não sobrar uma entrada "morta" que faria o Voltar parecer não funcionar.
+        const ABAS = ['catalogo', 'paravoce', 'listas', 'perfil', 'admin'];
+        const TIPOS_FILTRO = ['TODOS', 'filme', 'serie', 'jogo', 'livro'];
+        let abaAtual = 'catalogo';
+        let obraAberta = null;
+        const navegacao = { pronto: false, restaurando: false, voltando: false, agendado: false, pendente: 0, fila: [], relogio: null, rolagem: 0, gravarRolagem: null };
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   // a rolagem de cada tela é guardada aqui
+
+        function estadoDaTela() {
+            const noPerfil = abaAtual === 'perfil', nasListas = abaAtual === 'listas';
+            return {
+                omni: 1, aba: abaAtual,
+                perfil: noPerfil ? (perfilUsuario || sessao?.usuario || null) : null,
+                perfilAba: noPerfil ? perfilAba : null,
+                perfilTipo: noPerfil ? perfilFiltroTipo : '',
+                lista: nasListas ? listaSelecionada : null,
+                listaTipo: nasListas ? listaFiltroTipo : '',
+                tipo: filtro.tipo, tags: [...filtro.tags], grade: modoGrade,
+                pvTipo: paraVoceTipo,
+                obra: obraAberta,
+                dialogo: !$('dialogo-fundo').hidden,
+                bv: bv.ativo ? bv.etapa : null,
+                rolagem: navegacao.rolagem
+            };
+        }
+
+        // O que muda de tela (entrada nova); filtros pequenos (mídia no perfil e na lista) só atualizam a entrada atual
+        const CHAVES_TELA = ['aba', 'perfil', 'perfilAba', 'lista', 'tipo', 'grade', 'pvTipo', 'obra', 'dialogo', 'bv'];
+        const mesmaTela = (a, b) => CHAVES_TELA.every(k => (a[k] ?? null) === (b[k] ?? null)) && (a.tags || []).join('\n') === (b.tags || []).join('\n');
+
+        // Endereço legível da tela (ex.: /#aba=perfil&usuario=ana, /#tipo=filme&obra=Duna): dá para recarregar e copiar
+        function enderecoDoEstado(e) {
+            const p = new URLSearchParams();
+            if (e.aba !== 'catalogo') p.set('aba', e.aba);
+            if (e.aba === 'perfil') {
+                if (e.perfil && e.perfil !== sessao?.usuario) p.set('usuario', e.perfil);
+                if (e.perfilAba && e.perfilAba !== 'concluidas') p.set('secao', e.perfilAba);
+            }
+            if (e.aba === 'listas' && e.lista) p.set('lista', e.lista);
+            if (e.aba === 'catalogo') {
+                if (e.tipo !== 'TODOS') p.set('tipo', e.tipo);
+                e.tags.forEach(t => p.append('tema', t));
+                if (e.grade) p.set('grade', '1');
+            }
+            if (e.aba === 'paravoce' && e.pvTipo) p.set('midia', e.pvTipo);
+            if (e.obra) p.set('obra', e.obra);
+            const hash = p.toString();
+            return location.pathname + location.search + (hash ? '#' + hash : '');
+        }
+
+        // Tela pedida pelo endereço (link copiado ou digitado); null se o endereço não diz nada
+        function estadoDoEndereco() {
+            const p = new URLSearchParams(location.hash.slice(1));
+            if (![...p.keys()].length) return null;
+            const aba = ABAS.includes(p.get('aba')) ? p.get('aba') : 'catalogo';
+            const tipo = p.get('tipo'), midia = p.get('midia');
+            return {
+                omni: 1, aba,
+                perfil: aba === 'perfil' ? (p.get('usuario') || sessao?.usuario || null) : null,
+                perfilAba: aba === 'perfil' ? (p.get('secao') || 'concluidas') : null, perfilTipo: '',
+                lista: aba === 'listas' ? p.get('lista') : null, listaTipo: '',
+                tipo: TIPOS_FILTRO.includes(tipo) ? tipo : 'TODOS', tags: p.getAll('tema').filter(Boolean), grade: p.get('grade') === '1',
+                pvTipo: TIPOS_VITRINE.includes(midia) ? midia : '',
+                obra: p.get('obra') || null, nivelObra: p.get('obra') ? 1 : 0,
+                dialogo: false, bv: null, rolagem: 0
+            };
+        }
+
+        /** Grava a tela atual no histórico: entrada nova ou, com substituir (ou se nada mudou), atualiza a atual. */
+        function registrarTela(substituir = false) {
+            if (!navegacao.pronto || navegacao.restaurando) return;
+            const estado = estadoDaTela();
+            // Uma janela acabou de fechar voltando no histórico: a tela nova entra depois que o navegador terminar de voltar
+            if (navegacao.voltando) { navegacao.fila.push(() => gravarTela(estado, substituir)); return; }
+            gravarTela(estado, substituir);
+        }
+
+        function gravarTela(estado, substituir) {
+            const atual = history.state?.omni ? history.state : null;
+            if (atual && mesmaTela(atual, estado)) substituir = true;
+            // nivelObra = quantas obras estão abertas uma sobre a outra (o X fecha todas de uma vez)
+            if (!estado.obra) estado.nivelObra = 0;
+            else if (substituir || estado.dialogo || estado.obra === atual?.obra) estado.nivelObra = atual?.obra ? (atual.nivelObra || 1) : 1;
+            else estado.nivelObra = (atual?.obra ? (atual.nivelObra || 1) : 0) + 1;
+            if (!substituir && atual) history.replaceState({ ...atual, rolagem: navegacao.rolagem }, '', location.href);   // onde a tela anterior estava
+            if (!substituir) estado.rolagem = 0;
+            history[substituir ? 'replaceState' : 'pushState'](estado, '', enderecoDoEstado(estado));
+        }
+
+        /** Fecha uma janela voltando n entradas no histórico, sem redesenhar nada (a tela já está como deve ficar). */
+        function voltarNoHistorico(n) {
+            if (!(n > 0) || !navegacao.pronto || navegacao.restaurando) return;
+            navegacao.pendente += n;
+            navegacao.voltando = true;
+            if (navegacao.agendado) return;   // várias janelas fechando juntas viram uma volta só
+            navegacao.agendado = true;
+            queueMicrotask(() => {
+                navegacao.agendado = false;
+                const k = navegacao.pendente;
+                navegacao.pendente = 0;
+                clearTimeout(navegacao.relogio);
+                navegacao.relogio = setTimeout(terminarVolta, 1000);   // se o navegador não avisar, a navegação não trava
+                history.go(-k);
+            });
+        }
+
+        function terminarVolta() {
+            clearTimeout(navegacao.relogio);
+            navegacao.voltando = false;
+            const fila = navegacao.fila.splice(0);
+            if (fila.length) { fila.forEach(f => f()); return; }
+            // A ação da janela pode ter mudado a tela de baixo (ex.: lista nova selecionada): a entrada passa a refletir isso
+            if (history.state?.omni) gravarTela({ ...estadoDaTela(), rolagem: history.state.rolagem }, true);
+        }
+
+        window.addEventListener('popstate', ev => {
+            if (navegacao.voltando) { terminarVolta(); return; }
+            const estado = ev.state?.omni ? ev.state : estadoDoEndereco();
+            if (!estado) return;
+            aplicarEstado(estado);
+            if (!ev.state?.omni) gravarTela({ ...estadoDaTela(), rolagem: 0 }, true);   // endereço digitado: vira uma entrada completa
+        });
+
+        // Guarda a rolagem da tela atual (para o Voltar e o Avançar levarem de volta ao mesmo ponto)
+        window.addEventListener('scroll', () => {
+            if (navegacao.restaurando) return;
+            navegacao.rolagem = Math.round(window.scrollY);
+            clearTimeout(navegacao.gravarRolagem);
+            navegacao.gravarRolagem = setTimeout(() => {
+                if (!navegacao.voltando && !navegacao.restaurando && history.state?.omni && history.state.rolagem !== navegacao.rolagem) {
+                    history.replaceState({ ...history.state, rolagem: navegacao.rolagem }, '', location.href);
+                }
+            }, 250);
+        }, { passive: true });
+
+        // Rola até onde a tela estava; tenta de novo por um instante enquanto o conteúdo ainda está carregando
+        function restaurarRolagem(y) {
+            const alvo = Math.max(0, Number(y) || 0);
+            window.scrollTo({ top: alvo, behavior: 'instant' });
+            navegacao.rolagem = alvo;
+            if (!alvo) return;
+            let ultimo = window.scrollY, tentativas = 0;
+            const tentar = () => {
+                if (Math.abs(window.scrollY - ultimo) > 2) return;   // a pessoa já rolou por conta própria
+                if (Math.abs(window.scrollY - alvo) <= 2 || ++tentativas > 16) return;
+                window.scrollTo({ top: alvo, behavior: 'instant' });
+                ultimo = window.scrollY;
+                setTimeout(tentar, 150);
+            };
+            setTimeout(tentar, 150);
+        }
+
+        /** Mostra a tela de uma entrada do histórico (Voltar/Avançar, ou a página recarregada). */
+        function aplicarEstado(e) {
+            navegacao.restaurando = true;
+            try {
+                // Janelas que não são entradas próprias fecham; diálogo e boas-vindas fecham se a entrada não for deles
+                fecharDrawer(); alternarMenuUsuario(false); fecharSugestoes(); alternarPopoverListas(false);
+                if (!e.dialogo) fecharDialogo();
+                if (bv.ativo) {
+                    if (Number.isInteger(e.bv) && e.bv >= 0 && e.bv < ETAPAS_BV.length) {
+                        if (e.bv !== bv.etapa) { bv.etapa = e.bv; bv.busca = ''; montarBoasVindas(); }
+                    } else fecharBoasVindas();
+                }
+
+                // Catálogo: tipo de mídia, tema e grade
+                const tags = Array.isArray(e.tags) ? e.tags : [];
+                const tipo = TIPOS_FILTRO.includes(e.tipo) ? e.tipo : 'TODOS';
+                const mudouCatalogo = filtro.tipo !== tipo || modoGrade !== !!e.grade
+                    || tags.length !== filtro.tags.size || tags.some(t => !filtro.tags.has(t));
+                if (mudouCatalogo) {
+                    filtro.tipo = tipo; filtro.tags = new Set(tags); modoGrade = !!e.grade;
+                    marcarFiltroTipo();
+                    if (catalogo.length) { renderizarChips(); renderizarCatalogo(true); }
+                }
+                const pvTipo = TIPOS_VITRINE.includes(e.pvTipo) ? e.pvTipo : '';
+                const mudouPv = paraVoceTipo !== pvTipo;
+                if (mudouPv) { paraVoceTipo = pvTipo; marcarFiltroParaVoce(); }
+
+                const aba = ABAS.includes(e.aba) ? e.aba : 'catalogo';
+                const perfil = e.perfil || sessao?.usuario;
+                const outraPessoa = aba === 'perfil' && perfil !== perfilUsuario;
+                if (aba === 'perfil') {
+                    const mudouSecao = perfilAba !== (e.perfilAba || 'concluidas') || perfilFiltroTipo !== (e.perfilTipo || '');
+                    perfilUsuario = perfil; perfilAba = e.perfilAba || 'concluidas'; perfilFiltroTipo = e.perfilTipo || '';
+                    if (abaAtual === 'perfil' && !outraPessoa && mudouSecao && perfilAtual?.usuario === perfil) { renderizarAbaPerfil(); restaurarRolagem(e.rolagem); }
+                }
+                if (aba === 'listas') {
+                    const mudouLista = (e.lista && e.lista !== listaSelecionada) || listaFiltroTipo !== (e.listaTipo || '');
+                    if (e.lista && (!listasCarregadas || minhasListas.some(l => l.id === e.lista))) listaSelecionada = e.lista;
+                    listaFiltroTipo = e.listaTipo || '';
+                    if (abaAtual === 'listas' && mudouLista) { renderizarListas(); restaurarRolagem(e.rolagem); }
+                }
+                if (aba !== abaAtual || outraPessoa) irPara(aba, e.rolagem || 0);
+                else if (aba === 'catalogo' && mudouCatalogo) restaurarRolagem(e.rolagem);
+                else if (aba === 'paravoce' && mudouPv) { gerarRecomendacoes(); restaurarRolagem(e.rolagem); }
+
+                // Obra aberta por cima da tela
+                if (e.obra && porTitulo.has(e.obra)) { if (obraAberta !== e.obra) abrirModal(e.obra); }
+                else fecharModal();
+            } finally { navegacao.restaurando = false; }
+        }
+
+        /** Liga o histórico: retoma a tela salva (página recarregada) ou a do endereço. Devolve a obra a reabrir. */
+        function iniciarNavegacao() {
+            const recarregou = !!history.state?.omni;
+            const salvo = recarregou ? history.state : estadoDoEndereco();
+            if (salvo) aplicarEstado({ ...salvo, obra: null, dialogo: false, bv: null });   // a obra espera o catálogo carregar
+            navegacao.pronto = true;
+            const estado = { ...estadoDaTela(), rolagem: salvo?.rolagem || 0, nivelObra: 0 };
+            // Página recarregada com uma obra aberta: a entrada continua sendo a da obra (as de baixo seguem no histórico).
+            // Link com #obra=: a entrada atual fica sendo a tela de baixo e a obra abre por cima, como um clique.
+            if (recarregou && salvo.obra) { estado.obra = salvo.obra; estado.nivelObra = salvo.nivelObra || 1; }
+            history.replaceState(estado, '', enderecoDoEstado(estado));
+            return salvo ? { ...salvo, recarregou } : null;
+        }
+
+        /** Depois de carregar o catálogo: reabre a obra que estava aberta e volta à rolagem de antes. */
+        function retomarTelaSalva(salvo) {
+            if (!salvo) return;
+            if (salvo.obra && porTitulo.has(salvo.obra)) {
+                if (salvo.recarregou) {
+                    navegacao.restaurando = true;   // a entrada da obra já existe
+                    try { abrirModal(salvo.obra); } finally { navegacao.restaurando = false; }
+                } else abrirModal(salvo.obra);
+            } else if (salvo.obra && salvo.recarregou && history.state?.omni) {
+                gravarTela({ ...estadoDaTela(), rolagem: history.state.rolagem }, true);   // a obra saiu do catálogo
+            }
+            if (salvo.rolagem) restaurarRolagem(salvo.rolagem);
+        }
+
+        function marcarFiltroTipo() {
+            document.querySelectorAll('#filtro-tipo button').forEach(b => b.classList.toggle('ativo', b.dataset.tipo === filtro.tipo));
+        }
+
+        function irPara(aba, rolagem = null) {
+            if (!ABAS.includes(aba) || (aba === 'admin' && !ehAdmin())) aba = 'catalogo';
+            abaAtual = aba;
             $('aba-catalogo').hidden = aba !== 'catalogo';
             $('aba-paravoce').hidden = aba !== 'paravoce';
             $('aba-admin').hidden = aba !== 'admin';
@@ -2625,12 +2872,14 @@
             $('aba-listas').hidden = aba !== 'listas';
             if (aba === 'listas') { renderizarListas(); carregarListas(); }
             if (aba === 'admin') { carregarUsuarios(); carregarHistorico(true); }
-            if (aba === 'perfil') carregarPerfil(perfilUsuario || sessao.usuario);
+            if (aba === 'perfil') carregarPerfil(perfilUsuario || sessao.usuario, perfilAba || 'concluidas');
             document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('ativo', b.dataset.aba === aba));
             const ativo = document.querySelector('.nav-link.ativo');   // em telas estreitas a barra rola: mostra a aba atual
             if (ativo && ativo.offsetParent) ativo.parentElement.scrollLeft = Math.max(0, ativo.offsetLeft - ativo.parentElement.offsetLeft - 8);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (rolagem === null) window.scrollTo({ top: 0, behavior: 'smooth' });
+            else restaurarRolagem(rolagem);
             if (aba === 'paravoce') gerarRecomendacoes();
+            registrarTela();
         }
 
         // ================= RECOMENDAÇÕES =================
@@ -2656,6 +2905,7 @@
 
         async function gerarRecomendacoes() {
             const grid = $('grid-recomendacoes');
+            if (!favoritosCarregados) { grid.innerHTML = Array(6).fill('<div class="skeleton"></div>').join(''); return; }   // volta a ser chamada quando os favoritos chegarem
             const favoritos = curtidas.map(t => porTitulo.get(t)).filter(Boolean);
 
             $('perfil-favoritos').innerHTML = favoritos.slice(-8).reverse().map(o =>
@@ -2700,14 +2950,19 @@
             }
         }
 
-        function filtrarParaVoce(tipo) {
-            paraVoceTipo = tipo;
+        function marcarFiltroParaVoce() {
             document.querySelectorAll('#filtro-paravoce button').forEach(b => {
-                const ativo = b.dataset.tipo === tipo;
+                const ativo = b.dataset.tipo === paraVoceTipo;
                 b.classList.toggle('ativo', ativo);
                 b.setAttribute('aria-pressed', String(ativo));
             });
+        }
+
+        function filtrarParaVoce(tipo) {
+            paraVoceTipo = tipo;
+            marcarFiltroParaVoce();
             gerarRecomendacoes();
+            registrarTela();
         }
         $('filtro-paravoce').addEventListener('click', e => {
             const b = e.target.closest('[data-tipo]');
@@ -2727,7 +2982,7 @@
             const sinopse = obra.sinopse && !obra.sinopse.startsWith('Sem sinopse') ? obra.sinopse : null;
 
             $('modal').innerHTML = `
-                <button class="modal-fechar" onclick="fecharModal()" aria-label="Fechar">${ICONES.fechar}</button>
+                <button class="modal-fechar" onclick="fecharModal(true)" aria-label="Fechar">${ICONES.fechar}</button>
                 <div class="modal-capa">${imagemHTML(obra, 'capa', '')}</div>
                 <div class="modal-corpo">
                     <div class="modal-poster">${imagemHTML(obra, 'imagem', '')}</div>
@@ -2768,6 +3023,8 @@
             $('modal-fundo').setAttribute('aria-hidden', 'false');
             document.body.classList.add('travado');
             $('modal').querySelector('.modal-fechar').focus({ preventScroll: true });
+            obraAberta = obra.titulo;
+            registrarTela();   // cada obra é uma entrada: o Voltar fecha esta ou volta para a obra anterior
 
             document.querySelectorAll('#modal [data-salvar-lista]').forEach(atualizarBotaoSalvar);
             carregarAvaliacoes(obra.titulo);
@@ -2841,16 +3098,23 @@
             } catch { $('modal-semelhantes').hidden = true; }
         }
 
-        function fecharModal() {
+        /**
+         * Fecha a janela da obra. voltar = a pessoa fechou (X, Esc, clique fora): volta no histórico até a tela de baixo,
+         * passando por todas as obras abertas uma sobre a outra. Sem voltar (ex.: ao ir para um perfil ou tag), a obra
+         * continua no histórico e o Voltar da próxima tela reabre ela, como numa página comum.
+         */
+        function fecharModal(voltar = false) {
             if (!$('modal-fundo').classList.contains('aberto')) return;
             $('modal-fundo').classList.remove('aberto');
             $('modal-fundo').setAttribute('aria-hidden', 'true');
             document.body.classList.remove('travado');
+            obraAberta = null;
             ultimoFoco?.focus?.({ preventScroll: true });
+            if (voltar && history.state?.omni && history.state.obra) voltarNoHistorico(history.state.nivelObra || 1);
         }
 
         $('modal-fundo').addEventListener('click', e => {
-            if (e.target === $('modal-fundo')) { fecharModal(); return; }
+            if (e.target === $('modal-fundo')) { fecharModal(true); return; }
             const tagBtn = e.target.closest('[data-filtrar-tag]');
             if (tagBtn) {
                 fecharModal();
@@ -3406,11 +3670,12 @@
                 perfilAba = id;
                 if (id === 'concluidas') perfilFiltroTipo = tipo || (aba.closest('.perfil-abas') ? '' : perfilFiltroTipo);
                 renderizarAbaPerfil();
+                registrarTela();
                 if (aba.classList.contains('perfil-stat')) $('perfil-conteudo').scrollIntoView({ behavior: 'smooth', block: 'start' });
                 return;
             }
             const tipo = e.target.closest('[data-perfil-tipo]');
-            if (tipo) { perfilFiltroTipo = tipo.dataset.perfilTipo; renderizarAbaPerfil(); return; }
+            if (tipo) { perfilFiltroTipo = tipo.dataset.perfilTipo; renderizarAbaPerfil(); registrarTela(true); return; }
             const obra = e.target.closest('[data-abrir-obra]');
             if (obra) abrirModal(obra.dataset.abrirObra);
         });
@@ -3429,18 +3694,22 @@
         // ================= DIÁLOGOS =================
         let focoAntesDoDialogo = null;
         function abrirDialogo(html) {
-            focoAntesDoDialogo = document.activeElement;
+            const jaAberto = !$('dialogo-fundo').hidden;
+            if (!jaAberto) focoAntesDoDialogo = document.activeElement;
             $('dialogo').innerHTML = `<button type="button" class="modal-fechar" onclick="fecharDialogo()" aria-label="Fechar">${ICONES.fechar}</button>${html}`;
             $('dialogo-fundo').hidden = false;
             document.body.classList.add('travado');
             setTimeout(() => $('dialogo').querySelector('input, textarea, button:not(.modal-fechar)')?.focus(), 30);
+            if (!jaAberto) registrarTela();   // o Voltar fecha o diálogo (um diálogo trocado por outro continua sendo um só)
         }
+        /** Fecha o diálogo e tira a entrada dele do histórico (o que vier depois entra no lugar). */
         function fecharDialogo() {
             if ($('dialogo-fundo').hidden) return false;
             $('dialogo-fundo').hidden = true;
             $('dialogo').innerHTML = '';
-            if (!$('modal-fundo').classList.contains('aberto')) document.body.classList.remove('travado');
+            if (!$('modal-fundo').classList.contains('aberto') && !bv.ativo) document.body.classList.remove('travado');
             focoAntesDoDialogo?.focus?.({ preventScroll: true });
+            if (history.state?.omni && history.state.dialogo) voltarNoHistorico(1);
             return true;
         }
         $('dialogo-fundo').addEventListener('click', e => { if (e.target === $('dialogo-fundo')) fecharDialogo(); });
@@ -3608,6 +3877,7 @@
 
         // ================= MINHAS LISTAS =================
         let minhasListas = [];
+        let listasCarregadas = false;
         let listaSelecionada = null;
         let listaFiltroTipo = '';
         let ocultarConcluidas = false;
@@ -3629,11 +3899,15 @@
         /** Guarda as listas vindas do servidor e atualiza o que estiver na tela. */
         function aplicarListas(listas) {
             minhasListas = Array.isArray(listas) ? listas : [];
+            listasCarregadas = true;
             minhasListas.forEach(l => l.obras.forEach(o => { if (!porTitulo.has(o.titulo)) porTitulo.set(o.titulo, o); }));
             if (!minhasListas.some(l => l.id === listaSelecionada)) listaSelecionada = minhasListas[0]?.id || null;
             document.querySelectorAll('[data-salvar-lista]').forEach(atualizarBotaoSalvar);
             if (!$('popover-listas')?.hidden) renderizarPopoverListas();
-            if (!$('aba-listas').hidden) renderizarListas();
+            if (!$('aba-listas').hidden) {
+                renderizarListas();
+                if (history.state?.aba === 'listas') registrarTela(true);   // a lista aberta pode ter mudado (primeira carga, lista excluída)
+            }
         }
 
         async function mudarListas(url, opcoes) {
@@ -3647,6 +3921,11 @@
 
         // ---------- Página "Minhas listas" ----------
         function renderizarListas() {
+            if (!listasCarregadas) {
+                $('listas-abas').innerHTML = '';
+                $('lista-conteudo').innerHTML = `<div class="grid">${Array(6).fill('<div class="skeleton"></div>').join('')}</div>`;
+                return;
+            }
             if (!minhasListas.length) {
                 $('listas-abas').innerHTML = '';
                 $('lista-conteudo').innerHTML = `<div class="grid">${vazioHTML('Você ainda não tem listas', 'Crie uma lista para guardar o que quer ver ou jogar.',
@@ -3698,9 +3977,9 @@
 
         $('aba-listas').addEventListener('click', async e => {
             const chip = e.target.closest('[data-lista]');
-            if (chip) { listaSelecionada = chip.dataset.lista; listaFiltroTipo = ''; renderizarListas(); return; }
+            if (chip) { listaSelecionada = chip.dataset.lista; listaFiltroTipo = ''; renderizarListas(); registrarTela(); return; }
             const tipo = e.target.closest('[data-lista-tipo]');
-            if (tipo) { listaFiltroTipo = tipo.dataset.listaTipo; renderizarListas(); return; }
+            if (tipo) { listaFiltroTipo = tipo.dataset.listaTipo; renderizarListas(); registrarTela(true); return; }
             const remover = e.target.closest('[data-remover-da-lista]');
             if (remover) {
                 remover.disabled = true;
@@ -3937,7 +4216,7 @@
         async function abrirListaDoLink() {
             const codigo = new URLSearchParams(location.search).get('lista');
             if (!codigo) return;
-            history.replaceState(null, '', location.pathname);
+            history.replaceState(history.state, '', location.pathname + location.hash);
             let d;
             try {
                 const r = await api(`/api/listas/compartilhada/${encodeURIComponent(codigo)}`);
@@ -4066,6 +4345,16 @@
             $('boas-vindas').hidden = false;
             document.body.classList.add('travado');
             montarBoasVindas();
+            registrarTela();   // cada etapa é uma entrada: o Voltar volta uma etapa (na primeira, sai sem salvar)
+        }
+
+        /** Tira as boas-vindas da tela (sem salvar: elas voltam na próxima visita, a não ser que tenham sido concluídas). */
+        function fecharBoasVindas() {
+            bv.ativo = false;
+            clearInterval(bv.relogio);
+            $('boas-vindas').hidden = true;
+            $('boas-vindas').innerHTML = '';
+            if (!$('modal-fundo').classList.contains('aberto') && $('dialogo-fundo').hidden) document.body.classList.remove('travado');
         }
 
         function montarBoasVindas() {
@@ -4201,7 +4490,7 @@
 
         async function avancarBoasVindas(pular) {
             if (pular) ETAPAS_BV.slice(bv.etapa, bv.etapa + 1).forEach(e => [...bv.escolhidos].forEach(([t, tipo]) => { if (tipo === e.tipo) bv.escolhidos.delete(t); }));
-            if (bv.etapa < ETAPAS_BV.length - 1) { bv.etapa++; bv.busca = ''; montarBoasVindas(); return; }
+            if (bv.etapa < ETAPAS_BV.length - 1) { bv.etapa++; bv.busca = ''; montarBoasVindas(); registrarTela(); return; }
             await concluirBoasVindas();
         }
 
@@ -4216,10 +4505,10 @@
                 }
                 await api('/api/perfil/eu/boas-vindas', { method: 'POST' });
             } catch (e) { console.error(e); }
-            Object.assign(bv, { ativo: false, pendente: false });
-            $('boas-vindas').hidden = true;
-            $('boas-vindas').innerHTML = '';
-            document.body.classList.remove('travado');
+            bv.pendente = false;
+            if (!bv.ativo) return;   // a pessoa saiu pelo Voltar enquanto salvava (o que escolheu já foi salvo)
+            fecharBoasVindas();
+            if (history.state?.omni && Number.isInteger(history.state.bv)) voltarNoHistorico(history.state.bv + 1);   // tira as etapas do histórico
             if (titulos.length) {
                 irPara('paravoce');
                 toast(`${plural(titulos.length, 'favorito salvo', 'favoritos salvos')}. Aqui está o seu “Para você”!`);
@@ -4377,7 +4666,7 @@
         function abrirObraDoLink() {
             const titulo = new URLSearchParams(location.search).get('obra');
             if (!titulo) return;
-            history.replaceState(null, '', location.pathname);
+            history.replaceState(history.state, '', location.pathname + location.hash);
             if (porTitulo.has(titulo)) abrirModal(titulo);
             else toast(`"${titulo}" não está mais no catálogo`);
         }
@@ -4427,7 +4716,7 @@
             curtidas = curtidas.filter(t => t !== titulo);   // no servidor o favorito saiu junto com a obra
             minhasListas.forEach(l => { l.obras = l.obras.filter(o => o.titulo !== titulo); });
             fecharDialogo();
-            fecharModal();
+            fecharModal(true);   // a obra sumiu: o histórico volta para a tela de baixo
             atualizarStats(); renderizarChips(); renderizarCatalogo(); atualizarContador();
             if (!$('aba-listas').hidden) renderizarListas();
             if (!$('aba-paravoce').hidden) gerarRecomendacoes();
@@ -4469,7 +4758,12 @@
             }).catch(() => {});
             // Quem chega por um link compartilhado vê primeiro o que recebeu; as boas-vindas ficam para a próxima visita
             const veioPorLink = /[?&](obra|lista)=/.test(location.search);
-            carregarCatalogo().then(() => { if (bv.pendente && !veioPorLink) abrirBoasVindas(); else { abrirObraDoLink(); abrirListaDoLink(); } });
+            const telaSalva = iniciarNavegacao();   // página recarregada (ou endereço com #aba=...): volta para a mesma tela
+            carregarCatalogo().then(() => {
+                if (bv.pendente && !veioPorLink) abrirBoasVindas();
+                else if (veioPorLink) { abrirObraDoLink(); abrirListaDoLink(); }
+                else retomarTelaSalva(telaSalva);
+            });
             if (sessao?.senhaFraca) {
                 document.body.insertAdjacentHTML('afterbegin', `<div class="aviso-senha" id="aviso-senha" role="alert">
                     <span><b>Sua senha é fácil de adivinhar.</b> Troque agora para proteger sua conta${ehAdmin() ? ' (e o site inteiro: você é o administrador)' : ''}.</span>
