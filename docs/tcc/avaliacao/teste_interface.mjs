@@ -350,6 +350,18 @@ await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()"
   })`);
   await capturar('catalogo_vitrine_filmes');
 
+  // Aba Jogos: o jogando agora (IGDB, todas as plataformas) e, abaixo, os mais jogados na Steam
+  const nSteam = await avaliar("api('/api/top').then(r => r.json()).then(d => (d.jogosteam || []).length)");
+  await avaliar("document.querySelector('#filtro-tipo [data-tipo=jogo]').click()");
+  await aguardar(pvPronto, 10000);
+  await rolarAte('#titulo-resultado');
+  const jg = await avaliar(`({
+    tops: [...document.querySelectorAll('#grid-catalogo [data-trilho^="top-"]')].map(t => t.dataset.trilho).join(','),
+    soJogos: [...document.querySelectorAll('#grid-catalogo .card .tipo')].every(e => e.classList.contains('jogo')),
+    titulos: [...document.querySelectorAll('#grid-catalogo .vitrine-topo h3')].map(h => h.firstChild.textContent).filter(t => t.startsWith('Top')).join(' | '),
+  })`);
+  await capturar('catalogo_vitrine_jogos');
+
   await avaliar('limparFiltros()');   // volta para "Todos"
   await rolarAte('#grid-catalogo [data-trilho^="tema-"]');
   await esperar(400);
@@ -373,11 +385,13 @@ await avaliar("document.querySelector('#filtro-tipo [data-tipo=TODOS]').click()"
     pronta && topOk && v.tops === 'top-filme,top-serie,top-jogo,top-livro' && v.rank === '1' && v.maxTop <= 15
     && (v.pv > 0 || v.pvAviso) && v.pv <= 15 && (v.nTemas > 0 || v.resto < 6) && v.repetidos === 0 && v.temaComTopOuPv === 0 && v.faltando === 0
     && temasOk && f.tops === 'top-filme' && f.soFilmes && f.tituloPv === 'Top 15 filmes para você'
+    && jg.tops === (nSteam ? 'top-jogo,top-jogosteam' : 'top-jogo') && jg.soJogos
     && (verTodos === true || (verTodos === 'sem temas' && v.nTemas === 0)) && grade && voltou,
     `top: ${top.map(x => `${x.t}=${x.n}`).join(' ')}; carrosséis do top: ${v.tops}; para você: ${v.pv}${v.pvAviso ? ' (aviso)' : ''}; `
     + `${v.nTemas} temas na tela (${v.resto} obras depois do top e do para você), repetidas=${v.repetidos}, iguais ao top/para você=${v.temaComTopOuPv}, fora da vitrine=${v.faltando}; `
     + `temas do catálogo inteiro: ${temasCatalogo.nomes} (repetidas=${temasCatalogo.repetidas}, coerentes=${temasCatalogo.coerentes}); `
-    + `filmes: ${f.tops} "${f.tituloPv}" só filmes=${f.soFilmes}; ver todos=${verTodos}; grade=${grade}`);
+    + `filmes: ${f.tops} "${f.tituloPv}" só filmes=${f.soFilmes}; jogos: ${jg.tops} (${jg.titulos}) só jogos=${jg.soJogos}; `
+    + `ver todos=${verTodos}; grade=${grade}`);
 }
 
 // Voltar do navegador: cada tela (mídia do catálogo, obra, aba, seção do perfil, diálogo) é uma entrada no histórico

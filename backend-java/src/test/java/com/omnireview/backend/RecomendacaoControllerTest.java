@@ -65,14 +65,44 @@ class RecomendacaoControllerTest {
     }
 
     @Test
+    void obraDaRawgOuSemFonteSoEReconhecidaPeloTitulo() {
+        Obra semFonte = new Obra("Hades", "Jogo", null);
+        Obra daRawg = new Obra("Hades", "Jogo", null);
+        daRawg.setFonte("rawg:274755");
+        Obra doIgdb = new Obra("Hades", "Jogo", null);
+        doIgdb.setFonte("igdb:113112");
+        assertTrue(RecomendacaoController.semFonteConfiavel(semFonte));
+        assertTrue(RecomendacaoController.semFonteConfiavel(daRawg), "a RAWG saiu do ar: o jogo dela é reconhecido pelo título");
+        assertFalse(RecomendacaoController.semFonteConfiavel(doIgdb));
+    }
+
+    @Test
+    void trocarAFonteMantemAAnteriorComoOutraFonte() {
+        Obra jogo = new Obra("Hades", "Jogo", null);
+        jogo.setFonte("steam:1145360");          // entrou pelo Top 15 da Steam
+        jogo.trocarFonte("igdb:113112");         // depois foi completado pelo IGDB
+        jogo.adicionarOutraFonte("steam:1145360");
+        assertEquals("igdb:113112", jogo.getFonte());
+        assertEquals(List.of("steam:1145360"), jogo.getOutrasFontes(), "sem repetir");
+        jogo.trocarFonte("steam:1145360");       // voltar para uma fonte que já estava nas outras não duplica
+        assertEquals("steam:1145360", jogo.getFonte());
+        assertEquals(List.of("igdb:113112"), jogo.getOutrasFontes());
+        jogo.adicionarOutraFonte(null);
+        jogo.adicionarOutraFonte("steam:1145360");   // a própria fonte principal não entra nas outras
+        assertEquals(List.of("igdb:113112"), jogo.getOutrasFontes());
+    }
+
+    @Test
     void identificadorDaFonteSoAceitaFormatosConhecidos() {
         assertEquals("Filme", RecomendacaoController.tipoDaRef("tmdb:movie:438631"));
         assertEquals("Serie", RecomendacaoController.tipoDaRef("tmdb:tv:100088"));
-        assertEquals("Jogo", RecomendacaoController.tipoDaRef("rawg:3498"));
+        assertEquals("Jogo", RecomendacaoController.tipoDaRef("igdb:119388"));
         assertEquals("Jogo", RecomendacaoController.tipoDaRef("steam:1245620"));
         assertEquals("Livro", RecomendacaoController.tipoDaRef("ol:/works/OL893415W"));
-        // nada de endereços, caminhos ou parâmetros extras (evita usar o servidor para acessar outros sites)
-        for (String ruim : List.of("tmdb:movie:1/../../x", "ol:/works/OL1W?x=1", "http://site", "steam:1;2", "rawg:", "tmdb:person:1", "")) {
+        // nada de endereços, caminhos ou parâmetros extras (evita usar o servidor para acessar outros sites);
+        // a RAWG saiu do ar e foi trocada pelo IGDB: as referências dela não são mais aceitas
+        for (String ruim : List.of("tmdb:movie:1/../../x", "ol:/works/OL1W?x=1", "http://site", "steam:1;2", "igdb:", "igdb:1 ", "rawg:3498",
+                "tmdb:person:1", "")) {
             assertEquals(null, RecomendacaoController.tipoDaRef(ruim), ruim);
         }
     }

@@ -9,8 +9,8 @@ import java.text.Normalizer;
 import java.util.*;
 
 /**
- * Fonte de jogos pela API pública da loja Steam (não precisa de chave).
- * Usada quando a RAWG está fora do ar.
+ * Fonte de jogos pela API pública da loja Steam (não precisa de chave): os mais jogados agora (Top 15), a sinopse
+ * em português dos jogos de PC e a reserva quando o IGDB está fora do ar ou não conhece o jogo.
  */
 @Service
 public class SteamService {
@@ -169,6 +169,18 @@ public class SteamService {
             System.out.println("Steam: falha ao abrir o jogo " + id + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Descrição curta do jogo na loja, se a Steam tiver em português (muitos jogos só têm em inglês); senão null.
+     * Usada no lugar do resumo do IGDB, que é sempre em inglês.
+     */
+    public String sinopseEmPortugues(String appid) {
+        if (appid == null || !appid.matches("[0-9]{1,10}")) return null;
+        Map<String, Object> app = detalhesDoApp(appid);
+        if (app == null) return null;
+        String sinopse = limparHtml((String) app.get("short_description"));
+        return sinopse.length() >= 40 && !IaService.pareceIngles(sinopse) ? sinopse : null;
     }
 
     /** Link da página do jogo na loja Steam, ou null se não encontrado. */

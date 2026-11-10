@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Ficha da obra exibida na janela de detalhes: onde assistir/jogar, duração do filme, temporadas da série
- * e tempo médio de jogo. Consultada na hora (TMDB / RAWG / Steam) e guardada em memória por algumas horas,
- * porque os catálogos dos serviços mudam com frequência e não vale gravar isso no banco.
+ * Ficha da obra exibida na janela de detalhes: onde assistir/jogar/ler, duração do filme, temporadas da série,
+ * plataformas e tempo para zerar do jogo, páginas do livro. Consultada na hora (TMDB / IGDB / Steam / livros) e
+ * guardada em memória por algumas horas, porque os catálogos dos serviços mudam com frequência e não vale gravar no banco.
  */
 @RestController
 @RequestMapping("/api/obras")
@@ -27,17 +27,15 @@ public class InfoObraController {
 
     private final ObraRepository repository;
     private final TmdbService tmdb;
-    private final RawgService rawg;
+    private final JogosService jogos;
     private final LivroService livros;
-    private final IgdbService igdb;
     private final Map<String, Entrada> cache = new ConcurrentHashMap<>();
 
-    public InfoObraController(ObraRepository repository, TmdbService tmdb, RawgService rawg, LivroService livros, IgdbService igdb) {
+    public InfoObraController(ObraRepository repository, TmdbService tmdb, JogosService jogos, LivroService livros) {
         this.livros = livros;
-        this.igdb = igdb;
         this.repository = repository;
         this.tmdb = tmdb;
-        this.rawg = rawg;
+        this.jogos = jogos;
     }
 
     @GetMapping("/info")
@@ -63,21 +61,20 @@ public class InfoObraController {
         ficha.put("titulo", titulo);
         ficha.put("tipo", tipo);
         Map<String, Object> dados = switch (tipo) {
-            case "jogo" -> rawg.fichaJogo(titulo);
+            case "jogo" -> jogos.ficha(obra);   // plataformas, lojas e tempo para zerar (IGDB; a Steam é a reserva)
             case "livro" -> livros.ficha(obra);
             case "serie" -> tmdb.ficha("tv", titulo);
             default -> tmdb.ficha("movie", titulo);
         };
         if (dados != null) ficha.putAll(dados);
-        // Steam é a reserva quando a RAWG cai: guarda por pouco tempo para o tempo médio aparecer quando ela voltar
-        ficha.put("encontrada", dados != null && !"Steam".equals(dados.get("fonte")));
+        // A Steam é a reserva quando o IGDB falha, e o tempo para zerar pode falhar sozinho: nesses casos a ficha fica
+        // pouco tempo no cache, para os dados completos aparecerem logo que o IGDB voltar
+        boolean falhaMomentanea = Boolean.TRUE.equals(ficha.remove("tempoIndisponivel"));
+        ficha.put("encontrada", dados != null && !"Steam".equals(dados.get("fonte")) && !falhaMomentanea);
         if (tipo.equals("jogo")) {
-            // Tempo para zerar (história / com extras / 100%) informado pelos jogadores no IGDB
-            Map<String, Object> zerar = igdb.tempoParaZerar(RecomendacaoController.semSufixoDeMidia(titulo));
-            if (zerar != null && !zerar.isEmpty()) ficha.put("tempoParaZerar", zerar);
-            if (zerar == null && igdb.disponivel()) ficha.put("encontrada", false);   // falha momentânea: tenta de novo logo
-            // A RAWG mede o tempo médio jogado; o HowLongToBeat fica como link para quem quiser comparar
-            ficha.put("linkTempoParaZerar", "https://howlongtobeat.com/?q=" + URLEncoder.encode(titulo, StandardCharsets.UTF_8).replace("+", "%20"));
+            // O HowLongToBeat fica como link para quem quiser comparar o tempo para zerar
+            String nome = RecomendacaoController.semSufixoDeMidia(titulo);
+            ficha.put("linkTempoParaZerar", "https://howlongtobeat.com/?q=" + URLEncoder.encode(nome, StandardCharsets.UTF_8).replace("+", "%20"));
         }
         return ficha;
     }

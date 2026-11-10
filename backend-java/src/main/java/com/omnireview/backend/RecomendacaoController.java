@@ -17,20 +17,18 @@ public class RecomendacaoController {
 
     private final ObraRepository repository;
     private final TmdbService tmdbService;
-    private final RawgService rawgService;
+    private final JogosService jogosService;
     private final IaService iaService;
     private final HistoricoService historico;
     private final LivroService livroService;
-    private final SteamService steamService;
 
-    public RecomendacaoController(ObraRepository repository, TmdbService tmdbService, RawgService rawgService, IaService iaService,
-                                  HistoricoService historico, LivroService livroService, SteamService steamService) {
-        this.steamService = steamService;
+    public RecomendacaoController(ObraRepository repository, TmdbService tmdbService, JogosService jogosService, IaService iaService,
+                                  HistoricoService historico, LivroService livroService) {
         this.historico = historico;
         this.livroService = livroService;
         this.repository = repository;
         this.tmdbService = tmdbService;
-        this.rawgService = rawgService;
+        this.jogosService = jogosService;
         this.iaService = iaService;
     }
 
@@ -69,19 +67,27 @@ public class RecomendacaoController {
         String[] dados = ref != null ? dadosPorRef(ref) : buscarDados(nome, tipo);
         if (dados == null || campo(dados, 0) == null) return Optional.empty();
         String fonte = campo(dados, 5);
-        if (fonte != null) {
-            Optional<Obra> ja = repository.findFirstByFonte(fonte);
-            if (ja.isPresent()) return ja;
+        // Pela fonte do item ou pela outra (o jogo do Top 15 da Steam pode já ter vindo do IGDB pela busca)
+        Optional<Obra> ja = obraDaFonte(dados);
+        if (ja.isPresent()) {
+            List<String> outras = ja.get().getOutrasFontes();
+            if (ref != null && !ref.equals(ja.get().getFonte()) && (outras == null || !outras.contains(ref))) {
+                ja.get().adicionarOutraFonte(ref);   // da próxima vez, acha direto pelo id da Steam
+                repository.save(ja.get());
+            }
+            return ja;
         }
         // Livro com o mesmo título (em português ou o original) é o mesmo livro, mesmo vindo de outra fonte
         // (Google Books x Open Library); filmes e séries com o mesmo nome podem ser obras diferentes (remakes)
         boolean livro = "Livro".equals(tipo);
         Optional<Obra> antiga = mesmaObraNoAcervo(dados[0], tipo)
                 .or(() -> livro && nome != null ? mesmaObraNoAcervo(nome, tipo) : Optional.empty())
-                .filter(o -> o.getFonte() == null || livro);
+                .filter(o -> semFonteConfiavel(o) || livro);
         if (antiga.isPresent()) {
-            if (fonte != null && antiga.get().getFonte() == null) {
-                antiga.get().setFonte(fonte);
+            if (fonte != null && semFonteConfiavel(antiga.get())) {
+                antiga.get().trocarFonte(fonte);
+                antiga.get().adicionarOutraFonte(campo(dados, 7));
+                if (ref != null) antiga.get().adicionarOutraFonte(ref);
                 repository.save(antiga.get());
             }
             return antiga;
@@ -130,7 +136,7 @@ public class RecomendacaoController {
     private Obra classificarESalvar(String[] dadosDaWeb, String tipo, String usuario, String origem, boolean escolhaExplicita) {
         String[] dados = comSinopseEmPortugues(dadosDaWeb);
         String fonte = campo(dados, 5);
-        Optional<Obra> mesmaFonte = fonte == null ? Optional.empty() : repository.findFirstByFonte(fonte);
+        Optional<Obra> mesmaFonte = obraDaFonte(dados);
         if (mesmaFonte.isPresent()) dados[0] = mesmaFonte.get().getTitulo();
         else if (escolhaExplicita) dados[0] = tituloUnico(dados[0], tipo, campo(dados, 6));
         else dados[0] = tituloNoAcervo(dados[0], tipo);   // "Duna" livro e "Duna" filme não podem ocupar o mesmo título
@@ -142,7 +148,8 @@ public class RecomendacaoController {
             obra.setAdicionadaEm(java.time.Instant.now().toString());
         }
         obra.setTipo(tipo);
-        if (fonte != null) obra.setFonte(fonte);
+        if (fonte != null) obra.trocarFonte(fonte);   // a fonte anterior (ex.: "steam:ID") continua reconhecendo a obra
+        obra.adicionarOutraFonte(campo(dados, 7));
         obra.setDnaCriativo(iaService.extrairDnaCriativo(dados[0], campo(dados, 1), tipo, campo(dados, 2)));
         aplicarDetalhes(obra, dados);
         Obra salva = salvar(obra);
@@ -165,7 +172,7 @@ public class RecomendacaoController {
 
     /**
      * "O que você quer assistir hoje?": devolve a obra se já estiver no acervo; senão, busca na web
-     * (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), escolhe o título mais parecido com o
+     * (filmes e séries no TMDB, jogos no IGDB/Steam, livros no Google Books/Open Library, em paralelo), escolhe o título mais parecido com o
      * que foi digitado, gera o DNA com a IA e salva. Com tipo (filme|serie|jogo|livro), busca só naquela mídia.
      * Sem tipo, se mais de uma mídia tiver um título igualmente parecido, devolve as opções para a pessoa escolher.
      * Com ignorarAcervo=true, não para no acervo (para procurar o mesmo nome em outra mídia).
@@ -183,6 +190,9 @@ public class RecomendacaoController {
             if (jaTem.isPresent()) return ResponseEntity.ok(ResultadoBusca.obra(jaTem.get(), false));
             String[] dados = dadosPorRef(ref);
             if (dados == null || campo(dados, 0) == null) return ResponseEntity.notFound().build();
+            // O mesmo jogo pode já estar no catálogo por outra fonte (ex.: veio do Top 15 da Steam)
+            Optional<Obra> pelaOutraFonte = obraDaFonte(dados);
+            if (pelaOutraFonte.isPresent()) return ResponseEntity.ok(ResultadoBusca.obra(pelaOutraFonte.get(), false));
             return ResponseEntity.ok(ResultadoBusca.obra(classificarESalvar(dados, tipoRef, usuario(req),
                     "pela busca “O que você quer ver hoje?”, confirmada pela pessoa", true), true));
         }
@@ -252,7 +262,8 @@ public class RecomendacaoController {
 
     /**
      * Opções para a pessoa confirmar antes de adicionar (nada é salvo aqui). Com tipo, até 6 resultados daquela mídia;
-     * sem tipo, até 3 de cada mídia, os títulos mais parecidos com o digitado primeiro. Cada opção:
+     * sem tipo, até 3 de cada mídia. O título igual ao digitado vem primeiro; o resto, na ordem de cada fonte (que já
+     * pesa a parecença do nome e a popularidade), intercalando as mídias. Cada opção:
      * {ref, tipo, titulo, ano, imagem, sinopse|detalhe, jaNoAcervo, tituloNoAcervo}.
      */
     @GetMapping("/buscar-opcoes")
@@ -277,10 +288,13 @@ public class RecomendacaoController {
                 Map<String, Object> o = new LinkedHashMap<>(c);
                 String titulo = (String) c.get("titulo");
                 o.put("tipo", t.toLowerCase(Locale.ROOT));
-                // Já no acervo? Pelo id da fonte; nas obras antigas (sem fonte), só o 1º resultado com aquele título
+                // Já no acervo? Pelo id da fonte (ou pelo da Steam, no jogo do IGDB); nas obras antigas (sem fonte),
+                // só o 1º resultado com aquele título
                 Optional<Obra> noAcervo = repository.findFirstByFonte((String) c.get("ref"));
+                if (noAcervo.isEmpty() && o.remove("refSteam") instanceof String refSteam) noAcervo = repository.findFirstByFonte(refSteam);
+                o.remove("refSteam");
                 if (noAcervo.isEmpty() && titulosVistos.add(chaveDeBusca(titulo))) {
-                    noAcervo = mesmaObraNoAcervo(titulo, t).filter(obra -> obra.getFonte() == null);
+                    noAcervo = mesmaObraNoAcervo(titulo, t).filter(RecomendacaoController::semFonteConfiavel);
                 }
                 o.put("jaNoAcervo", noAcervo.isPresent());
                 noAcervo.ifPresent(obra -> o.put("tituloNoAcervo", obra.getTitulo()));
@@ -288,7 +302,9 @@ public class RecomendacaoController {
                     int corte = s.lastIndexOf(' ', 180);
                     o.put("sinopse", s.substring(0, corte > 80 ? corte : 180) + "…");
                 }
-                o.put("_pontos", semelhanca(consulta, titulo) * 100 - ordem++ * 10 - i);
+                // A ordem de cada fonte já pesa nome e popularidade; aqui só o título igual ao digitado sobe para o topo
+                // (antes, "começa com" passava na frente: "zelda" mostrava o Zelda II antes do Breath of the Wild)
+                o.put("_pontos", (semelhanca(consulta, titulo) == 3 ? 1000 : 0) - ordem++ * 10 - i);
                 opcoes.add(o);
             }
         }
@@ -302,14 +318,14 @@ public class RecomendacaoController {
         return switch (tipo) {
             case "Filme" -> tmdbService.candidatos("movie", nome, maximo);
             case "Serie" -> tmdbService.candidatos("tv", nome, maximo);
-            case "Jogo" -> rawgService.candidatos(nome, maximo);
+            case "Jogo" -> jogosService.candidatos(nome, maximo);
             case "Livro" -> livroService.candidatos(nome, maximo);
             default -> List.of();
         };
     }
 
     private static final java.util.regex.Pattern REF = java.util.regex.Pattern.compile(
-            "tmdb:(movie|tv):([0-9]{1,10})|rawg:([0-9]{1,10})|steam:([0-9]{1,10})|ol:(/works/OL[0-9]{1,12}W)|gb:([A-Za-z0-9_-]{8,20})");
+            "tmdb:(movie|tv):([0-9]{1,10})|igdb:([0-9]{1,10})|steam:([0-9]{1,10})|ol:(/works/OL[0-9]{1,12}W)|gb:([A-Za-z0-9_-]{8,20})");
 
     /** Mídia de um identificador de fonte, ou null se o formato for inválido (nada fora deste formato é aceito). */
     static String tipoDaRef(String ref) {
@@ -324,8 +340,8 @@ public class RecomendacaoController {
         java.util.regex.Matcher m = REF.matcher(ref);
         if (!m.matches()) return null;
         if (m.group(1) != null) return tmdbService.porId(m.group(1), Long.parseLong(m.group(2)));
-        if (m.group(3) != null) return rawgService.porId(Long.parseLong(m.group(3)));
-        if (m.group(4) != null) return steamService.porAppId(m.group(4));
+        if (m.group(3) != null) return jogosService.porIgdb(Long.parseLong(m.group(3)));
+        if (m.group(4) != null) return jogosService.porSteam(m.group(4));
         if (m.group(6) != null) return livroService.porVolumeGoogle(m.group(6));
         return livroService.porChave(m.group(5));
     }
@@ -389,6 +405,24 @@ public class RecomendacaoController {
         if (puro.isPresent() && tipo.equals(puro.get().getTipo())) return puro;
         return repository.findById(titulo + " (" + NOME_MIDIA.getOrDefault(tipo, tipo) + ")")
                 .filter(o -> tipo.equals(o.getTipo()));
+    }
+
+    /**
+     * A obra do catálogo que veio destes dados: pela fonte (índice 5) ou pela outra fonte (índice 7; ex.: o jogo do
+     * IGDB que já entrou pelo id da Steam, no Top 15).
+     */
+    private Optional<Obra> obraDaFonte(String[] dados) {
+        String fonte = campo(dados, 5), outra = campo(dados, 7);
+        Optional<Obra> pelaFonte = fonte == null ? Optional.empty() : repository.findFirstByFonte(fonte);
+        return pelaFonte.isPresent() || outra == null ? pelaFonte : repository.findFirstByFonte(outra);
+    }
+
+    /**
+     * Obra sem fonte, ou com fonte de uma API que saiu do ar (RAWG, trocada pelo IGDB): só dá para reconhecê-la pelo
+     * título. Com fonte válida, o mesmo título pode ser outra obra (remake, outro livro com o mesmo nome).
+     */
+    static boolean semFonteConfiavel(Obra o) {
+        return o.getFonte() == null || o.getFonte().startsWith("rawg:");
     }
 
     /** Título com que a obra fica no acervo: o próprio, ou "Título (Mídia)" se outra mídia já usa esse título. */
@@ -566,7 +600,7 @@ public class RecomendacaoController {
 
     @GetMapping("/tendencias/jogos")
     public List<String> tendenciasJogos() {
-        return rawgService.buscarTendencias();
+        return jogosService.buscarTendencias();
     }
 
     // ------------------------------------------------------------------ auxiliares
@@ -576,7 +610,7 @@ public class RecomendacaoController {
         return switch (tipo == null ? "" : tipo.toLowerCase()) {
             case "filme" -> tmdbService.buscarFilmeNaInternet(nome);
             case "serie" -> tmdbService.buscarSerieNaInternet(nome);
-            case "jogo" -> rawgService.buscarJogoNaInternet(nome);
+            case "jogo" -> jogosService.buscarJogoNaInternet(nome);
             case "livro" -> livroService.buscarLivroNaInternet(nome);
             default -> null;
         };
@@ -592,8 +626,8 @@ public class RecomendacaoController {
     }
 
     /**
-     * Cópia dos dados com a sinopse traduzida pelo Ollama quando vem em inglês: livros do Open Library e jogos da
-     * Steam/RAWG sem descrição em português (ex.: Geometry Dash). Se a IA falhar, fica a original.
+     * Cópia dos dados com a sinopse traduzida pelo Ollama quando vem em inglês: livros do Open Library e jogos do IGDB
+     * (o resumo é sempre em inglês) ou da Steam sem descrição em português (ex.: Geometry Dash). Se a IA falhar, fica a original.
      */
     private String[] comSinopseEmPortugues(String[] dados) {
         if (dados == null) return null;

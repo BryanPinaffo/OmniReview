@@ -28,6 +28,14 @@ class TopServiceTest {
     }
 
     @Test
+    void listaDaSteamEDeJogos() {
+        assertEquals(List.of("Filme", "Serie", "Jogo", "JogoSteam", "Livro"), TopService.LISTAS);
+        assertEquals("Jogo", TopService.tipoDaObra("JogoSteam"), "os mais jogados na Steam entram no catálogo como jogos");
+        assertEquals("Jogo", TopService.tipoDaObra("Jogo"));
+        assertEquals("Livro", TopService.tipoDaObra("Livro"));
+    }
+
+    @Test
     void listaLidaDoGrafoViraTitulos() {
         assertEquals(List.of("Duna", "Arcane"), TopService.lista(List.of("Duna", "Arcane")));
         assertEquals(List.of(), TopService.lista(null));

@@ -1337,7 +1337,7 @@
 
             <div class="bloco">
                 <h3>Top 15 automático</h3>
-                <p>Filmes e séries em alta no TMDB, jogos mais jogados na Steam e livros em alta no Open Library. Atualiza sozinho a cada 6 horas e adiciona ao catálogo o que faltar.</p>
+                <p>Filmes e séries em alta no TMDB, jogos jogados agora em todas as plataformas (IGDB) e os mais jogados na Steam (aba Jogos), e livros em alta no Open Library. Atualiza sozinho a cada 6 horas e adiciona ao catálogo o que faltar.</p>
                 <button class="btn btn-block" id="btn-top" onclick="atualizarTopAgora()">Atualizar Top 15 agora</button>
                 <div class="status" id="status-top"></div>
             </div>
@@ -1376,7 +1376,7 @@
         </section>
     </main>
 
-    <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB, RAWG, Steam e Open Library</div></footer>
+    <footer><div class="wrap">OmniReview · Neo4j + Ollama · Dados de TMDB, IGDB, Steam, Google Books e Open Library</div></footer>
 
     <!-- ===== MODAL DE DETALHES ===== -->
     <div class="boas-vindas" id="boas-vindas" role="dialog" aria-modal="true" aria-labelledby="bv-titulo" hidden></div>
@@ -1506,11 +1506,19 @@
         }
         const estaCurtida = titulo => curtidas.includes(titulo);
 
+        // Capas do Open Library vêm pelo nosso servidor (/capas/ol/...): lá cada uma leva ~2 s e passa por dois
+        // redirecionamentos até o Internet Archive; aqui ela fica guardada e chega na hora
+        const CAPA_OPEN_LIBRARY = /^https:\/\/covers\.openlibrary\.org\/b\/id\/(\d{1,12})-([SML])\.jpg$/;
+        const urlImagem = u => {
+            const m = typeof u === 'string' ? u.match(CAPA_OPEN_LIBRARY) : null;
+            return m ? `/capas/ol/${m[1]}-${m[2]}.jpg` : u;
+        };
+
         // Imagem com fallback: pôster -> capa -> placeholder com as iniciais
         function imagemHTML(obra, preferencia = 'imagem', classe = 'poster') {
             const tipo = tipoDe(obra);
-            const principal = preferencia === 'capa' ? (obra.capa || obra.imagem) : (obra.imagem || obra.capa);
-            const reserva = preferencia === 'capa' ? obra.imagem : obra.capa;
+            const principal = urlImagem(preferencia === 'capa' ? (obra.capa || obra.imagem) : (obra.imagem || obra.capa));
+            const reserva = urlImagem(preferencia === 'capa' ? obra.imagem : obra.capa);
             const ph = `<div class="placeholder" style="--cor: var(--${tipo === 'outro' ? 'accent' : tipo})"><span>${esc(iniciais(obra.titulo))}</span></div>`;
             if (!principal) return ph;
             return `${ph}<img class="${classe}" src="${esc(principal)}" alt="" loading="lazy" data-reserva="${esc(reserva && reserva !== principal ? reserva : '')}" onerror="trocarImagem(this)">`;
@@ -2038,7 +2046,11 @@
         let favoritosCarregados = false;
         const TIPOS_VITRINE = ['filme', 'serie', 'jogo', 'livro'];
         const PLURAL_TIPO = { filme: 'filmes', serie: 'séries', jogo: 'jogos', livro: 'livros' };
-        const FONTE_TOP = { filme: 'Em alta na semana (TMDB)', serie: 'Em alta na semana (TMDB)', jogo: 'Mais jogados agora na Steam', livro: 'Em alta na semana (Open Library)' };
+        const FONTE_TOP = { filme: 'Em alta na semana (TMDB)', serie: 'Em alta na semana (TMDB)', jogo: 'Jogando agora em todas as plataformas (IGDB)',
+            jogosteam: 'Mais jogados agora na Steam (PC)', livro: 'Em alta na semana (Open Library)' };
+        // Listas do Top 15 que vêm do servidor: uma por mídia e a dos jogos da Steam, que só aparece na aba Jogos
+        const LISTAS_TOP = ['filme', 'serie', 'jogo', 'jogosteam', 'livro'];
+        const midiaDaLista = lista => lista === 'jogosteam' ? 'jogo' : lista;
         const MAX_TEMAS = 16, MIN_POR_TEMA = 3, MAX_POR_TEMA = 20, TAMANHO_TOP = 15;
         const SETA_ESQ = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
         const SETA_DIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
@@ -2088,12 +2100,16 @@
             const mostradas = new Set();
             const secoes = [];
 
-            for (const t of tipos) {
-                const obras = (topObras[t] || []).map(o => porTitulo.get(o.titulo)).filter(o => o && tipoDe(o) === t).slice(0, TAMANHO_TOP);
+            // Na aba Jogos: o jogando agora (todas as plataformas) e, logo abaixo, os mais jogados na Steam
+            const listas = tipos.length === 1 && tipos[0] === 'jogo' ? ['jogo', 'jogosteam'] : tipos;
+            for (const lista of listas) {
+                const t = midiaDaLista(lista);
+                const obras = (topObras[lista] || []).map(o => porTitulo.get(o.titulo)).filter(o => o && tipoDe(o) === t).slice(0, TAMANHO_TOP);
                 if (!obras.length) continue;
                 obras.forEach(o => mostradas.add(o.titulo));
-                const quando = topInfo.atualizadoEm?.[t] ? ` · atualizado ${tempoRelativo(topInfo.atualizadoEm[t])}` : '';
-                secoes.push(secaoVitrineHTML({ id: 'top-' + t, titulo: `Top ${obras.length} ${PLURAL_TIPO[t]}`, sub: FONTE_TOP[t] + quando,
+                const quando = topInfo.atualizadoEm?.[lista] ? ` · atualizado ${tempoRelativo(topInfo.atualizadoEm[lista])}` : '';
+                const titulo = lista === 'jogosteam' ? `Top ${obras.length} jogos na Steam` : `Top ${obras.length} ${PLURAL_TIPO[t]}`;
+                secoes.push(secaoVitrineHTML({ id: 'top-' + lista, titulo, sub: FONTE_TOP[lista] + quando,
                     obras, ranking: true, aoVivo: topInfo.atualizando }));
             }
             if (!secoes.length && topInfo.atualizando) {
@@ -2248,7 +2264,7 @@
         $('btn-modo-catalogo').addEventListener('click', () => { modoGrade = !modoGrade; renderizarCatalogo(); registrarTela(); });
 
         // ---------- Top 15 (em alta na internet), atualizado pelo servidor ----------
-        let topObras = { filme: [], serie: [], jogo: [], livro: [] };
+        let topObras = { filme: [], serie: [], jogo: [], jogosteam: [], livro: [] };
         let topInfo = { atualizando: false, mensagem: '', atualizadoEm: {} };
         let assinaturaTop = '', relogioTop = null;
 
@@ -2264,13 +2280,13 @@
             if (!dados) return false;
             let novas = false;
             const proximo = {};
-            TIPOS_VITRINE.forEach(t => {
+            LISTAS_TOP.forEach(t => {
                 proximo[t] = Array.isArray(dados[t]) ? dados[t].filter(o => o?.titulo) : [];
                 proximo[t].forEach(o => {
                     if (!porTitulo.has(o.titulo)) { catalogo.push(o); porTitulo.set(o.titulo, o); novas = true; }
                 });
             });
-            const assinatura = JSON.stringify([TIPOS_VITRINE.map(t => proximo[t].map(o => o.titulo)), !!dados.atualizando]);
+            const assinatura = JSON.stringify([LISTAS_TOP.map(t => proximo[t].map(o => o.titulo)), !!dados.atualizando]);
             const mudou = novas || assinatura !== assinaturaTop;
             topObras = proximo;
             assinaturaTop = assinatura;
@@ -2525,7 +2541,7 @@
                 <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao catálogo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no catálogo.'}</p>
                 <div class="escolha-midia">${opcoes.map((o, i) => `
                     <button type="button" class="opcao-midia" data-escolher-midia="${i}">
-                        ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(o.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
+                        ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(urlImagem(o.imagem))}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
                         <span class="opcao-midia-texto">
                             <span class="tipo ${esc(o.tipo)}">${NOME_TIPO[o.tipo] || esc(o.tipo)}</span>
                             <b>${esc(o.titulo)}${o.ano ? ` <span class="opcao-ano">(${esc(o.ano)})</span>` : ''}</b>
@@ -3057,7 +3073,7 @@
             if (f.episodios) fatos.push(['Episódios', `${f.episodios} episódio${f.episodios > 1 ? 's' : ''}`]);
             if (f.duracaoEpisodioMinutos) fatos.push(['Por episódio', '~' + duracaoTexto(f.duracaoEpisodioMinutos)]);
             if (f.situacao) fatos.push(['Situação', f.situacao]);
-            if (f.tempoMedioHoras) fatos.push(['Tempo médio de jogo', `${f.tempoMedioHoras} h`]);
+            if (f.plataformas) fatos.push(['Plataformas', f.plataformas]);
             const zerar = f.tempoParaZerar || {};
             if (zerar.historia) fatos.push(['Para zerar (história)', `~${zerar.historia} h`]);
             if (zerar.extras) fatos.push(['Com extras', `~${zerar.extras} h`]);
@@ -3085,7 +3101,7 @@
                 <p class="rotulo">${ehJogo ? 'Onde jogar' : ehLivro ? 'Onde ler ou comprar' : 'Onde assistir'}</p>
                 ${provedores ? `<div class="provedores">${provedores}</div>`
                     : `<p class="ficha-vazia">${ehJogo ? 'Não encontramos lojas para este jogo.' : ehLivro ? 'Não encontramos este livro nas livrarias.' : 'Não está disponível em streaming no Brasil no momento.'}</p>`}
-                ${ehJogo && f.fonte !== 'RAWG' && !zerar.historia ? '' : `<p class="ficha-fonte">${ehJogo ? [f.fonte === 'RAWG' ? 'Lojas e tempo médio: RAWG' : '', zerar.historia ? `Tempo para zerar: IGDB${zerar.respostas ? ` (${zerar.respostas} ${zerar.respostas === 1 ? 'jogador' : 'jogadores'})` : ''}` : ''].filter(Boolean).join(' · ') : ehLivro ? `Dados do livro: ${esc(f.fonteDados || 'Open Library')} · tempo de leitura estimado a 40 páginas por hora` : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
+                ${ehJogo && f.fonte !== 'IGDB' && !zerar.historia ? '' : `<p class="ficha-fonte">${ehJogo ? [f.fonte === 'IGDB' ? 'Plataformas e lojas: IGDB' : '', zerar.historia ? `Tempo para zerar: IGDB${zerar.respostas ? ` (${zerar.respostas} ${zerar.respostas === 1 ? 'jogador' : 'jogadores'})` : ''}` : ''].filter(Boolean).join(' · ') : ehLivro ? `Dados do livro: ${esc(f.fonteDados || 'Open Library')} · tempo de leitura estimado a 40 páginas por hora` : 'Disponibilidade no Brasil: JustWatch, via TMDB'}${todas ? ` · <a href="${esc(todas)}" target="_blank" rel="noopener noreferrer">ver todas as opções</a>` : ''}</p>`}`;
         }
 
         async function carregarSemelhantes(obra, tags) {
@@ -4235,7 +4251,7 @@
                 <p>Lista de <b>${esc(d.dono)}</b>${d.membros.length ? ` com ${d.membros.map(esc).join(', ')}` : ''} · ${plural(d.obras.length, 'obra', 'obras')}. Toque numa obra para ver os detalhes.</p>
                 ${d.obras.length ? `<div class="lista-visita">${d.obras.map(o => `
                     <button type="button" class="mini-obra" data-abrir-obra="${esc(o.titulo)}">
-                        ${o.imagem || o.capa ? `<img src="${esc(o.imagem || o.capa)}" alt="" loading="lazy">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
+                        ${o.imagem || o.capa ? `<img src="${esc(urlImagem(o.imagem || o.capa))}" alt="" loading="lazy">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
                         <span>${esc(o.titulo)}</span><small>${NOME_TIPO[tipoDe(o)] || ''}</small>
                     </button>`).join('')}</div>` : '<p class="membros-vazio">Esta lista ainda está vazia.</p>'}
                 <div class="dialogo-acoes"><button type="button" class="btn btn-primary" onclick="fecharDialogo()">Fechar</button></div>`);
@@ -4434,7 +4450,7 @@
         function cartaoAdicionandoBv() {
             const a = bv.adicionando;
             const capa = a.imagem && /^https:\/\//.test(a.imagem)
-                ? `<img src="${esc(a.imagem)}" alt="">` : `<span class="sem-poster">${esc(iniciais(a.titulo))}</span>`;
+                ? `<img src="${esc(urlImagem(a.imagem))}" alt="">` : `<span class="sem-poster">${esc(iniciais(a.titulo))}</span>`;
             return `<div class="bv-adicionando" role="status" aria-live="polite">
                 <div class="bv-ad-capa">${capa}<span class="girando" aria-hidden="true"></span></div>
                 <div class="bv-ad-texto">
@@ -4633,7 +4649,7 @@
                 <h2 id="dialogo-titulo">Compartilhar</h2>
                 <p>Quem abrir o link vai direto para esta obra.</p>
                 <div class="compartilhar-obra">
-                    ${poster ? `<img src="${esc(poster)}" alt="">` : '<span class="sem-poster"></span>'}
+                    ${poster ? `<img src="${esc(urlImagem(poster))}" alt="">` : '<span class="sem-poster"></span>'}
                     <div><b>${esc(titulo)}</b><small>${esc(tipo)}</small></div>
                 </div>
                 <div class="compartilhar-link">

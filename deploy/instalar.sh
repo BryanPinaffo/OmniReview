@@ -72,7 +72,7 @@ if [[ ! -f "$SEGREDOS" ]]; then
     cp "$RAIZ/backend-java/config/segredos.exemplo.properties" "$SEGREDOS"
     falha "Criei $SEGREDOS a partir do modelo. Preencha (ou copie o do notebook) e rode de novo."
 fi
-grep -qE '=(SENHA_DO_NEO4J|SUA_CHAVE_TMDB|SUA_CHAVE_RAWG|SENHA_DO_ADMIN)$' "$SEGREDOS" \
+grep -qE '=(SENHA_DO_NEO4J|SUA_CHAVE_TMDB|SENHA_DO_ADMIN)$' "$SEGREDOS" \
     && falha "$SEGREDOS ainda tem valores de exemplo. Preencha antes de continuar."
 ler() { sed -n "s/^$1=//p" "$SEGREDOS" | tail -1 | tr -d '\r'; }
 SENHA_NEO4J="$(ler 'spring\.neo4j\.authentication\.password')"

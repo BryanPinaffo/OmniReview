@@ -1,5 +1,6 @@
 import com.omnireview.backend.IaService;
-import com.omnireview.backend.RawgService;
+import com.omnireview.backend.IgdbService;
+import com.omnireview.backend.JogosService;
 import com.omnireview.backend.SteamService;
 import com.omnireview.backend.TmdbService;
 
@@ -16,7 +17,7 @@ import java.util.Properties;
 /**
  * Harness de avaliação do classificador (usa as classes de produção, sem Spring).
  * Para cada obra do conjunto de referência:
- *  - busca título/sinopse/gêneros na API da mídia (TMDB ou RAWG->Steam) e mede o tempo;
+ *  - busca título/sinopse/gêneros na API da mídia (TMDB ou IGDB->Steam; até nov/2026 era RAWG->Steam) e mede o tempo;
  *  - executa a etapa do LLM N vezes (mede latência e estabilidade);
  *  - registra as tags do LLM, os gêneros oficiais e o resultado combinado (pipeline de produção).
  * Saída: um JSON por linha (JSONL).
@@ -35,7 +36,8 @@ public class HarnessClassificacao {
 
         IaService ia = new IaService(cfg.getProperty("omnireview.ollama.url"), cfg.getProperty("omnireview.ollama.modelo", "llama3.2:3b"));
         TmdbService tmdb = new TmdbService(cfg.getProperty("omnireview.tmdb.api-key"));
-        RawgService jogos = new RawgService(new SteamService(), cfg.getProperty("omnireview.rawg.api-key"));
+        JogosService jogos = new JogosService(new IgdbService(cfg.getProperty("omnireview.igdb.client-id"),
+                cfg.getProperty("omnireview.igdb.client-secret")), new SteamService());
 
         try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(Path.of(args[2]), StandardCharsets.UTF_8))) {
             for (String linha : linhas.subList(1, linhas.size())) {

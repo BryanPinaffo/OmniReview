@@ -42,6 +42,11 @@ public interface ObraRepository extends Neo4jRepository<Obra, String> {
            "RETURN o ORDER BY score DESC, comuns DESC, o.titulo LIMIT 60")
     List<Obra> recomendarPorTags(List<String> tags, List<String> excluir, String tipo, String usuario);
 
-    /** A obra que veio deste item da API de origem (ver {@link Obra#getFonte()}). */
+    /**
+     * A obra que veio deste item da API de origem: pela fonte principal ou por uma das outras (ex.: o jogo do IGDB
+     * também é encontrado pelo id da Steam). Ver {@link Obra#getFonte()} e {@link Obra#getOutrasFontes()}.
+     */
+    @Query("MATCH (o:Obra) WHERE o.fonte = $fonte OR $fonte IN coalesce(o.outrasFontes, []) " +
+           "RETURN o ORDER BY CASE WHEN o.fonte = $fonte THEN 0 ELSE 1 END, o.titulo LIMIT 1")
     java.util.Optional<Obra> findFirstByFonte(String fonte);
 }

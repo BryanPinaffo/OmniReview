@@ -18,9 +18,10 @@ por travessia no grafo com peso IDF, intercalando filmes, séries, jogos e livro
 
 1. **Neo4j:** copie `.env.exemplo` para `.env`, defina `NEO4J_PASSWORD` e rode `docker compose up -d`
 2. **Segredos:** copie `backend-java/config/segredos.exemplo.properties` para
-   `backend-java/config/segredos.properties` e preencha a senha do Neo4j, as chaves do TMDB e da RAWG e a URL do
+   `backend-java/config/segredos.properties` e preencha a senha do Neo4j, a chave do TMDB, as credenciais do IGDB (aplicativo gratuito da Twitch) e a URL do
    Ollama. Esse arquivo é ignorado pelo Git. Também é possível usar variáveis de ambiente
-   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_RAWG_API_KEY`, `OMNIREVIEW_GOOGLEBOOKS_API_KEY` e `OMNIREVIEW_IGDB_CLIENT_ID`/`OMNIREVIEW_IGDB_CLIENT_SECRET` (opcionais), `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
+   (`OMNIREVIEW_TMDB_API_KEY`, `OMNIREVIEW_IGDB_CLIENT_ID`/`OMNIREVIEW_IGDB_CLIENT_SECRET`, `OMNIREVIEW_GOOGLEBOOKS_API_KEY` (opcional), `OMNIREVIEW_OLLAMA_URL`, `SPRING_NEO4J_AUTHENTICATION_PASSWORD`).
+   Sem o IGDB, os jogos vêm só da Steam (sem jogos de console, plataformas nem tempo para zerar).
 3. **Ollama:** `ollama pull llama3.2:3b` no servidor de IA.
 4. **Back-end:** `cd backend-java && ./mvnw spring-boot:run` e abra <http://localhost:8080>.
    Na primeira execução, o grafo de tags é criado automaticamente a partir das obras existentes.
@@ -53,9 +54,10 @@ O site é publicado com o **Tailscale Funnel** (HTTPS, sem abrir portas no rotea
 
 Sem busca, tag ou ordenação, o catálogo é uma vitrine de carrosséis:
 
-1. **Top 15 de cada mídia**, puxado da internet: filmes e séries em alta na semana no TMDB, jogos mais jogados agora
-   na Steam (sem programas como o Wallpaper Engine) e livros em alta na semana no Open Library. Em **Todos** aparecem
-   os quatro; com uma mídia escolhida, só o dela.
+1. **Top 15 de cada mídia**, puxado da internet: filmes e séries em alta na semana no TMDB, jogos que mais gente está
+   jogando agora em todas as plataformas (IGDB, sem DLCs nem edições repetidas) e livros em alta na semana no Open
+   Library. Em **Todos** aparecem os quatro; com uma mídia escolhida, só o dela. Na aba **Jogos** aparece também o
+   **Top 15 jogos na Steam** (os mais jogados agora no PC, sem programas como o Wallpaper Engine).
 2. **Top 15 para você**: a mesma recomendação da aba "Para você" (sem favoritos e sem o que a pessoa já viu, jogou ou
    leu), com as mídias misturadas em **Todos** ou só da mídia escolhida (ex.: "Top 15 filmes para você").
 3. **Temas**: o resto do catálogo separado pelas tags mais comuns do DNA (ex.: Animação, Aventura). Cada obra aparece
@@ -72,7 +74,7 @@ Cada lista fica no grafo como `(:Top {tipo, titulos, atualizadoEm})`. O administ
 ## "O que você quer assistir hoje?"
 
 Campo de busca na tela inicial. Enquanto a pessoa digita, aparecem as obras do catálogo que combinam. Se o título não
-estiver no catálogo, ele é buscado na web (filmes e séries no TMDB, jogos na RAWG/Steam, livros no Open Library, em paralelo), o resultado mais
+estiver no catálogo, ele é buscado na web (filmes e séries no TMDB, jogos no IGDB, de todas as plataformas, com a Steam de reserva, livros no Google Books/Open Library, em paralelo), o resultado mais
 parecido com o que foi digitado é classificado pela IA e adicionado automaticamente, e a janela da obra abre em seguida.
 Os botões Filme/Série/Jogo/Livro restringem a busca a uma mídia (útil quando o mesmo nome existe em mais de uma).
 
@@ -218,7 +220,8 @@ chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a
 | GET | `/api/top` | Top 15 de filmes, séries, jogos e livros (obras na ordem do ranking), quando cada um foi atualizado e se está atualizando |
 | POST | `/api/admin/top/atualizar` | (admin) Atualiza o Top 15 agora, em segundo plano (202) |
 | GET | `/obra?t=...` | Link de compartilhamento (público, sem login): prévia com título, sinopse e pôster (Open Graph) e redireciona para a obra no site |
-| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, tempo médio de jogo e tempo para zerar (história, com extras, 100% — IGDB), autor, páginas e onde ler o livro (TMDB/JustWatch, RAWG, Steam, Open Library; cache de 12 h) |
+| GET | `/api/obras/info?titulo=...` | Ficha da obra: onde assistir/jogar (com links), duração do filme, temporadas e episódios da série, plataformas, lojas de cada plataforma e tempo para zerar do jogo (história, com extras, 100% — IGDB), autor, páginas e onde ler o livro (TMDB/JustWatch, IGDB, Steam, Google Books, Open Library; cache de 12 h) |
+| GET | `/capas/ol/{id}-{S\|M\|L}.jpg` | Capa de livro do Open Library servida pelo site (público): buscada uma vez e guardada em memória, com cache de 30 dias no navegador |
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | GET | `/api/buscar-opcoes?nome=...[&tipo=filme\|serie\|jogo\|livro]` | Opções encontradas na web para a pessoa confirmar (nada é salvo): `{"opcoes": [{ref, tipo, titulo, ano, imagem, sinopse\|detalhe, jaNoAcervo, tituloNoAcervo}]}` |
