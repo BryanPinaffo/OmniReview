@@ -181,9 +181,14 @@ public class RecomendacaoController {
     public ResponseEntity<ResultadoBusca> buscarOuAdicionar(@RequestParam String nome, @RequestParam(required = false) String tipo,
                                                             @RequestParam(defaultValue = "false") boolean ignorarAcervo,
                                                             @RequestParam(required = false) String ref,
+                                                            @RequestParam(defaultValue = "false") boolean painel,
                                                             HttpServletRequest req) {
         // A pessoa confirmou um item exato da lista de opções: salva ele (ou abre, se já estiver no acervo)
         if (ref != null && !ref.isBlank()) {
+            // "painel": o administrador escolheu na lista do "Adicionar obras" (só vale para ele, é o que vai no histórico)
+            String origem = painel && Usuario.ADMIN.equals(req.getAttribute(AutenticacaoInterceptor.ATRIBUTO_PAPEL))
+                    ? "pela Administração, escolhida na lista de opções"
+                    : "pela busca “O que você quer ver hoje?”, confirmada pela pessoa";
             String tipoRef = tipoDaRef(ref);
             if (tipoRef == null) return ResponseEntity.badRequest().build();
             Optional<Obra> jaTem = repository.findFirstByFonte(ref);
@@ -193,8 +198,7 @@ public class RecomendacaoController {
             // O mesmo jogo pode já estar no catálogo por outra fonte (ex.: veio do Top 15 da Steam)
             Optional<Obra> pelaOutraFonte = obraDaFonte(dados);
             if (pelaOutraFonte.isPresent()) return ResponseEntity.ok(ResultadoBusca.obra(pelaOutraFonte.get(), false));
-            return ResponseEntity.ok(ResultadoBusca.obra(classificarESalvar(dados, tipoRef, usuario(req),
-                    "pela busca “O que você quer ver hoje?”, confirmada pela pessoa", true), true));
+            return ResponseEntity.ok(ResultadoBusca.obra(classificarESalvar(dados, tipoRef, usuario(req), origem, true), true));
         }
         String consulta = nome == null ? "" : nome.trim();
         if (consulta.isEmpty() || consulta.length() > 120) {

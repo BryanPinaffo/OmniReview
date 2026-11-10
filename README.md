@@ -86,6 +86,13 @@ como `Duna` e `Duna (2021)`. Se o nome já
 está no catálogo, a sugestão "Queria … em outra mídia?" procura as outras. Como o título identifica a obra no grafo,
 uma segunda mídia com o mesmo nome entra como `Título (Mídia)` (ex.: `Duna (Filme)`); a busca ignora esse sufixo.
 
+No painel de administração, **Adicionar obras** aceita vários nomes de uma vez, separados por vírgula, ponto e vírgula
+ou linha (nome com vírgula vai entre aspas). Cada nome é procurado na web, um por vez, e quando há dúvida um diálogo
+pergunta qual obra é ("Qual “Duna” você quer?"), com a opção de pular. Enquanto isso, as já escolhidas vão sendo salvas
+uma por vez, porque a IA gera o DNA de cada uma. Sem dúvida, a obra entra sem pergunta: com a mídia escolhida, só uma
+opção tem exatamente o nome digitado. Fechar o diálogo deixa as perguntas esperando na lista. O histórico registra essas
+obras como "pela Administração".
+
 ## Livros
 
 Os livros vêm do [Google Books](https://developers.google.com/books) quando há chave configurada
@@ -167,7 +174,7 @@ chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a
 | Login | 5 erros bloqueiam aquele **endereço** para aquela conta por 15 min (um atacante não tranca o dono para fora); 30 erros vindos de qualquer lugar bloqueiam a conta para todos (força bruta distribuída); mesma resposta e mesmo tempo para usuário inexistente |
 | Sessões | Token aleatório de 256 bits, 12 h de validade, no máximo 10 sessões por conta; trocar a senha encerra as outras |
 | Permissões | Rotas de administrador barradas no servidor (403), testadas contra variações de caminho (`/API/...`, `/api//admin`, `%61dmin`, `;x=1`, `..`); listas, comentários e perfil checam o dono; o administrador pode excluir comentários (moderação) |
-| Abuso e robôs | Limites por endereço e por usuário (429 com `Retry-After`): 600 requisições/min, 30 logins/15 min, 5 cadastros/hora, 30 buscas na web a cada 5 min por usuário (cada uma chama APIs externas e a IA), 20 comentários/10 min. O IP real vem do `X-Forwarded-For` só quando a conexão chega de um proxy da rede interna (Tailscale Funnel/Docker) |
+| Abuso e robôs | Limites por endereço e por usuário (429 com `Retry-After`): 600 requisições/min, 30 logins/15 min, 5 cadastros/hora, 30 buscas na web a cada 5 min por usuário (cada uma chama APIs externas e a IA), 20 comentários/10 min. O administrador fica só no limite geral, para adicionar obras em lote. O IP real vem do `X-Forwarded-For` só quando a conexão chega de um proxy da rede interna (Tailscale Funnel/Docker) |
 | Navegador | Content-Security-Policy (só scripts do próprio site, `frame-ancestors 'none'`, `object-src 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; respostas da API com `no-store`. Todo dado de usuário ou de API externa passa por `esc()` antes de ir para o HTML |
 | Entrada de dados | Consultas Cypher sempre parametrizadas; corpo das requisições limitado a 3 MB (413); fotos só como `data:image` validado; textos com limite de tamanho |
 | CORS | Liberado de propósito: a sessão é um token Bearer (sem cookies), que outro site não tem como obter. Restringir quebra o login atrás do Tailscale Funnel, onde o servidor vê o endereço interno do proxy e não o do site |
@@ -225,7 +232,7 @@ chega por um link compartilhado vê primeiro o link; as boas-vindas ficam para a
 | GET | `/api/recomendar?tags=Ação&tags=RPG&excluir=Título` | Recomendações transmídia |
 | POST | `/api/adicionar/{filme\|serie\|jogo\|livro}?nome=...` | (admin) Busca a obra, gera o DNA e salva (404 se não encontrar) |
 | GET | `/api/buscar-opcoes?nome=...[&tipo=filme\|serie\|jogo\|livro]` | Opções encontradas na web para a pessoa confirmar (nada é salvo): `{"opcoes": [{ref, tipo, titulo, ano, imagem, sinopse\|detalhe, jaNoAcervo, tituloNoAcervo}]}` |
-| POST | `/api/buscar-ou-adicionar?nome=...&ref=...` | Adiciona exatamente a opção confirmada (`ref` = identificador da fonte) ou abre a do catálogo (`{"obra", "adicionada"}`); sem `ref`, busca pelo nome |
+| POST | `/api/buscar-ou-adicionar?nome=...&ref=...[&painel=true]` | Adiciona exatamente a opção confirmada (`ref` = identificador da fonte) ou abre a do catálogo (`{"obra", "adicionada"}`); sem `ref`, busca pelo nome. `painel=true` (só do administrador) registra no histórico que veio do painel |
 | GET | `/api/tendencias/{filmes\|series\|jogos\|livros}` | (admin) Títulos em alta |
 | POST | `/api/completar-detalhes` | (admin) Preenche sinopses e imagens faltantes e traduz sinopses que ficaram em inglês (até 15 por chamada) |
 | POST | `/api/reprocessar-dna[?todas=true]` | (admin) Refaz as tags que falharam (ou todas) |

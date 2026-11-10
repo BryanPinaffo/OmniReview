@@ -892,7 +892,8 @@ const fJogo = await fichaDe(obraJogo, 'ficha_jogo');
 caso('T28', 'Ficha da obra: duração do filme, temporadas da série, tempo de jogo e onde assistir/jogar com links',
   fFilme.fatos.includes('Duração') && fFilme.rotulo === 'Onde assistir'
   && fSerie.fatos.includes('Temporadas') && fSerie.fatos.includes('Episódios')
-  && fJogo.fatos.includes('Tempo para zerar') && fJogo.rotulo === 'Onde jogar' && fJogo.links.length > 0
+  // com o tempo do IGDB a ficha mostra "Para zerar (história)" (+ "Comparar"); sem ele, só o link "Tempo para zerar"
+  && (fJogo.fatos.includes('Para zerar (história)') || fJogo.fatos.includes('Tempo para zerar')) && fJogo.rotulo === 'Onde jogar' && fJogo.links.length > 0
   && linksOk([...fFilme.links, ...fSerie.links, ...fJogo.links]),
   `filme: ${fFilme.fatos.join('/')} + ${fFilme.links.length} serviço(s); série: ${fSerie.fatos.join('/')} + ${fSerie.links.length}; jogo: ${fJogo.fatos.join('/')} + ${fJogo.links.length} loja(s)`);
 

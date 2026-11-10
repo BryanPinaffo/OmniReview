@@ -14,7 +14,7 @@ import java.time.Duration;
  *  - listar opções e adicionar obra da web (APIs externas e a IA): 30 a cada 5 min por usuário comum e 60 por endereço
  *    (janela curta: quem está alimentando o acervo espera no máximo 5 min, e um robô continua contido);
  *  - comentários: 20 a cada 10 min por usuário; listas e participantes: 60 a cada 10 min por usuário.
- * O administrador não tem limite por usuário (só o geral por endereço).
+ * O administrador não tem limite por usuário nem o de opções/adicionar (só o geral por endereço): ele adiciona obras em lote.
  */
 public class LimiteInterceptor implements HandlerInterceptor {
 
@@ -42,8 +42,9 @@ public class LimiteInterceptor implements HandlerInterceptor {
 
         long espera = limitador.usar("geral|" + ip, 600, Duration.ofMinutes(1));
         // Listar opções e confirmar a escolhida chamam APIs externas (e a IA, ao salvar): contam no mesmo limite
+        // (o administrador adiciona obras em lote pelo painel: fica só no limite geral)
         if (espera == 0 && (rota.equals("/api/buscar-opcoes") || ("POST".equalsIgnoreCase(metodo) && rota.equals("/api/buscar-ou-adicionar")))) {
-            espera = limitador.usar("web|" + ip, 60, Duration.ofMinutes(5));
+            if (!admin) espera = limitador.usar("web|" + ip, 60, Duration.ofMinutes(5));
             if (espera == 0 && usuario != null && !admin) espera = limitador.usar("web|u|" + usuario, 30, Duration.ofMinutes(5));
         } else if (espera == 0 && "POST".equalsIgnoreCase(metodo)) {
             if (rota.equals("/api/auth/entrar")) {

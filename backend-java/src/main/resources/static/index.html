@@ -665,6 +665,27 @@
             padding: 10px 0; font-weight: 600; font-size: 13px; cursor: pointer;
         }
         .tipo-escolha button.ativo { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+        #manual-tipo { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+        #manual-tipo button { font-size: 12.5px; }
+        textarea.input { height: auto; min-height: 66px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+        .campo-dica { color: var(--text-3); font-size: 12px; }
+        /* Adicionar obras em lote (painel de admin) */
+        .lote-topo { display: flex; justify-content: flex-end; gap: 14px; margin-top: 8px; }
+        .lote-lista { list-style: none; margin: 10px 0 0; padding: 0; max-height: 360px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+        .lote-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 2px; border-top: 1px solid var(--line); font-size: 13px; }
+        .lote-item:first-child { border-top: none; }
+        .lote-nome { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+        .lote-nome b { font-weight: 600; overflow-wrap: anywhere; }
+        .lote-nome small { color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
+        .lote-nome .link-btn { font-size: 12px; text-align: left; }
+        .lote-estado { flex: 0 0 auto; max-width: 55%; display: flex; white-space: nowrap; align-items: center; gap: 6px; color: var(--text-3); font-size: 12.5px; text-align: right; }
+        .lote-estado .girando { width: 12px; height: 12px; }
+        .lote-estado .link-btn { font-size: 12.5px; color: var(--text); }
+        .lote-item.adicionada .lote-estado { color: var(--jogo); }
+        .lote-item.escolher .lote-estado { color: var(--text); }
+        .lote-item.erro .lote-estado, .lote-item.sem-resultado .lote-estado { color: var(--danger); }
+        .dialogo > p.lote-passo { margin: 0 0 6px; padding-right: 44px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+        .dialogo > p.lote-espera { display: flex; align-items: center; gap: 10px; }
         .status { font-size: 13px; color: var(--text-2); margin-top: 10px; min-height: 1em; }
         .status.ok { color: var(--jogo); } .status.erro { color: var(--danger); }
         .barra { height: 6px; border-radius: 99px; background: var(--bg); overflow: hidden; margin-top: 12px; }
@@ -1311,20 +1332,27 @@
             <h2 class="admin-secao">Catálogo</h2>
             <div class="admin-acervo">
             <div class="bloco">
-                <h3>Adicionar uma obra</h3>
-                <p>Busca na web, gera o DNA criativo com a IA e salva no Neo4j.</p>
+                <h3>Adicionar obras</h3>
+                <p>Busca na web, gera o DNA criativo com a IA e salva no Neo4j. Para várias de uma vez, separe os nomes por vírgula: quando houver mais de uma obra parecida, você escolhe a certa enquanto as outras vão sendo salvas.</p>
                 <div class="tipo-escolha" id="manual-tipo">
-                    <button class="ativo" data-tipo="filme">Filme</button>
+                    <button class="ativo" data-tipo="">Todas</button>
+                    <button data-tipo="filme">Filme</button>
                     <button data-tipo="serie">Série</button>
                     <button data-tipo="jogo">Jogo</button>
                     <button data-tipo="livro">Livro</button>
                 </div>
                 <div class="campo">
-                    <label for="input-manual-nome">Nome</label>
-                    <input class="input" id="input-manual-nome" placeholder="Ex: Inception, Elden Ring, Breaking Bad, Dom Casmurro">
+                    <label for="input-manual-nome">Nomes</label>
+                    <textarea class="input" id="input-manual-nome" rows="2" placeholder="Ex: Duna, Elden Ring, Breaking Bad, Dom Casmurro"></textarea>
+                    <small class="campo-dica">Enter envia, Shift+Enter quebra a linha. Nome com vírgula vai entre aspas: "Love, Death &amp; Robots".</small>
                 </div>
-                <button class="btn btn-primary btn-block" id="btn-manual" onclick="adicionarObraManual()">Processar e salvar</button>
-                <div class="status" id="status-manual"></div>
+                <button class="btn btn-primary btn-block" id="btn-manual" onclick="adicionarObraManual()">Procurar e adicionar</button>
+                <div class="status" id="status-manual" aria-live="polite"></div>
+                <div class="lote-topo" id="lote-topo" hidden>
+                    <button type="button" class="link-btn" id="lote-escolher" onclick="retomarPerguntasLote()" hidden>Escolher agora</button>
+                    <button type="button" class="link-btn" id="lote-cancelar" onclick="cancelarLote()">Cancelar o resto</button>
+                </div>
+                <ol class="lote-lista" id="lote-lista" hidden></ol>
             </div>
 
             <div class="bloco">
@@ -1456,7 +1484,7 @@
         const CHAVE_CURTIDAS = 'omnireview:curtidas:' + (sessao?.usuario || 'anonimo');
         let curtidas = carregarCurtidas();
         const filtro = { texto: '', tipo: 'TODOS', ordem: 'padrao', tags: new Set() };
-        let tipoManual = 'filme';
+        let tipoManual = '';   // '' = todas as mídias
 
         // ================= UTILITÁRIOS =================
         const $ = id => document.getElementById(id);
@@ -2533,23 +2561,28 @@
             }
         }
 
-        // Mesmo nome em mais de uma mídia: mostra as opções e só adiciona a escolhida
-        function escolherMidia(texto, opcoes) {
-            buscaHero.opcoesMidia = opcoes;
-            abrirDialogo(`
-                <h2 id="dialogo-titulo">${opcoes.length === 1 ? 'É esta a obra?' : `Qual “${esc(texto)}” você quer?`}</h2>
-                <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao catálogo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no catálogo.'}</p>
-                <div class="escolha-midia">${opcoes.map((o, i) => `
-                    <button type="button" class="opcao-midia" data-escolher-midia="${i}">
+        /** Os botões das opções da web (capa, mídia, título, ano, sinopse); atributo marca o índice de cada uma. */
+        function opcoesMidiaHTML(opcoes, atributo, noAcervo = 'Já está no catálogo: abrir') {
+            return opcoes.map((o, i) => `
+                    <button type="button" class="opcao-midia" ${atributo}="${i}">
                         ${o.imagem && /^https:\/\//.test(o.imagem) ? `<img src="${esc(urlImagem(o.imagem))}" alt="">` : `<span class="sem-poster">${esc(iniciais(o.titulo))}</span>`}
                         <span class="opcao-midia-texto">
                             <span class="tipo ${esc(o.tipo)}">${NOME_TIPO[o.tipo] || esc(o.tipo)}</span>
                             <b>${esc(o.titulo)}${o.ano ? ` <span class="opcao-ano">(${esc(o.ano)})</span>` : ''}</b>
                             ${o.detalhe ? `<small class="opcao-detalhe">${esc(o.detalhe)}</small>` : ''}
                             ${o.sinopse ? `<small>${esc(o.sinopse)}</small>` : ''}
-                            <em>${o.jaNoAcervo ? 'Já está no catálogo: abrir' : 'Adicionar ao catálogo'}</em>
+                            <em>${o.jaNoAcervo ? noAcervo : 'Adicionar ao catálogo'}</em>
                         </span>
-                    </button>`).join('')}</div>
+                    </button>`).join('');
+        }
+
+        // Mesmo nome em mais de uma mídia: mostra as opções e só adiciona a escolhida
+        function escolherMidia(texto, opcoes) {
+            buscaHero.opcoesMidia = opcoes;
+            abrirDialogo(`
+                <h2 id="dialogo-titulo">${opcoes.length === 1 ? 'É esta a obra?' : `Qual “${esc(texto)}” você quer?`}</h2>
+                <p>${opcoes.length === 1 ? 'Confira antes de adicionar ao catálogo.' : 'Encontramos mais de uma obra com esse nome. Escolha a certa: só ela entra no catálogo.'}</p>
+                <div class="escolha-midia">${opcoesMidiaHTML(opcoes, 'data-escolher-midia')}</div>
                 <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo(); statusBusca('')">${opcoes.length === 1 ? 'Não é esta' : 'Nenhum desses'}</button></div>`);
         }
 
@@ -3154,30 +3187,300 @@
             tipoManual = b.dataset.tipo;
             document.querySelectorAll('#manual-tipo button').forEach(x => x.classList.toggle('ativo', x === b));
         });
-        $('input-manual-nome').addEventListener('keydown', e => { if (e.key === 'Enter') adicionarObraManual(); });
+        $('input-manual-nome').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); adicionarObraManual(); }
+        });
 
         function status(id, texto, tipo = '') { const el = $(id); el.textContent = texto; el.className = 'status ' + tipo; }
 
+        // ---------- Adicionar obras (uma ou várias, separadas por vírgula) ----------
+        // Cada nome é procurado na web (um por vez); se houver dúvida, a pessoa escolhe a obra certa num diálogo,
+        // enquanto as já escolhidas vão sendo salvas (uma por vez, pois a IA gera o DNA de cada uma).
+        const MAX_LOTE = 40;
+        const lote = { itens: [], seq: 0, buscando: false, adicionando: false, perguntando: false, mudouCatalogo: false, relogio: null };
+        const ESTADOS_LOTE = {
+            aguardando: 'Aguardando', procurando: 'Procurando…', escolher: 'Esperando sua escolha',
+            fila: 'Na fila', adicionando: 'Salvando…', adicionada: 'Adicionada',
+            'ja-estava': 'Já no catálogo', pulada: 'Pulada', 'sem-resultado': 'Não encontrada',
+            erro: 'Erro', cancelada: 'Cancelada'
+        };
+        const DICAS_LOTE = {
+            aguardando: 'Na fila para procurar na web', fila: 'Escolhida; na fila para salvar',
+            adicionando: 'Buscando os detalhes e gerando o DNA criativo com a IA', 'sem-resultado': 'Nada com esse nome na web: confira a grafia ou o tipo'
+        };
+        const PENDENTES_LOTE = ['aguardando', 'procurando', 'escolher', 'fila', 'adicionando'];
+        const loteAtivo = () => lote.itens.some(i => PENDENTES_LOTE.includes(i.estado));
+
+        /** "Duna, Elden Ring; Breaking Bad" (vírgula, ponto e vírgula ou linha), com aspas para nomes que têm vírgula. */
+        function separarNomesDoLote(texto) {
+            const nomes = [];
+            let atual = '', aspas = false;
+            for (const c of String(texto || '')) {
+                if (c === '"' || c === '“' || c === '”') { aspas = c === '“' ? true : c === '”' ? false : !aspas; continue; }
+                if (!aspas && (c === ',' || c === ';' || c === '\n')) { nomes.push(atual); atual = ''; continue; }
+                atual += c;
+            }
+            nomes.push(atual);
+            const vistos = new Set();
+            return nomes.map(n => n.replace(/\s+/g, ' ').trim())
+                .filter(n => n && !vistos.has(normalizar(n)) && vistos.add(normalizar(n)));
+        }
+
+        /** Sem dúvida = com a mídia escolhida, uma só opção tem exatamente o nome digitado (ou só veio uma opção, igual). */
+        function escolhaSemDuvida(item) {
+            const iguais = item.opcoes.filter(o => normalizar(o.titulo) === normalizar(item.nome));
+            return iguais.length === 1 && (item.tipo || item.opcoes.length === 1) ? iguais[0] : null;
+        }
+
         async function adicionarObraManual() {
-            const nome = $('input-manual-nome').value.trim();
-            if (!nome) { status('status-manual', 'Digite o nome da obra.', 'erro'); return; }
-            const btn = $('btn-manual');
-            btn.disabled = true;
-            status('status-manual', `Buscando "${nome}" e gerando o DNA com a IA...`);
+            const nomes = separarNomesDoLote($('input-manual-nome').value);
+            if (!nomes.length) { status('status-manual', 'Digite o nome da obra (ou vários, separados por vírgula).', 'erro'); return; }
+            const longo = nomes.find(n => n.length > 120);
+            if (longo) { status('status-manual', `Nome longo demais: “${longo.slice(0, 40)}…”. Confira as vírgulas.`, 'erro'); return; }
+            if (!loteAtivo()) { lote.itens = []; lote.mudouCatalogo = false; }
+            const jaNaLista = new Set(lote.itens.filter(i => PENDENTES_LOTE.includes(i.estado)).map(i => normalizar(i.nome) + '|' + i.tipo));
+            const novos = nomes.filter(n => !jaNaLista.has(normalizar(n) + '|' + tipoManual));
+            if (lote.itens.length + novos.length > MAX_LOTE) { status('status-manual', `Até ${MAX_LOTE} obras por vez.`, 'erro'); return; }
+            for (const nome of novos) lote.itens.push({ id: ++lote.seq, nome, tipo: tipoManual, estado: 'aguardando' });
+            $('input-manual-nome').value = '';
+            lote.perguntando = true;
+            renderizarLote();
+            buscarDoLote();
+        }
+
+        /** Chama a API; se bater no limite (429), espera o tempo pedido e tenta de novo (o item mostra a espera). */
+        async function chamarDoLote(item, chamar) {
+            for (;;) {
+                const resposta = await chamar();
+                if (resposta.status !== 429 || item.estado === 'cancelada') return resposta;
+                const segundos = Math.min(300, Math.max(5, Number(resposta.headers.get('Retry-After')) || 30));
+                item.esperaAte = Date.now() + segundos * 1000;
+                renderizarLote();
+                await new Promise(r => setTimeout(r, segundos * 1000));
+                item.esperaAte = null;
+                if (item.estado === 'cancelada') return resposta;
+            }
+        }
+
+        function falhaDoLote(item, e) {
+            if (e.message === 'Sessão expirada') { lote.itens.forEach(i => { if (PENDENTES_LOTE.includes(i.estado)) i.estado = 'cancelada'; }); return; }
+            if (item.estado === 'cancelada') return;
+            item.estado = 'erro';
+            item.erro = e instanceof TypeError ? 'sem conexão com o servidor' : e.message;
+        }
+
+        async function buscarDoLote() {
+            if (lote.buscando) return;
+            lote.buscando = true;
             try {
-                const resposta = await api(`/api/adicionar/${tipoManual}?nome=${encodeURIComponent(nome)}`, { method: 'POST' });
-                const texto = await resposta.text();
-                const obra = texto ? JSON.parse(texto) : null;
-                if (resposta.ok && obra) {
-                    status('status-manual', `"${obra.titulo}" adicionado ao catálogo.`, 'ok');
-                    $('input-manual-nome').value = '';
-                    await carregarCatalogo();
-                } else {
-                    status('status-manual', 'Não encontramos essa obra. Confira o nome e o tipo.', 'erro');
+                let item;
+                while ((item = lote.itens.find(i => i.estado === 'aguardando'))) {
+                    item.estado = 'procurando';
+                    renderizarLote(); atualizarPerguntaLote();
+                    try {
+                        const params = new URLSearchParams({ nome: item.nome });
+                        if (item.tipo) params.set('tipo', item.tipo);
+                        const resposta = await chamarDoLote(item, () => api(`/api/buscar-opcoes?${params}`));
+                        if (item.estado === 'cancelada') continue;
+                        const dados = await resposta.json().catch(() => ({}));
+                        if (!resposta.ok) throw new Error(dados.erro || 'não deu para procurar agora');
+                        item.opcoes = dados.opcoes || [];
+                        const certa = item.opcoes.length ? escolhaSemDuvida(item) : null;
+                        if (!item.opcoes.length) item.estado = 'sem-resultado';
+                        else if (certa) escolherNoLote(item, certa, true);
+                        else item.estado = 'escolher';
+                    } catch (e) { falhaDoLote(item, e); }
+                    renderizarLote(); atualizarPerguntaLote();
                 }
-            } catch {
-                status('status-manual', 'Erro de conexão com o servidor.', 'erro');
-            } finally { btn.disabled = false; }
+            } finally {
+                lote.buscando = false;
+                atualizarPerguntaLote(); terminarLoteSePronto();
+            }
+        }
+
+        function escolherNoLote(item, opcao, automatica) {
+            item.escolha = opcao;
+            item.automatica = automatica;
+            if (opcao.jaNoAcervo) { item.estado = 'ja-estava'; item.titulo = opcao.tituloNoAcervo || opcao.titulo; return; }
+            item.estado = 'fila';
+            salvarDoLote();
+        }
+
+        async function salvarDoLote() {
+            if (lote.adicionando) return;
+            lote.adicionando = true;
+            try {
+                let item;
+                while ((item = lote.itens.find(i => i.estado === 'fila'))) {
+                    item.estado = 'adicionando';
+                    item.inicio = Date.now();
+                    renderizarLote();
+                    try {
+                        const o = item.escolha;
+                        const params = new URLSearchParams({ nome: o.titulo, tipo: o.tipo, painel: 'true' });
+                        if (o.ref) params.set('ref', o.ref);
+                        const resposta = await chamarDoLote(item, () => api(`/api/buscar-ou-adicionar?${params}`, { method: 'POST' }));
+                        if (resposta.status === 404) throw new Error('a fonte não devolveu mais essa obra');
+                        const dados = await resposta.json().catch(() => ({}));
+                        if (!resposta.ok || !dados.obra) throw new Error(dados.erro || 'não deu para salvar agora');
+                        item.titulo = dados.obra.titulo;
+                        item.estado = dados.adicionada ? 'adicionada' : 'ja-estava';
+                        if (!porTitulo.has(dados.obra.titulo)) porTitulo.set(dados.obra.titulo, dados.obra);
+                        if (dados.adicionada) lote.mudouCatalogo = true;
+                    } catch (e) { falhaDoLote(item, e); }
+                    renderizarLote();
+                }
+            } finally {
+                lote.adicionando = false;
+                terminarLoteSePronto();
+            }
+        }
+
+        async function terminarLoteSePronto() {
+            if (loteAtivo() || !lote.itens.length) return;
+            renderizarLote();
+            if (lote.mudouCatalogo) { lote.mudouCatalogo = false; await carregarCatalogo(); }
+        }
+
+        // O diálogo pergunta uma obra por vez, na ordem digitada; fechado (X, Esc, Voltar), as perguntas esperam na lista
+        function atualizarPerguntaLote() {
+            if (!lote.perguntando) return;
+            const aberto = !$('dialogo-fundo').hidden;
+            const marca = $('dialogo').querySelector('[data-lote-dialogo]')?.dataset.loteDialogo;
+            if (aberto && marca === undefined) return;   // outro diálogo na tela: a pergunta espera
+            const item = lote.itens.find(i => i.estado === 'escolher');
+            if (item) {
+                if (marca !== String(item.id)) mostrarPerguntaLote(item);
+                return;
+            }
+            const procurando = lote.itens.find(i => i.estado === 'procurando') || lote.itens.find(i => i.estado === 'aguardando');
+            if (procurando && aberto) {
+                if (marca !== 'espera-' + procurando.id) mostrarEsperaLote(procurando);
+            } else if (!procurando && aberto) {
+                fecharDialogo();
+            }
+        }
+
+        function passoDoLote(item) {
+            const faltam = lote.itens.filter(i => i.estado === 'escolher').length;
+            return lote.itens.length > 1
+                ? `Obra ${lote.itens.indexOf(item) + 1} de ${lote.itens.length}${faltam > 1 ? ` · ${faltam} esperando sua escolha` : ''}`
+                : 'Adicionar obra';
+        }
+
+        const aoFecharPerguntaLote = () => { lote.perguntando = false; renderizarLote(); };
+
+        function mostrarPerguntaLote(item) {
+            const uma = item.opcoes.length === 1;
+            abrirDialogo(`
+                <p class="lote-passo">${esc(passoDoLote(item))}</p>
+                <h2 id="dialogo-titulo" data-lote-dialogo="${item.id}">${uma ? `É esta a “${esc(item.nome)}”?` : `Qual “${esc(item.nome)}” você quer?`}</h2>
+                <p>${uma ? 'Confira antes de adicionar ao catálogo.' : 'Encontramos mais de uma obra parecida. Escolha a certa: só ela entra no catálogo.'}${lote.adicionando ? ' Enquanto isso, as já escolhidas continuam sendo salvas.' : ''}</p>
+                <div class="escolha-midia">${opcoesMidiaHTML(item.opcoes, 'data-lote-escolha', 'Já está no catálogo')}</div>
+                <div class="dialogo-acoes">
+                    <button type="button" class="btn" onclick="fecharDialogo()">Escolher depois</button>
+                    <button type="button" class="btn" data-lote-pular>${uma ? 'Não é esta: pular' : 'Nenhuma destas: pular'}</button>
+                </div>`, aoFecharPerguntaLote);
+        }
+
+        function mostrarEsperaLote(item) {
+            abrirDialogo(`
+                <p class="lote-passo">${esc(passoDoLote(item))}</p>
+                <h2 id="dialogo-titulo" data-lote-dialogo="espera-${item.id}">Procurando a próxima…</h2>
+                <p class="lote-espera"><span class="girando" aria-hidden="true"></span><span>Procurando “${esc(item.nome)}” na web.</span></p>
+                <div class="dialogo-acoes"><button type="button" class="btn" onclick="fecharDialogo()">Escolher depois</button></div>`, aoFecharPerguntaLote);
+        }
+
+        function retomarPerguntasLote(id) {
+            const item = lote.itens.find(i => i.estado === 'escolher' && (id == null || i.id === id));
+            if (!item) return;
+            lote.perguntando = true;
+            mostrarPerguntaLote(item);
+        }
+
+        function cancelarLote() {
+            lote.itens.forEach(i => { if (['aguardando', 'procurando', 'escolher', 'fila'].includes(i.estado)) i.estado = 'cancelada'; });
+            if ($('dialogo').querySelector('[data-lote-dialogo]')) fecharDialogo();
+            renderizarLote();
+            terminarLoteSePronto();
+        }
+
+        $('dialogo').addEventListener('click', e => {
+            const escolha = e.target.closest('[data-lote-escolha]');
+            const pular = e.target.closest('[data-lote-pular]');
+            if (!escolha && !pular) return;
+            const id = Number($('dialogo').querySelector('[data-lote-dialogo]')?.dataset.loteDialogo);
+            const item = lote.itens.find(i => i.id === id);
+            if (!item || item.estado !== 'escolher') return;
+            if (pular) item.estado = 'pulada';
+            else escolherNoLote(item, item.opcoes[Number(escolha.dataset.loteEscolha)], false);
+            renderizarLote(); atualizarPerguntaLote(); terminarLoteSePronto();
+        });
+
+        $('lote-lista').addEventListener('click', e => {
+            const abrir = e.target.closest('[data-lote-abrir]');
+            if (abrir) { abrirModal(abrir.dataset.loteAbrir); return; }
+            const escolher = e.target.closest('[data-lote-escolher]');
+            if (escolher) retomarPerguntasLote(Number(escolher.dataset.loteEscolher));
+        });
+
+        function textoEstadoLote(i) {
+            // (um span só por texto: no flex, cada pedaço solto ganharia o espaçamento do gap)
+            if (i.esperaAte) return `<span>Limite: esperando <span data-lote-ate="${i.esperaAte}">${Math.max(0, Math.ceil((i.esperaAte - Date.now()) / 1000))}</span> s</span>`;
+            if (i.estado === 'adicionando') return `<span class="girando" aria-hidden="true"></span><span>${ESTADOS_LOTE.adicionando} <span data-lote-desde="${i.inicio}">${Math.round((Date.now() - i.inicio) / 1000)}</span> s</span>`;
+            if (i.estado === 'procurando') return `<span class="girando" aria-hidden="true"></span>${ESTADOS_LOTE.procurando}`;
+            if (i.estado === 'escolher') return `<button type="button" class="link-btn" data-lote-escolher="${i.id}">Escolher</button>`;
+            if (i.estado === 'erro') return `<span title="${esc(i.erro || '')}">Erro</span>`;
+            return ESTADOS_LOTE[i.estado] || esc(i.estado);
+        }
+
+        function renderizarLote() {
+            const lista = $('lote-lista');
+            const ativo = loteAtivo();
+            lista.hidden = !lote.itens.length;
+            lista.innerHTML = lote.itens.map(i => {
+                const titulo = i.titulo || i.escolha?.titulo;
+                const escolha = titulo ? `${esc(titulo)}${i.escolha?.ano ? ` (${esc(i.escolha.ano)})` : ''} · ${NOME_TIPO[i.escolha?.tipo] || ''}` : '';
+                const abrir = (i.estado === 'adicionada' || i.estado === 'ja-estava') && i.titulo
+                    ? `<button type="button" class="link-btn" data-lote-abrir="${esc(i.titulo)}">${escolha}</button>`
+                    : escolha ? `<small>${escolha}</small>` : '';
+                // O motivo do erro e a escolha automática aparecem por extenso abaixo do nome (o status fica curto)
+                const nota = i.estado === 'erro' ? `<small>${esc(i.erro || 'falhou')}</small>`
+                    : i.automatica && i.estado !== 'cancelada' ? '<small>Nome idêntico: escolhida sem perguntar</small>' : '';
+                return `<li class="lote-item ${esc(i.estado)}">
+                    <span class="lote-nome"><b>${esc(i.nome)}</b>${abrir}${nota}</span>
+                    <span class="lote-estado" title="${esc(DICAS_LOTE[i.estado] || '')}">${textoEstadoLote(i)}</span>
+                </li>`;
+            }).join('');
+
+            const conta = e => lote.itens.filter(i => i.estado === e).length;
+            const escolher = conta('escolher');
+            $('lote-topo').hidden = !ativo;
+            $('lote-escolher').hidden = !escolher || (lote.perguntando && !$('dialogo-fundo').hidden);
+            $('btn-manual').textContent = ativo ? 'Adicionar à fila' : 'Procurar e adicionar';
+            if (ativo) {
+                const prontas = lote.itens.length - lote.itens.filter(i => PENDENTES_LOTE.includes(i.estado)).length;
+                status('status-manual', `${prontas} de ${lote.itens.length} prontas${escolher ? ` · ${escolher} esperando sua escolha` : ''}`);
+            } else if (lote.itens.length) {
+                const partes = [['adicionada', 'adicionada', 'adicionadas'], ['ja-estava', 'já estava no catálogo', 'já estavam no catálogo'],
+                    ['pulada', 'pulada', 'puladas'], ['sem-resultado', 'não encontrada', 'não encontradas'], ['erro', 'com erro', 'com erro'],
+                    ['cancelada', 'cancelada', 'canceladas']]
+                    .map(([e, um, varios]) => [conta(e), um, varios]).filter(([n]) => n).map(([n, um, varios]) => `${n} ${n === 1 ? um : varios}`);
+                const problema = conta('erro') || conta('sem-resultado');
+                status('status-manual', `Pronto: ${partes.join(', ')}.`, problema && !conta('adicionada') ? 'erro' : 'ok');
+            }
+
+            // Contadores de segundos (sem redesenhar a lista, que tiraria o foco dos botões)
+            const precisaRelogio = lote.itens.some(i => i.estado === 'adicionando' || i.esperaAte);
+            if (precisaRelogio && !lote.relogio) {
+                lote.relogio = setInterval(() => {
+                    document.querySelectorAll('[data-lote-desde]').forEach(el => { el.textContent = Math.round((Date.now() - Number(el.dataset.loteDesde)) / 1000); });
+                    document.querySelectorAll('[data-lote-ate]').forEach(el => { el.textContent = Math.max(0, Math.ceil((Number(el.dataset.loteAte) - Date.now()) / 1000)); });
+                }, 1000);
+            } else if (!precisaRelogio && lote.relogio) {
+                clearInterval(lote.relogio);
+                lote.relogio = null;
+            }
         }
 
         async function popularBanco() {
@@ -3709,9 +4012,12 @@
 
         // ================= DIÁLOGOS =================
         let focoAntesDoDialogo = null;
-        function abrirDialogo(html) {
+        let aoFecharDialogo = null;
+        /** aoFechar: chamado quando este diálogo fechar, por qualquer caminho (X, Esc, fundo, Voltar ou pelo código). */
+        function abrirDialogo(html, aoFechar = null) {
             const jaAberto = !$('dialogo-fundo').hidden;
             if (!jaAberto) focoAntesDoDialogo = document.activeElement;
+            aoFecharDialogo = aoFechar;
             $('dialogo').innerHTML = `<button type="button" class="modal-fechar" onclick="fecharDialogo()" aria-label="Fechar">${ICONES.fechar}</button>${html}`;
             $('dialogo-fundo').hidden = false;
             document.body.classList.add('travado');
@@ -3726,6 +4032,9 @@
             if (!$('modal-fundo').classList.contains('aberto') && !bv.ativo) document.body.classList.remove('travado');
             focoAntesDoDialogo?.focus?.({ preventScroll: true });
             if (history.state?.omni && history.state.dialogo) voltarNoHistorico(1);
+            const aoFechar = aoFecharDialogo;
+            aoFecharDialogo = null;
+            aoFechar?.();
             return true;
         }
         $('dialogo-fundo').addEventListener('click', e => { if (e.target === $('dialogo-fundo')) fecharDialogo(); });
